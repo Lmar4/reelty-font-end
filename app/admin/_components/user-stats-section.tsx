@@ -19,7 +19,8 @@ import { trpc } from "@/lib/trpc";
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 export default function UserStatsSection() {
-  const { data: userStats, isLoading } = trpc.admin.getUserStats.useQuery();
+  const { data: userStats, isLoading } =
+    trpc.adminPanel.getUserStats.useQuery();
 
   if (isLoading) {
     return <div>Loading user statistics...</div>;

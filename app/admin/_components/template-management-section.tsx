@@ -42,7 +42,7 @@ export default function TemplateManagementSection() {
     data: templates,
     isLoading,
     refetch,
-  } = trpc.admin.getTemplates.useQuery(undefined, {
+  } = trpc.adminPanel.getTemplates.useQuery(undefined, {
     onError: (error) => {
       toast({
         title: "Error",
@@ -52,7 +52,7 @@ export default function TemplateManagementSection() {
     },
   });
 
-  const createTemplate = trpc.admin.createTemplate.useMutation({
+  const createTemplate = trpc.adminPanel.createTemplate.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
@@ -70,7 +70,7 @@ export default function TemplateManagementSection() {
     },
   });
 
-  const updateTemplate = trpc.admin.updateTemplate.useMutation({
+  const updateTemplate = trpc.adminPanel.updateTemplate.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
@@ -87,7 +87,7 @@ export default function TemplateManagementSection() {
     },
   });
 
-  const deleteTemplate = trpc.admin.deleteTemplate.useMutation({
+  const deleteTemplate = trpc.adminPanel.deleteTemplate.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",

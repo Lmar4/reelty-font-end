@@ -32,12 +32,8 @@ interface SystemStats {
 }
 
 export default function SystemStatsSection() {
-  const { data: systemStats, isLoading } = trpc.admin.getSystemStats.useQuery(
-    undefined,
-    {
-      refetchInterval: 30000, // Refresh every 30 seconds
-    }
-  );
+  const { data: systemStats, isLoading } =
+    trpc.adminPanel.getSystemStats.useQuery();
 
   if (isLoading) {
     return <div>Loading system statistics...</div>;

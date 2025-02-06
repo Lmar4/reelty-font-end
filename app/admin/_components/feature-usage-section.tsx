@@ -61,15 +61,16 @@ export default function FeatureUsageSection() {
     }
   };
 
-  const { data: featureUsage, isLoading } = trpc.admin.getFeatureUsage.useQuery(
-    {
-      startDate: dateRange.from!,
-      endDate: dateRange.to!,
-    },
-    {
-      enabled: !!(dateRange.from && dateRange.to),
-    }
-  );
+  const { data: featureUsage, isLoading } =
+    trpc.adminPanel.getFeatureUsage.useQuery(
+      {
+        startDate: dateRange.from!,
+        endDate: dateRange.to!,
+      },
+      {
+        enabled: !!(dateRange.from && dateRange.to),
+      }
+    );
 
   if (isLoading) {
     return <div>Loading feature usage statistics...</div>;

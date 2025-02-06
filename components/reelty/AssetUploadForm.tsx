@@ -35,7 +35,7 @@ export function AssetUploadForm({ onSuccess }: AssetUploadFormProps) {
   const { toast } = useToast();
 
   const getPresignedUrlMutation = trpc.storage.getPresignedUrl.useMutation();
-  const createAssetMutation = trpc.admin.createAsset.useMutation();
+  const createAssetMutation = trpc.adminPanel.createAsset.useMutation();
 
   // Validate Lottie file when selected
   const validateLottieFile = async (file: File) => {

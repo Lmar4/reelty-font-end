@@ -49,7 +49,7 @@ export default function AssetManagementSection() {
     data: assets,
     isLoading,
     refetch,
-  } = trpc.admin.getAssets.useQuery(
+  } = trpc.adminPanel.getAssets.useQuery(
     { type: selectedType, includeInactive },
     {
       onError: (error) => {
@@ -62,7 +62,7 @@ export default function AssetManagementSection() {
     }
   );
 
-  const createAsset = trpc.admin.createAsset.useMutation({
+  const createAsset = trpc.adminPanel.createAsset.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
@@ -80,7 +80,7 @@ export default function AssetManagementSection() {
     },
   });
 
-  const updateAsset = trpc.admin.updateAsset.useMutation({
+  const updateAsset = trpc.adminPanel.updateAsset.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
@@ -97,7 +97,7 @@ export default function AssetManagementSection() {
     },
   });
 
-  const deleteAsset = trpc.admin.deleteAsset.useMutation({
+  const deleteAsset = trpc.adminPanel.deleteAsset.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
