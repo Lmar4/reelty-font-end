@@ -24,7 +24,7 @@ const getBaseUrl = () => {
 
 export const metadata: Metadata = {
   title: "Reelty App",
-  description: "Real Estate Application",
+  description: "Real Estate Management Platform",
 };
 
 export default withTRPC<AppRouter>({
@@ -47,7 +47,9 @@ export default withTRPC<AppRouter>({
           <CSPostHogProvider>
             <AuthProvider>
               <TRPCProvider>
-                <ToastProvider>{children}</ToastProvider>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
               </TRPCProvider>
             </AuthProvider>
           </CSPostHogProvider>
