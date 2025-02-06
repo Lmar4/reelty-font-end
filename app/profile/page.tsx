@@ -1,22 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/reelty/DashboardLayout";
 import Form from "@/components/common/Form";
-import { useToast } from "@/components/common/Toast";
+import DashboardLayout from "@/components/reelty/DashboardLayout";
+import { useUserData } from "@/hooks/useUserData";
+import { trpc } from "@/lib/trpc";
 import {
   userProfileSchema,
   type UserProfileFormData,
 } from "@/schemas/userProfileSchema";
-import { useUserData } from "@/hooks/useUserData";
-import { trpc } from "@/lib/trpc";
+import { TRPCClientErrorLike } from "@trpc/client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
-import { TRPCClientError, TRPCClientErrorLike } from "@trpc/client";
 
 export default function Profile() {
   const router = useRouter();
-  const { showToast } = useToast();
   const { data: userData, isLoading, error } = useUserData();
   const [isSubmitting, setIsSubmitting] = useState(false);
 

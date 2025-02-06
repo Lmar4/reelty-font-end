@@ -1,15 +1,14 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/reelty/DashboardLayout";
 import FileUpload from "@/components/reelty/FileUpload";
+import { ListingCard } from "@/components/reelty/ListingCard";
 import NewListingModal from "@/components/reelty/NewListingModal";
 import { useUserData } from "@/hooks/useUserData";
 import { trpc } from "@/lib/trpc";
-import { ListingCard } from "@/components/reelty/ListingCard";
-import type { RouterOutput } from "@/types/trpc";
+import type { ListingOutput, RouterOutput } from "@/types/trpc";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 type Property = RouterOutput["property"]["getUserListings"][number];
 
@@ -42,6 +41,8 @@ export default function Dashboard() {
     setIsModalOpen(false);
     setSelectedFiles([]);
   };
+
+
 
   return (
     <DashboardLayout>

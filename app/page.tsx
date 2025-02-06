@@ -1,18 +1,11 @@
 "use client";
 
-import { trpc } from "../lib/trpc";
-import Image from "next/image";
-import HomeHeader from "@/components/reelty/HomeHeader";
 import FileUpload from "@/components/reelty/FileUpload";
+import HomeHeader from "@/components/reelty/HomeHeader";
+import Image from "next/image";
 
 export default function Home() {
-  const { data: properties, isLoading } = trpc.property.getProperties.useQuery({
-    limit: 10,
-  });
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+  
 
   return (
     <div className='min-h-screen bg-white'>
@@ -176,7 +169,7 @@ export default function Home() {
 
         {/* Input Section */}
         <div className='max-w-[800px] mx-auto px-4'>
-          <FileUpload />
+          <FileUpload onFilesSelected={() => {}} />
           <p className='text-[14px] text-[#6B7280] mt-3 md:mt-8 text-center'>
             Try for free. No credit card required.
           </p>

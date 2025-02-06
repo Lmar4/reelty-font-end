@@ -27,13 +27,13 @@ export default function Billing() {
           </button>
         </div>
 
-        {/* Invoices Section */}
+        {/* Invoices Section
         <div>
           <h2 className='text-[22px] font-semibold text-[#1c1c1c] mb-6'>
             Invoices
           </h2>
           <div className='text-[15px] text-[#6B7280]'>No invoices.</div>
-        </div>
+        </div> */}
 
         <PricingModal
           isOpen={isPricingOpen}

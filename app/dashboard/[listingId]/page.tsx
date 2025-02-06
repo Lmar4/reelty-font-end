@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/components/common/Toast";
+import AdditionalPhotosModal from "@/components/modals/AdditionalPhotosModal";
+import PricingModal from "@/components/modals/PricingModal";
+import RegenerateModal from "@/components/modals/RegenerateModal";
 import DashboardLayout from "@/components/reelty/DashboardLayout";
 import { useUserData } from "@/hooks/useUserData";
 import { trpc } from "@/lib/trpc";
-import { useToast } from "@/components/common/Toast";
-import RegenerateModal from "@/components/modals/RegenerateModal";
-import PricingModal from "@/components/modals/PricingModal";
-import AdditionalPhotosModal from "@/components/modals/AdditionalPhotosModal";
-import type { RouterOutput } from "@/types/trpc";
+import type { PropertyOutput, RouterOutput } from "@/types/trpc";
+import { useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-type VideoJob = RouterOutput["jobs"]["getListingJobs"][number];
+
 
 export default function ListingDetail() {
   const params = useParams();
@@ -76,12 +76,15 @@ export default function ListingDetail() {
     setIsPricingModalOpen(true);
   };
 
+  const property = listing || {} as PropertyOutput;
+  const jobs = videoJobs || [];
+
   return (
     <DashboardLayout>
       <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
         <div className='flex justify-between items-center mb-8'>
           <h1 className='text-[32px] font-semibold text-[#1c1c1c]'>
-            {listing?.address || "Loading..."}
+            {property?.address || "Loading..."}
           </h1>
           {!isPaidUser && (
             <button
@@ -94,7 +97,7 @@ export default function ListingDetail() {
         </div>
 
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
-          {videoJobs?.map((job) => (
+          {jobs.map((job) => (
             <div
               key={job.id}
               className={`relative rounded-lg overflow-hidden ${
@@ -111,7 +114,10 @@ export default function ListingDetail() {
               />
               <div className='p-4 bg-white'>
                 <h3 className='text-lg font-semibold mb-2'>
-                  {job.template.charAt(0).toUpperCase() + job.template.slice(1)}
+                  {job.template 
+                    ? job.template.charAt(0).toUpperCase() + job.template.slice(1)
+                    : 'Basic'
+                  }
                 </h3>
                 <div className='flex justify-between items-center'>
                   <div className='flex items-center gap-2'>
@@ -161,8 +167,8 @@ export default function ListingDetail() {
         <RegenerateModal
           isOpen={isRegenerateModalOpen}
           onClose={() => setIsRegenerateModalOpen(false)}
-          listingId={listingId}
-          template='crescendo'
+          property={property}
+          job={jobs[0]}
           onSuccess={() => {
             queryClient.invalidateQueries({
               queryKey: ["jobs", "getListingJobs", { listingId }],
@@ -186,7 +192,7 @@ export default function ListingDetail() {
         <AdditionalPhotosModal
           isOpen={isAdditionalPhotosModalOpen}
           onClose={() => setIsAdditionalPhotosModalOpen(false)}
-          listingId={listingId}
+          property={property}
           onSuccess={() => {
             queryClient.invalidateQueries({
               queryKey: ["jobs", "getListingJobs", { listingId }],
