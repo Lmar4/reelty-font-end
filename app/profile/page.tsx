@@ -11,6 +11,8 @@ import {
 } from "@/schemas/userProfileSchema";
 import { useUserData } from "@/hooks/useUserData";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { TRPCClientError, TRPCClientErrorLike } from "@trpc/client";
 
 export default function Profile() {
   const router = useRouter();
@@ -18,14 +20,14 @@ export default function Profile() {
   const { data: userData, isLoading, error } = useUserData();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const updateProfileMutation = trpc.userProfile.update.useMutation({
+  const updateProfileMutation = trpc.user.updateUser.useMutation({
     onSuccess: () => {
-      showToast("Profile updated successfully", "success");
+      toast.success("Profile updated successfully");
       router.refresh();
       setIsSubmitting(false);
     },
-    onError: (error) => {
-      showToast(error.message || "Failed to update profile", "error");
+    onError: (error: TRPCClientErrorLike<any>) => {
+      toast.error(error.message || "Failed to update profile");
       setIsSubmitting(false);
     },
   });
@@ -34,9 +36,9 @@ export default function Profile() {
     try {
       setIsSubmitting(true);
       await updateProfileMutation.mutateAsync({
+        id: userData?.id || "",
         name: data.name,
         email: data.email,
-        phone: data.phone,
       });
     } catch (error) {
       // Error handled by mutation callbacks

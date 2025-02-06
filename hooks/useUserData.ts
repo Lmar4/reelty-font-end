@@ -5,8 +5,8 @@ import { useAuth } from "./useAuth";
 export function useUserData() {
   const { user } = useAuth();
 
-  return trpc.getUser.useQuery(
-    { userId: user?.uid || "" },
+  return trpc.user.getUser.useQuery(
+    { id: user?.uid || "" },
     { enabled: !!user?.uid }
   );
 }

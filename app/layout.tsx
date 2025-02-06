@@ -6,23 +6,40 @@ import ErrorBoundary from "@/components/common/ErrorBoundary";
 import { ToastProvider } from "@/components/common/Toast";
 import { TRPCProvider } from "@/providers/TRPCProvider";
 import { CSPostHogProvider } from "@/providers/Posthog";
-import { trpc } from "../lib/trpc";
+import { withTRPC } from "@trpc/next";
+import { httpBatchLink } from "@trpc/client";
+import { AppRouter } from "../../reelty_backend/src/trpc/router";
+import superjson from "superjson";
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
 });
 
+const getBaseUrl = () => {
+  if (typeof window !== "undefined") return ""; // browser should use relative url
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // SSR should use vercel url
+  return `http://localhost:${process.env.PORT ?? 4000}`; // dev SSR should use localhost
+};
+
 export const metadata: Metadata = {
   title: "Reelty App",
   description: "Real Estate Application",
 };
 
-export default trpc.withTRPC(function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default withTRPC<AppRouter>({
+  config() {
+    return {
+      links: [
+        httpBatchLink({
+          url: `${getBaseUrl()}/api/trpc`,
+        }),
+      ],
+      transformer: superjson,
+    };
+  },
+  ssr: false,
+})(function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang='en'>
       <body className={`${inter.variable} antialiased`}>

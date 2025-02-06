@@ -8,6 +8,9 @@ import { useUserData } from "@/hooks/useUserData";
 import { trpc } from "@/lib/trpc";
 import { useToast } from "@/components/common/Toast";
 import RegenerateModal from "@/components/modals/RegenerateModal";
+import type { RouterOutput } from "@/types/trpc";
+
+type VideoJob = RouterOutput["jobs"]["getListingJobs"][number];
 
 export default function ListingDetail() {
   const params = useParams();
@@ -17,19 +20,19 @@ export default function ListingDetail() {
   const queryClient = useQueryClient();
 
   const { data: userData } = useUserData();
-  const { data: listing } = trpc.listings.getById.useQuery(
+  const { data: listing } = trpc.property.getById.useQuery(
     { id: listingId },
     { enabled: !!listingId }
   );
 
-  const { data: videoJobs } = trpc.listings.getVideoJobs.useQuery(
+  const { data: videoJobs } = trpc.jobs.getListingJobs.useQuery(
     { listingId },
     { enabled: !!listingId }
   );
 
   const [downloadJobId, setDownloadJobId] = useState<string>("");
   const { data: downloadUrl, refetch: refetchDownloadUrl } =
-    trpc.listings.getVideoDownloadUrl.useQuery(
+    trpc.jobs.getVideoDownloadUrl.useQuery(
       { jobId: downloadJobId },
       { enabled: false }
     );
@@ -71,10 +74,10 @@ export default function ListingDetail() {
               }`}
             >
               <video
-                src={job.previewUrl || undefined}
+                src={job.outputFile || undefined}
                 className='w-full aspect-video object-cover'
                 controls
-                poster={listing?.thumbnailUrl || undefined}
+                poster={job.listing?.photos?.[0]?.filePath}
               />
               <div className='p-4 bg-white'>
                 <h3 className='text-lg font-semibold mb-2'>

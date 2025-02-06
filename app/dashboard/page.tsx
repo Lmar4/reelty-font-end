@@ -8,6 +8,10 @@ import FileUpload from "@/components/reelty/FileUpload";
 import NewListingModal from "@/components/reelty/NewListingModal";
 import { useUserData } from "@/hooks/useUserData";
 import { trpc } from "@/lib/trpc";
+import { ListingCard } from "@/components/reelty/ListingCard";
+import type { RouterOutput } from "@/types/trpc";
+
+type Property = RouterOutput["property"]["getUserListings"][number];
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,7 +19,7 @@ export default function Dashboard() {
 
   const { data: userData, isLoading: isUserLoading } = useUserData();
   const { data: listings, isLoading: isListingsLoading } =
-    trpc.users.listings.useQuery(
+    trpc.property.getUserListings.useQuery(
       { userId: userData?.id || "" },
       { enabled: !!userData?.id }
     );
@@ -94,67 +98,9 @@ export default function Dashboard() {
 
         {/* Listings Grid */}
         {listings && listings.length > 0 && (
-          <div className='grid grid-cols-2 lg:grid-cols-4 gap-8'>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
             {listings.map((listing) => (
-              <div key={listing.id}>
-                <Link href={`/dashboard/${listing.id}`} className='block'>
-                  <div className='relative rounded-2xl overflow-hidden mb-4 group'>
-                    <Image
-                      src={listing.thumbnailUrl || "/images/placeholder.jpg"}
-                      alt={listing.address}
-                      width={800}
-                      height={600}
-                      className='w-full aspect-[4/3] object-cover'
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setIsModalOpen(true);
-                      }}
-                      className='absolute top-2 md:top-4 right-2 md:right-4 w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg flex items-center justify-center hover:bg-white/90 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100'
-                    >
-                      <svg
-                        width='16'
-                        height='16'
-                        className='md:hidden'
-                        viewBox='0 0 24 24'
-                        fill='none'
-                        stroke='black'
-                        strokeWidth='2'
-                      >
-                        <circle cx='12' cy='12' r='1' />
-                        <circle cx='12' cy='5' r='1' />
-                        <circle cx='12' cy='19' r='1' />
-                      </svg>
-                      <svg
-                        width='20'
-                        height='20'
-                        className='hidden md:block'
-                        viewBox='0 0 24 24'
-                        fill='none'
-                        stroke='black'
-                        strokeWidth='2'
-                      >
-                        <circle cx='12' cy='12' r='1' />
-                        <circle cx='12' cy='5' r='1' />
-                        <circle cx='12' cy='19' r='1' />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className='flex items-start justify-between gap-4'>
-                    <div className='min-w-0'>
-                      <h3 className='text-[14px] md:text-[18px] font-bold text-[#1c1c1c] leading-tight truncate'>
-                        {listing.address}
-                      </h3>
-                      <p className='text-[13px] text-[#1c1c1c]/60 mt-1'>
-                        {listing.status === "processing"
-                          ? "Processing..."
-                          : "Ready"}
-                      </p>
-                    </div>
-                  </div>
-                </Link>
-              </div>
+              <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
         )}

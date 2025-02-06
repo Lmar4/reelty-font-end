@@ -2,28 +2,26 @@
 
 import { useState } from "react";
 import DashboardLayout from "../../components/reelty/DashboardLayout";
-import { useToast } from "../../components/common/Toast";
 import { useUserData } from "../../hooks/useUserData";
-import { trpc } from "../../lib/trpc";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { TRPCClientErrorLike } from "@trpc/client";
+import type { RouterOutput } from "@/types/trpc";
+
+type SubscriptionTier = RouterOutput["subscription"]["getTiers"][number];
 
 export default function Subscriptions() {
-  const { showToast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const { data: userData } = useUserData();
 
-  const { data: subscriptionTiers } = trpc.getSubscriptionTiers.useQuery();
-  const updateSubscriptionMutation = trpc.updateSubscription.useMutation({
+  const { data: subscriptionTiers } = trpc.subscription.getTiers.useQuery();
+  const updateSubscriptionMutation = trpc.subscription.updateTier.useMutation({
     onSuccess: () => {
-      showToast("Subscription updated successfully", "success");
+      toast.success("Subscription updated successfully");
       setIsUpdating(false);
     },
-    onError: (error) => {
-      showToast(
-        error instanceof Error
-          ? error.message
-          : "Failed to update subscription",
-        "error"
-      );
+    onError: (error: TRPCClientErrorLike<any>) => {
+      toast.error(error.message || "Failed to update subscription");
       setIsUpdating(false);
     },
   });
@@ -32,8 +30,8 @@ export default function Subscriptions() {
     try {
       setIsUpdating(true);
       await updateSubscriptionMutation.mutateAsync({
-        userId: userData!.id,
-        subscriptionTier: tierId,
+        userId: userData?.id || "",
+        tierId,
       });
     } catch (error) {
       // Error handled by mutation callbacks
