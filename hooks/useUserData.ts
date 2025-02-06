@@ -1,0 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "./useAuth";
+
+export function useUserData() {
+  const { user } = useAuth();
+
+  return trpc.getUser.useQuery(
+    { userId: user?.uid || "" },
+    { enabled: !!user?.uid }
+  );
+}
