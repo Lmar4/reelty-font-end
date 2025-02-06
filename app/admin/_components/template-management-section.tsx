@@ -32,19 +32,19 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
-interface Template {
+type SafeTemplate = {
   id: string;
   name: string;
   description: string;
-  sequence: any;
-  durations: any;
+  sequence: unknown;
+  durations: unknown;
   musicPath: string | null;
   musicVolume: number | null;
   subscriptionTier: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-}
+};
 
 export default function TemplateManagementSection() {
   const [isOpen, setIsOpen] = useState(false);
@@ -236,37 +236,39 @@ export default function TemplateManagementSection() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {templates?.map((template) => (
-              <TableRow key={template.id}>
-                <TableCell>{template.name}</TableCell>
-                <TableCell>{template.description}</TableCell>
-                <TableCell>{template.subscriptionTier}</TableCell>
-                <TableCell>
-                  <Switch
-                    checked={template.isActive}
-                    onCheckedChange={() =>
-                      updateTemplate.mutate({
-                        id: template.id,
-                        isActive: !template.isActive,
-                      })
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant='destructive'
-                    size='sm'
-                    onClick={() => deleteTemplate.mutate({ id: template.id })}
-                    disabled={deleteTemplate.isLoading}
-                  >
-                    {deleteTemplate.isLoading && (
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                    )}
-                    Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {((templates as unknown as SafeTemplate[]) ?? []).map(
+              (template) => (
+                <TableRow key={template.id}>
+                  <TableCell>{template.name}</TableCell>
+                  <TableCell>{template.description}</TableCell>
+                  <TableCell>{template.subscriptionTier}</TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={template.isActive}
+                      onCheckedChange={() =>
+                        updateTemplate.mutate({
+                          id: template.id,
+                          isActive: !template.isActive,
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant='destructive'
+                      size='sm'
+                      onClick={() => deleteTemplate.mutate({ id: template.id })}
+                      disabled={deleteTemplate.isLoading}
+                    >
+                      {deleteTemplate.isLoading && (
+                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                      )}
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            )}
           </TableBody>
         </Table>
       )}

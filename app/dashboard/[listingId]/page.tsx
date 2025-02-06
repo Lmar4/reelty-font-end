@@ -12,7 +12,37 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-
+type VideoJob = {
+  id: string;
+  listingId: string;
+  userId: string;
+  status: string;
+  template: string | null;
+  outputFile: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+  inputFiles: any;
+  listing: {
+    id: string;
+    userId: string;
+    address: string;
+    description: string | null;
+    status: string;
+    photoLimit: number;
+    createdAt: string;
+    updatedAt: string;
+    photos: Array<{
+      id: string;
+      userId: string;
+      listingId: string;
+      filePath: string;
+      order: number;
+      createdAt: string;
+      updatedAt: string;
+    }>;
+  };
+};
 
 export default function ListingDetail() {
   const params = useParams();
@@ -77,7 +107,8 @@ export default function ListingDetail() {
   };
 
   const property = listing || {} as PropertyOutput;
-  const jobs = videoJobs || [];
+  // Double type assertion to handle deep type instantiation
+  const jobs = (videoJobs as unknown as VideoJob[]) || [];
 
   return (
     <DashboardLayout>
@@ -167,8 +198,8 @@ export default function ListingDetail() {
         <RegenerateModal
           isOpen={isRegenerateModalOpen}
           onClose={() => setIsRegenerateModalOpen(false)}
-          property={property}
-          job={jobs[0]}
+          property={property as any}
+          job={(jobs[0] as unknown as VideoJob) || null}
           onSuccess={() => {
             queryClient.invalidateQueries({
               queryKey: ["jobs", "getListingJobs", { listingId }],

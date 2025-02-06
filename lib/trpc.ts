@@ -10,6 +10,15 @@ const getBaseUrl = () => {
   return `http://localhost:${process.env.PORT ?? 4000}`; // dev SSR should use localhost
 };
 
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: false,
+    },
+  },
+});
+
 export const trpc = createTRPCNext<AppRouter>({
   config() {
     return {
@@ -26,14 +35,7 @@ export const trpc = createTRPCNext<AppRouter>({
           },
         }),
       ],
-      queryClient: new QueryClient({
-        defaultOptions: {
-          queries: {
-            refetchOnWindowFocus: false,
-            retry: false,
-          },
-        },
-      }),
+      queryClient,
     };
   },
   ssr: false,

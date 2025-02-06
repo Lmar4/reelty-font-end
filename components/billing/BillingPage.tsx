@@ -3,9 +3,15 @@
 import { useToast } from "@/components/common/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import type { RouterOutput } from "@/types/trpc";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+
+type SubscriptionTier = {
+  id: string;
+  description: string;
+  pricing: number;
+  features: string[];
+};
 
 export default function BillingPage() {
   const { showToast } = useToast();
@@ -61,7 +67,7 @@ export default function BillingPage() {
         Subscription Plans
       </h1>
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
-        {tiers?.map((tier) => (
+        {(tiers as unknown as SubscriptionTier[])?.map((tier) => (
           <div
             key={tier.id}
             className='bg-white rounded-lg shadow-lg overflow-hidden'
