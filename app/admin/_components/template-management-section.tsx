@@ -31,26 +31,39 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import type { TemplateOutput } from "@/types/trpc";
+
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  sequence: any;
+  durations: any;
+  musicPath: string | null;
+  musicVolume: number | null;
+  subscriptionTier: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function TemplateManagementSection() {
   const [isOpen, setIsOpen] = useState(false);
   const [includeInactive, setIncludeInactive] = useState(false);
   const { toast } = useToast();
 
-  const {
-    data: templates,
-    isLoading,
-    refetch,
-  } = trpc.adminPanel.getTemplates.useQuery(undefined, {
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const utils = trpc.useContext();
+  const { data: templates, isLoading } = trpc.adminPanel.getTemplates.useQuery(
+    undefined,
+    {
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      },
+    }
+  );
 
   const createTemplate = trpc.adminPanel.createTemplate.useMutation({
     onSuccess: () => {
@@ -59,7 +72,7 @@ export default function TemplateManagementSection() {
         description: "Template created successfully",
       });
       setIsOpen(false);
-      refetch();
+      utils.adminPanel.getTemplates.invalidate();
     },
     onError: (error) => {
       toast({
@@ -76,7 +89,7 @@ export default function TemplateManagementSection() {
         title: "Success",
         description: "Template updated successfully",
       });
-      refetch();
+      utils.adminPanel.getTemplates.invalidate();
     },
     onError: (error) => {
       toast({
@@ -93,7 +106,7 @@ export default function TemplateManagementSection() {
         title: "Success",
         description: "Template deleted successfully",
       });
-      refetch();
+      utils.adminPanel.getTemplates.invalidate();
     },
     onError: (error) => {
       toast({
@@ -223,7 +236,7 @@ export default function TemplateManagementSection() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {templates?.map((template: TemplateOutput) => (
+            {templates?.map((template) => (
               <TableRow key={template.id}>
                 <TableCell>{template.name}</TableCell>
                 <TableCell>{template.description}</TableCell>
@@ -232,7 +245,10 @@ export default function TemplateManagementSection() {
                   <Switch
                     checked={template.isActive}
                     onCheckedChange={() =>
-                      handleToggleActive(template.id, template.isActive)
+                      updateTemplate.mutate({
+                        id: template.id,
+                        isActive: !template.isActive,
+                      })
                     }
                   />
                 </TableCell>
