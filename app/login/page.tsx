@@ -6,6 +6,7 @@ import Image from "next/image";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
+import { trpc } from "@/lib/trpc";
 
 export default function Login() {
   const router = useRouter();
@@ -13,17 +14,37 @@ export default function Login() {
   const view = searchParams.get("view");
   const isSignIn = view !== "sign_up";
   const { user, signInWithGoogle } = useAuth();
+  const convertToListingMutation =
+    trpc.property.convertTempToListing.useMutation();
 
   useEffect(() => {
-    if (user) {
-      router.push("/dashboard");
-    }
-  }, [user, router]);
+    const handlePendingListing = async () => {
+      if (user) {
+        const pendingSessionId = localStorage.getItem("pendingListingSession");
+        if (pendingSessionId) {
+          try {
+            await convertToListingMutation.mutateAsync({
+              sessionId: pendingSessionId,
+              userId: user.uid,
+            });
+            localStorage.removeItem("pendingListingSession");
+            router.push("/dashboard");
+          } catch (error) {
+            console.error("Error converting pending listing:", error);
+            router.push("/dashboard");
+          }
+        } else {
+          router.push("/dashboard");
+        }
+      }
+    };
+
+    handlePendingListing();
+  }, [user, router, convertToListingMutation]);
 
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
-      router.push("/dashboard");
     } catch (error) {
       console.error("Failed to sign in:", error);
     }

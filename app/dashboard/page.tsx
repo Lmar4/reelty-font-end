@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/reelty/DashboardLayout";
 import FileUpload from "@/components/reelty/FileUpload";
 import NewListingModal from "@/components/reelty/NewListingModal";
@@ -16,6 +16,7 @@ type Property = RouterOutput["property"]["getUserListings"][number];
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isCreatingListing, setIsCreatingListing] = useState(false);
 
   const { data: userData, isLoading: isUserLoading } = useUserData();
   const { data: listings, isLoading: isListingsLoading } =
@@ -25,6 +26,12 @@ export default function Dashboard() {
     );
 
   const isLoading = isUserLoading || isListingsLoading;
+
+  useEffect(() => {
+    // Check if we're in the process of creating a listing
+    const pendingSessionId = localStorage.getItem("pendingListingSession");
+    setIsCreatingListing(!!pendingSessionId);
+  }, []);
 
   const handleFilesSelected = (files: File[]) => {
     setSelectedFiles(files);
@@ -76,7 +83,7 @@ export default function Dashboard() {
           </div> */}
 
         {/* Empty State */}
-        {listings?.length === 0 && !isLoading && (
+        {listings?.length === 0 && !isLoading && !isCreatingListing && (
           <div className='mb-24'>
             <div className='bg-[#EDEDED] rounded-lg p-4 text-left'>
               <p className='text-[15px] text-[#1c1c1c]'>
@@ -90,14 +97,20 @@ export default function Dashboard() {
         )}
 
         {/* Loading State */}
-        {isLoading && (
-          <div className='flex justify-center items-center py-12'>
-            <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black'></div>
+        {(isLoading || isCreatingListing) && (
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {[...Array(isCreatingListing ? 1 : 3)].map((_, i) => (
+              <ListingCard
+                key={`loading-${i}`}
+                listing={{} as Property}
+                isLoading={true}
+              />
+            ))}
           </div>
         )}
 
         {/* Listings Grid */}
-        {listings && listings.length > 0 && (
+        {listings && listings.length > 0 && !isLoading && (
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
             {listings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />

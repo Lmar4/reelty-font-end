@@ -7,6 +7,8 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { TRPCClientErrorLike } from "@trpc/client";
 import type { RouterOutput } from "@/types/trpc";
+import { useState } from "react";
+import Image from "next/image";
 
 type VideoTemplate = "crescendo" | "wave" | "storyteller" | "googleZoom";
 type VideoJob = RouterOutput["jobs"]["createVideo"];
@@ -29,13 +31,14 @@ export default function RegenerateModal({
 }: RegenerateModalProps) {
   const { showToast } = useToast();
   const { user } = useAuth();
+  const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
 
   const { data: listing } = trpc.property.getById.useQuery(
     { id: listingId },
     { enabled: !!listingId }
   );
 
-  const regenerateMutation = trpc.jobs.createVideo.useMutation({
+  const regenerateMutation = trpc.jobs.regenerateVideos.useMutation({
     onSuccess: () => {
       toast.success("Video regeneration started");
       onClose();
@@ -46,21 +49,35 @@ export default function RegenerateModal({
     },
   });
 
+  const handlePhotoSelect = (photoId: string) => {
+    setSelectedPhotos((prev) => {
+      if (prev.includes(photoId)) {
+        return prev.filter((id) => id !== photoId);
+      }
+      if (prev.length >= 3) {
+        toast.error("You can only select up to 3 photos for regeneration");
+        return prev;
+      }
+      return [...prev, photoId];
+    });
+  };
+
   const handleRegenerate = async () => {
     if (!user) {
       showToast("Please log in to regenerate videos", "error");
       return;
     }
 
-    if (!listing?.photos?.length) {
-      showToast("No images available for video generation", "error");
+    if (!selectedPhotos.length) {
+      showToast("Please select at least one photo to regenerate", "error");
       return;
     }
 
     try {
       await regenerateMutation.mutateAsync({
         listingId,
-        prompt: `Generate a video for ${listing.address} using the ${template} template`,
+        photoIds: selectedPhotos,
+        template,
       });
     } catch (error) {
       // Error handled by mutation callbacks
@@ -74,22 +91,62 @@ export default function RegenerateModal({
 
       <div className='fixed inset-0 overflow-y-auto'>
         <div className='flex min-h-full items-center justify-center p-4 text-center'>
-          <Dialog.Panel className='w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all'>
+          <Dialog.Panel className='w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all'>
             <Dialog.Title
               as='h3'
               className='text-lg font-medium leading-6 text-gray-900'
             >
-              Regenerate Video
+              Regenerate Videos
             </Dialog.Title>
             <div className='mt-2'>
-              <p className='text-sm text-gray-500'>
-                Are you sure you want to regenerate the video for this listing
-                using the {template} template? This will create a new video
-                using all available listing photos.
+              <p className='text-sm text-gray-500 mb-4'>
+                Select up to 3 photos that you'd like to regenerate videos for.
+                This will create new videos for the selected photos using the{" "}
+                {template} template.
               </p>
+
+              {/* Photo Grid */}
+              <div className='grid grid-cols-3 gap-4 mt-4'>
+                {listing?.photos?.map((photo) => (
+                  <div
+                    key={photo.id}
+                    className={`relative cursor-pointer rounded-lg overflow-hidden ${
+                      selectedPhotos.includes(photo.id)
+                        ? "ring-2 ring-blue-500"
+                        : ""
+                    }`}
+                    onClick={() => handlePhotoSelect(photo.id)}
+                  >
+                    <Image
+                      src={photo.filePath}
+                      alt='Listing photo'
+                      width={200}
+                      height={150}
+                      className='w-full aspect-[4/3] object-cover'
+                    />
+                    {selectedPhotos.includes(photo.id) && (
+                      <div className='absolute inset-0 bg-blue-500/20 flex items-center justify-center'>
+                        <svg
+                          className='w-6 h-6 text-white'
+                          fill='none'
+                          stroke='currentColor'
+                          viewBox='0 0 24 24'
+                        >
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M5 13l4 4L19 7'
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className='mt-4 flex justify-end space-x-3'>
+            <div className='mt-6 flex justify-end space-x-3'>
               <button
                 type='button'
                 className='inline-flex justify-center rounded-md border border-transparent bg-gray-100 px-4 py-2 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2'
@@ -102,7 +159,7 @@ export default function RegenerateModal({
                 className='inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
                 onClick={handleRegenerate}
                 disabled={
-                  regenerateMutation.isLoading || !listing?.photos?.length
+                  regenerateMutation.isLoading || !selectedPhotos.length
                 }
               >
                 {regenerateMutation.isLoading ? (
@@ -130,7 +187,9 @@ export default function RegenerateModal({
                     Processing...
                   </>
                 ) : (
-                  "Regenerate"
+                  `Regenerate ${selectedPhotos.length} Video${
+                    selectedPhotos.length !== 1 ? "s" : ""
+                  }`
                 )}
               </button>
             </div>

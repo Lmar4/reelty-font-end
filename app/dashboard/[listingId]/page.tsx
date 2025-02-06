@@ -1,22 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/reelty/DashboardLayout";
 import { useUserData } from "@/hooks/useUserData";
 import { trpc } from "@/lib/trpc";
 import { useToast } from "@/components/common/Toast";
 import RegenerateModal from "@/components/modals/RegenerateModal";
+import PricingModal from "@/components/modals/PricingModal";
+import AdditionalPhotosModal from "@/components/modals/AdditionalPhotosModal";
 import type { RouterOutput } from "@/types/trpc";
 
 type VideoJob = RouterOutput["jobs"]["getListingJobs"][number];
 
 export default function ListingDetail() {
   const params = useParams();
+  const router = useRouter();
   const listingId = params.listingId as string;
   const { showToast } = useToast();
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
+  const [isAdditionalPhotosModalOpen, setIsAdditionalPhotosModalOpen] =
+    useState(false);
   const queryClient = useQueryClient();
 
   const { data: userData } = useUserData();
@@ -39,9 +45,19 @@ export default function ListingDetail() {
 
   const isPaidUser = userData?.subscriptionTier !== "free";
 
+  // Check for post-upgrade redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgrade_success") === "true") {
+      setIsAdditionalPhotosModalOpen(true);
+      // Clean up the URL
+      router.replace(`/dashboard/${listingId}`);
+    }
+  }, [listingId, router]);
+
   const handleDownload = async (jobId: string) => {
     if (!isPaidUser) {
-      showToast("Upgrade your subscription to download this video", "warning");
+      setIsPricingModalOpen(true);
       return;
     }
 
@@ -56,12 +72,26 @@ export default function ListingDetail() {
     }
   };
 
+  const handleUpgradeClick = () => {
+    setIsPricingModalOpen(true);
+  };
+
   return (
     <DashboardLayout>
       <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-        <h1 className='text-[32px] font-semibold text-[#1c1c1c] mb-8'>
-          {listing?.address || "Loading..."}
-        </h1>
+        <div className='flex justify-between items-center mb-8'>
+          <h1 className='text-[32px] font-semibold text-[#1c1c1c]'>
+            {listing?.address || "Loading..."}
+          </h1>
+          {!isPaidUser && (
+            <button
+              onClick={handleUpgradeClick}
+              className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700'
+            >
+              Upgrade to Pro
+            </button>
+          )}
+        </div>
 
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
           {videoJobs?.map((job) => (
@@ -135,7 +165,31 @@ export default function ListingDetail() {
           template='crescendo'
           onSuccess={() => {
             queryClient.invalidateQueries({
-              queryKey: ["videoJobs", listingId],
+              queryKey: ["jobs", "getListingJobs", { listingId }],
+            });
+          }}
+        />
+
+        {/* Pricing Modal */}
+        <PricingModal
+          isOpen={isPricingModalOpen}
+          onClose={() => setIsPricingModalOpen(false)}
+          listingId={listingId}
+          onUpgradeComplete={() => {
+            queryClient.invalidateQueries({
+              queryKey: ["userData"],
+            });
+          }}
+        />
+
+        {/* Additional Photos Modal */}
+        <AdditionalPhotosModal
+          isOpen={isAdditionalPhotosModalOpen}
+          onClose={() => setIsAdditionalPhotosModalOpen(false)}
+          listingId={listingId}
+          onSuccess={() => {
+            queryClient.invalidateQueries({
+              queryKey: ["jobs", "getListingJobs", { listingId }],
             });
           }}
         />

@@ -13,6 +13,7 @@ interface PricingModalProps {
   onClose: () => void;
   onUpgradeComplete: () => void;
   currentTier?: string;
+  listingId?: string; // Optional listingId for post-upgrade photo selection
 }
 
 export default function PricingModal({
@@ -20,6 +21,7 @@ export default function PricingModal({
   onClose,
   onUpgradeComplete,
   currentTier,
+  listingId,
 }: PricingModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
@@ -28,6 +30,10 @@ export default function PricingModal({
   const checkoutMutation = trpc.subscription.createCheckoutSession.useMutation({
     onSuccess: (url) => {
       if (url) {
+        // Store listingId in localStorage if it exists
+        if (listingId) {
+          localStorage.setItem("pendingUpgradeListingId", listingId);
+        }
         window.location.href = url;
       } else {
         toast.error("Failed to create checkout session");
@@ -44,7 +50,9 @@ export default function PricingModal({
       await checkoutMutation.mutateAsync({
         priceId,
         userId: userData?.id || "",
-        successUrl: `${window.location.origin}/dashboard`,
+        successUrl: `${window.location.origin}/dashboard${
+          listingId ? `/${listingId}` : ""
+        }`,
         cancelUrl: `${window.location.origin}/subscriptions`,
       });
     } catch (error) {
@@ -68,7 +76,9 @@ export default function PricingModal({
               as='h3'
               className='text-2xl font-bold text-gray-900 mb-8 text-center'
             >
-              Upgrade Your Plan
+              {listingId
+                ? "Upgrade to Access All Templates"
+                : "Upgrade Your Plan"}
             </Dialog.Title>
 
             <div className='grid md:grid-cols-2 gap-8'>
@@ -185,6 +195,13 @@ export default function PricingModal({
                 </button>
               </div>
             </div>
+
+            {listingId && (
+              <p className='mt-6 text-sm text-gray-500 text-center'>
+                After upgrading, you'll be able to select additional photos and
+                access all premium video templates.
+              </p>
+            )}
           </Dialog.Panel>
         </div>
       </div>

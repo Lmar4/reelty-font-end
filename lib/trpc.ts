@@ -3,6 +3,7 @@ import { createTRPCReact } from "@trpc/react-query";
 import type { AppRouter } from "../../reelty_backend/src/trpc/router";
 import superjson from "superjson";
 import { QueryClient } from "@tanstack/react-query";
+import { getAuth } from "firebase/auth";
 
 const getBaseUrl = () => {
   if (typeof window !== "undefined") return ""; // browser should use relative url
@@ -25,6 +26,14 @@ export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: `${getBaseUrl()}/api/trpc`,
+      async headers() {
+        const auth = getAuth();
+        const token = await auth.currentUser?.getIdToken();
+
+        return {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        };
+      },
     }),
   ],
   transformer: superjson,
