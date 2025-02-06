@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Dialog } from "@headlessui/react";
 import { useToast } from "@/components/common/Toast";
-import { trpc } from "@/lib/trpc";
-import { TRPCClientError } from "@trpc/client";
 import { useUserData } from "@/hooks/useUserData";
 import { handleError } from "@/lib/error-handler";
-import { Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import type { RouterOutput } from "@/types/trpc";
+import { Dialog } from "@headlessui/react";
+import { TRPCClientError } from "@trpc/client";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
-type SubscriptionTier = RouterOutput["subscription"]["getTiers"][number];
+
 
 interface PricingModalProps {
   isOpen: boolean;

@@ -1,28 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { useToast } from "@/components/common/Toast";
 import { trpc } from "@/lib/trpc";
-
-interface Job {
-  id: string;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  listingId: string;
-  userId: string;
-  template: string;
-  inputFiles: string[];
-  outputFile: string | null;
-  listing: {
-    photos: {
-      id: string;
-      listingId: string;
-      filePath: string;
-      uploadedAt: Date;
-    }[];
-  };
-}
+import { useState } from "react";
 
 interface JobListProps {
   userId: string;
@@ -31,7 +11,7 @@ interface JobListProps {
 export default function JobList({ userId }: JobListProps) {
   const { showToast } = useToast();
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+
   const ITEMS_PER_PAGE = 10;
 
   const { data: jobsData } = trpc.jobs.getUserJobs.useQuery({
@@ -112,7 +92,11 @@ export default function JobList({ userId }: JobListProps) {
                   {job.status === "pending" && (
                     <button
                       onClick={() =>
-                        handleCancel(job.id, job.listingId, job.template)
+                        handleCancel(
+                          job.id,
+                          job.listingId,
+                          job.template || "basic"
+                        )
                       }
                       disabled={selectedJob === job.id}
                       className='text-red-600 hover:text-red-700'

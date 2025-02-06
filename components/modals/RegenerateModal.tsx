@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { TRPCClientErrorLike } from "@trpc/client";
-import type { RouterOutput } from "@/types/trpc";
+import type { RouterOutput, VideoJobOutput, PropertyOutput } from "@/types/trpc";
 import { useState } from "react";
 import Image from "next/image";
 
@@ -17,16 +17,16 @@ type Property = RouterOutput["property"]["getById"];
 interface RegenerateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  listingId: string;
-  template: VideoTemplate;
+  property: PropertyOutput;
+  job: VideoJobOutput;
   onSuccess?: () => void;
 }
 
 export default function RegenerateModal({
   isOpen,
   onClose,
-  listingId,
-  template,
+  property,
+  job,
   onSuccess,
 }: RegenerateModalProps) {
   const { showToast } = useToast();
@@ -34,8 +34,8 @@ export default function RegenerateModal({
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
 
   const { data: listing } = trpc.property.getById.useQuery(
-    { id: listingId },
-    { enabled: !!listingId }
+    { id: property.id },
+    { enabled: !!property.id }
   );
 
   const regenerateMutation = trpc.jobs.regenerateVideos.useMutation({
@@ -75,9 +75,9 @@ export default function RegenerateModal({
 
     try {
       await regenerateMutation.mutateAsync({
-        listingId,
+        listingId: property.id,
         photoIds: selectedPhotos,
-        template,
+        template: job.template || 'basic',
       });
     } catch (error) {
       // Error handled by mutation callbacks
@@ -102,7 +102,7 @@ export default function RegenerateModal({
               <p className='text-sm text-gray-500 mb-4'>
                 Select up to 3 photos that you'd like to regenerate videos for.
                 This will create new videos for the selected photos using the{" "}
-                {template} template.
+                {job.template} template.
               </p>
 
               {/* Photo Grid */}

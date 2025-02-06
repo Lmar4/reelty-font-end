@@ -1,27 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import FileUpload from "@/components/reelty/FileUpload";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import { Loader2 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import FileUpload from "@/components/reelty/FileUpload";
+import { trpc } from "@/lib/trpc";
 import { Loader } from "@googlemaps/js-api-loader";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 interface NewListingModalProps {
   isOpen: boolean;
@@ -97,25 +90,21 @@ export function NewListingModal({
     try {
       // If user is not logged in, store files temporarily and redirect to login
       if (!user) {
-        const filePromises = files.map(async (file) => {
-          // Here you would normally upload to your storage and get back a URL
-          // For now, we'll just return a mock URL
-          return {
-            filePath: URL.createObjectURL(file),
-            fileType: file.type,
-            fileSize: file.size,
-          };
+        // Transform files to match the expected schema
+        const transformedFiles = files.map(file => ({
+          filePath: URL.createObjectURL(file),
+          name: file.name,
+          size: file.size,
+          contentType: file.type
+        }));
+
+        const result = await tempUploadMutation.mutateAsync({
+          files: transformedFiles,
+          address
         });
 
-        const uploadedFiles = await Promise.all(filePromises);
-        const { sessionId } = await tempUploadMutation.mutateAsync({
-          files: uploadedFiles,
-          address,
-        });
-
-        setSessionId(sessionId);
-        // Store sessionId in localStorage to retrieve after login
-        localStorage.setItem("pendingListingSession", sessionId);
+        // Store the listing ID in localStorage
+        localStorage.setItem("pendingListingSession", result.id);
         router.push("/login");
         return;
       }
@@ -123,8 +112,7 @@ export function NewListingModal({
       // If user is logged in and we have a pending session, convert it to a listing
       if (sessionId) {
         await convertToListingMutation.mutateAsync({
-          sessionId,
-          userId: user.uid,
+          userId: user.uid
         });
         localStorage.removeItem("pendingListingSession");
       } else {

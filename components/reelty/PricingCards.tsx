@@ -181,7 +181,7 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
             href='mailto:support@reelty.com'
             className='text-[#1c1c1c] hover:underline'
           >
-            Let's talk!
+            Let&apos;s talk!
           </a>
         </p>
       </div>

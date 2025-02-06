@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { useToast } from "@/components/common/Toast";
-import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import type { RouterOutput } from "@/types/trpc";
-
-type SubscriptionTier = RouterOutput["subscription"]["getTiers"][number];
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
 export default function BillingPage() {
   const { showToast } = useToast();

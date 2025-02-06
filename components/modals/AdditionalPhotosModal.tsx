@@ -1,40 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
-import { trpc } from "@/lib/trpc";
-import { toast } from "sonner";
-import type { RouterOutput } from "@/types/trpc";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { trpc } from "@/lib/trpc";
+import type { PropertyOutput } from "@/types/trpc";
 import { Loader2 } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import { toast } from "sonner";
 
-type Property = RouterOutput["property"]["getById"];
+
 
 interface AdditionalPhotosModalProps {
   isOpen: boolean;
   onClose: () => void;
-  listingId: string;
+  property: PropertyOutput;
   onSuccess?: () => void;
 }
 
 export default function AdditionalPhotosModal({
   isOpen,
   onClose,
-  listingId,
+  property,
   onSuccess,
 }: AdditionalPhotosModalProps) {
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const { data: listing } = trpc.property.getById.useQuery(
-    { id: listingId },
-    { enabled: !!listingId }
+    { id: property.id },
+    { enabled: !!property.id }
   );
 
   const generateVideosMutation = trpc.jobs.regenerateVideos.useMutation({
@@ -70,7 +70,7 @@ export default function AdditionalPhotosModal({
       await Promise.all(
         templates.map((template) =>
           generateVideosMutation.mutateAsync({
-            listingId,
+            listingId: property.id,
             photoIds: selectedPhotos,
             template,
           })
@@ -92,7 +92,7 @@ export default function AdditionalPhotosModal({
 
         <p className='text-sm text-muted-foreground mb-6'>
           As a Pro user, you can now generate videos for these photos using all
-          premium templates. Select the photos you'd like to process.
+          premium templates. Select the photos you&apos;d like to process.
         </p>
 
         {/* Photo Grid */}

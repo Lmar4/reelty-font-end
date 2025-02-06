@@ -1,36 +1,43 @@
 "use client";
 
 import { useState, useRef } from "react";
-import NewListingModal from "./NewListingModal";
 
 interface FileUploadProps {
   buttonText?: string;
-  onFilesSelected?: (files: File[]) => void;
+  onFilesSelected: (files: File[]) => void;
+  accept?: string;
+  maxFiles?: number;
+  maxSize?: number; // in MB
 }
 
 export default function FileUpload({
   buttonText = "Select listing photos",
+  onFilesSelected,
+  accept = "image/*",
+  maxFiles = 60,
+  maxSize = 15, // 15MB default
 }: FileUploadProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 60) {
-      alert("You can only upload up to 60 files at once");
+    if (files.length > maxFiles) {
+      alert(`You can only upload up to ${maxFiles} files at once`);
       return;
     }
 
-    const oversizedFiles = files.filter((file) => file.size > 15 * 1024 * 1024);
+    const oversizedFiles = files.filter(
+      (file) => file.size > maxSize * 1024 * 1024
+    );
     if (oversizedFiles.length > 0) {
-      alert("Some files are larger than 15MB. Please select smaller files.");
+      alert(
+        `Some files are larger than ${maxSize}MB. Please select smaller files.`
+      );
       return;
     }
 
-    setUploadedFiles(files);
-    setIsModalOpen(true);
+    onFilesSelected(files);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -48,26 +55,31 @@ export default function FileUpload({
     setIsDragging(false);
 
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 60) {
-      alert("You can only upload up to 60 files at once");
+    if (files.length > maxFiles) {
+      alert(`You can only upload up to ${maxFiles} files at once`);
       return;
     }
 
-    const oversizedFiles = files.filter((file) => file.size > 15 * 1024 * 1024);
+    const oversizedFiles = files.filter(
+      (file) => file.size > maxSize * 1024 * 1024
+    );
     if (oversizedFiles.length > 0) {
-      alert("Some files are larger than 15MB. Please select smaller files.");
+      alert(
+        `Some files are larger than ${maxSize}MB. Please select smaller files.`
+      );
       return;
     }
 
-    setUploadedFiles(files);
-    setIsModalOpen(true);
+    onFilesSelected(files);
   };
 
   return (
     <>
       {/* Desktop drag & drop interface */}
       <div
-        className={`hidden md:flex flex-col items-center justify-center gap-4 bg-gray-50 rounded-2xl border-4 border-dashed ${isDragging ? "border-[#8B5CF6] bg-[#8B5CF6]/5" : "border-gray-200"} p-8 shadow-[inset_0_2px_12px_rgba(0,0,0,0.08)] transition-all`}
+        className={`hidden md:flex flex-col items-center justify-center gap-4 bg-gray-50 rounded-2xl border-4 border-dashed ${
+          isDragging ? "border-[#8B5CF6] bg-[#8B5CF6]/5" : "border-gray-200"
+        } p-8 shadow-[inset_0_2px_12px_rgba(0,0,0,0.08)] transition-all`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -83,9 +95,7 @@ export default function FileUpload({
         </div>
 
         <div className='flex flex-col items-center gap-2'>
-          <h3 className='text-xl text-gray-900'>
-            Drag your listing photos to start
-          </h3>
+          <h3 className='text-xl text-gray-900'>Drag your files to start</h3>
 
           <div className='flex items-center gap-3 my-1'>
             <div className='h-[1px] w-20 bg-gray-200'></div>
@@ -95,7 +105,10 @@ export default function FileUpload({
 
           <button
             className='text-[#8B5CF6] font-bold border-2 border-[#8B5CF6] rounded-full px-6 py-2 hover:bg-[#8B5CF6] hover:text-white transition-colors'
-            onClick={() => fileInputRef.current?.click()}
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
           >
             Browse files
           </button>
@@ -121,21 +134,12 @@ export default function FileUpload({
         ref={fileInputRef}
         type='file'
         multiple
-        accept='image/*'
+        accept={accept}
         className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none'
         onChange={handleFileUpload}
         onClick={(e) => {
           (e.target as HTMLInputElement).value = "";
         }}
-      />
-
-      <NewListingModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setUploadedFiles([]);
-        }}
-        initialFiles={uploadedFiles}
       />
     </>
   );
