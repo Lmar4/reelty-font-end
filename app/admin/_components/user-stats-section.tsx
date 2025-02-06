@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -8,8 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import {
   Table,
   TableBody,
@@ -18,16 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-interface UserStats {
-  totalUsers: number;
-  activeUsersToday: number;
-  activeUsersThisMonth: number;
-  usersByTier: Array<{
-    subscriptionTier: string;
-    _count: number;
-  }>;
-}
+import { trpc } from "@/lib/trpc";
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from "recharts";
 
 export default function UserStatsSection() {
   const { data: userStats, isLoading } = trpc.admin.getUserStats.useQuery();

@@ -4,6 +4,8 @@ import UserStatsSection from "./_components/user-stats-section";
 import SystemStatsSection from "./_components/system-stats-section";
 import CreditStatsSection from "./_components/credit-stats-section";
 import FeatureUsageSection from "./_components/feature-usage-section";
+import TemplateManagementSection from "./_components/template-management-section";
+import AssetManagementSection from "./_components/asset-management-section";
 
 export default function AdminDashboard() {
   return (
@@ -11,11 +13,13 @@ export default function AdminDashboard() {
       <h1 className='text-3xl font-bold'>Admin Dashboard</h1>
 
       <Tabs defaultValue='users' className='w-full'>
-        <TabsList className='grid w-full grid-cols-4'>
+        <TabsList className='grid w-full grid-cols-6'>
           <TabsTrigger value='users'>User Statistics</TabsTrigger>
           <TabsTrigger value='system'>System Performance</TabsTrigger>
           <TabsTrigger value='credits'>Credit Usage</TabsTrigger>
           <TabsTrigger value='features'>Feature Usage</TabsTrigger>
+          <TabsTrigger value='templates'>Templates</TabsTrigger>
+          <TabsTrigger value='assets'>Assets</TabsTrigger>
         </TabsList>
 
         <TabsContent value='users' className='mt-6'>
@@ -39,6 +43,18 @@ export default function AdminDashboard() {
         <TabsContent value='features' className='mt-6'>
           <Card className='p-6'>
             <FeatureUsageSection />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value='templates' className='mt-6'>
+          <Card className='p-6'>
+            <TemplateManagementSection />
+          </Card>
+        </TabsContent>
+
+        <TabsContent value='assets' className='mt-6'>
+          <Card className='p-6'>
+            <AssetManagementSection />
           </Card>
         </TabsContent>
       </Tabs>

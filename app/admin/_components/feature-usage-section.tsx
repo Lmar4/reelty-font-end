@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -9,17 +8,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import { DataTable } from "@/components/ui/data-table";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { trpc } from "@/lib/trpc";
+import { ColumnDef } from "@tanstack/react-table";
 import { addDays } from "date-fns";
 import { useState } from "react";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { trpc } from "@/lib/trpc";
 import { DateRange } from "react-day-picker";
 
 interface FeatureUsage {
-  photoUploads: Array<{
-    listingId: string;
+  listingUploads: Array<{
+    userId: string;
     _count: number;
   }>;
   searches: Array<{
@@ -28,10 +27,10 @@ interface FeatureUsage {
   }>;
 }
 
-const photoColumns: ColumnDef<FeatureUsage["photoUploads"][0]>[] = [
+const photoColumns: ColumnDef<FeatureUsage["listingUploads"][0]>[] = [
   {
-    accessorKey: "listingId",
-    header: "Listing ID",
+    accessorKey: "userId",
+    header: "User ID",
   },
   {
     accessorKey: "_count",
@@ -90,7 +89,7 @@ export default function FeatureUsageSection() {
         <CardContent>
           <DataTable
             columns={photoColumns}
-            data={featureUsage?.photoUploads || []}
+            data={featureUsage?.listingUploads || []}
           />
         </CardContent>
       </Card>

@@ -1,6 +1,5 @@
 "use client";
 
-import { trpc } from "@/lib/trpc";
 import {
   Card,
   CardContent,
@@ -8,18 +7,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { formatBytes } from "@/lib/utils";
 import {
-  LineChart,
+  CartesianGrid,
   Line,
+  LineChart,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
 } from "recharts";
-import { formatBytes } from "@/lib/utils";
 
 interface SystemStats {
-  totalPhotos: number;
+  totalListings: number;
   totalSearches: number;
   errorCount: number;
   uptime: number;
@@ -67,11 +67,11 @@ export default function SystemStatsSection() {
       <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
         <Card>
           <CardHeader>
-            <CardTitle>Total Photos</CardTitle>
+            <CardTitle>Total Listings</CardTitle>
             <CardDescription>Stored in system</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className='text-3xl font-bold'>{systemStats?.totalPhotos}</p>
+            <p className='text-3xl font-bold'>{systemStats?.totalListings}</p>
           </CardContent>
         </Card>
 

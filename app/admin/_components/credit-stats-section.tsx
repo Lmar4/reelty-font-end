@@ -1,7 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
 import {
   Card,
   CardContent,
@@ -9,7 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
+import { trpc } from "@/lib/trpc";
+import { Cell, Legend, Pie, PieChart, Tooltip } from "recharts";
 
 interface CreditStats {
   _sum: {
