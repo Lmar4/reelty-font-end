@@ -1,18 +1,24 @@
 export interface User {
-  id: string;
+  id: string; // Clerk ID
   email: string;
-  name: string;
-  subscriptionTier: string;
-  fcmToken?: string | null;
-  lastLoginAt?: Date | null;
+  firstName: string | null;
+  lastName: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
+  subscriptionStatus: string | null;
+  subscriptionPeriodEnd: Date | null;
+  currentTierId: string | null;
+  lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface UpdateUserInput {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
-  fcmToken?: string;
 }
 
 export interface VideoJob {

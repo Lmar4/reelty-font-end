@@ -11,6 +11,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { useUserData } from "@/hooks/useUserData";
 import { Calendar, CreditCard, Film, ListVideo, Settings } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const SettingsSkeleton = () => {
   return (
@@ -71,9 +72,10 @@ export default function SettingsPage() {
     useSubscriptionTiers();
   const { data: listings } = useListings(userData?.id || "");
   const { data: jobs } = useJobs({ status: "completed" });
+  const router = useRouter();
 
   const currentTier = subscriptionTiers?.find(
-    (tier) => tier.id === userData?.subscriptionTier
+    (tier) => tier.id === userData?.currentTierId
   );
 
   const isLoading = isUserLoading || isSubscriptionLoading;
@@ -130,7 +132,9 @@ export default function SettingsPage() {
                 <div className='space-y-4'>
                   <div>
                     <label className='text-sm text-[#1c1c1c]/60'>Name</label>
-                    <p className='text-[#1c1c1c]'>{userData?.name}</p>
+                    <p className='text-[#1c1c1c]'>
+                      {userData?.firstName} {userData?.lastName}
+                    </p>
                   </div>
                   <div>
                     <label className='text-sm text-[#1c1c1c]/60'>Email</label>
@@ -172,9 +176,11 @@ export default function SettingsPage() {
                     </label>
                     <div className='flex items-center gap-2'>
                       <p className='text-[#1c1c1c] font-medium'>
-                        {currentTier?.description || "Free"}
+                        {currentTier?.name || "Free"}
                       </p>
-                      <Badge variant='secondary'>Active</Badge>
+                      <Badge variant='secondary'>
+                        {userData?.subscriptionStatus || "Inactive"}
+                      </Badge>
                     </div>
                   </div>
                   <div>
@@ -189,7 +195,11 @@ export default function SettingsPage() {
                       )}
                     </ul>
                   </div>
-                  <Button variant='outline' className='w-full'>
+                  <Button
+                    variant='outline'
+                    className='w-full'
+                    onClick={() => router.push("/subscriptions")}
+                  >
                     Manage Subscription
                   </Button>
                 </div>

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import type { User } from "@/types/user-types";
+import type { User } from "@/types/prisma-types";
 
 async function getUserData(userId: string): Promise<User> {
   const response = await fetch(`/api/users/${userId}`);

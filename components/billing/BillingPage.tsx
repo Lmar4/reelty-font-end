@@ -54,9 +54,11 @@ export default function BillingPage() {
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
         {tiers?.map((tier) => (
           <Card key={tier.id} className='p-6'>
-            <h2 className='text-2xl font-bold mb-4'>{tier.id}</h2>
+            <h2 className='text-2xl font-bold mb-4'>{tier.name}</h2>
             <p className='text-gray-600 mb-4'>{tier.description}</p>
-            <p className='text-3xl font-bold mb-6'>${tier.pricing}/mo</p>
+            <p className='text-3xl font-bold mb-6'>
+              ${tier.monthlyPrice.toFixed(2)}/mo
+            </p>
             <ul className='space-y-2 mb-6'>
               {tier.features.map((feature, index) => (
                 <li key={index} className='flex items-center'>
@@ -66,7 +68,7 @@ export default function BillingPage() {
               ))}
             </ul>
             <Button
-              onClick={() => handleSubscribe(tier.id)}
+              onClick={() => handleSubscribe(tier.stripePriceId)}
               disabled={checkoutMutation.isPending}
               className='w-full'
             >

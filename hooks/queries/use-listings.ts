@@ -1,6 +1,9 @@
 "use client";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listing } from "@/types/prisma-types";
+import { toast } from "sonner";
+
+const LISTINGS_QUERY_KEY = "listings";
 
 async function fetchListings(userId: string): Promise<Listing[]> {
   const response = await fetch(`/api/listings?userId=${userId}`);
@@ -18,9 +21,52 @@ async function fetchListingById(id: string): Promise<Listing> {
   return response.json();
 }
 
+interface CreateListingInput {
+  userId: string;
+  address: string;
+  coordinates: { lat: number; lng: number } | null;
+  photoLimit: number;
+}
+
+async function createListing(input: CreateListingInput): Promise<Listing> {
+  const response = await fetch("/api/listings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to create listing");
+  }
+  return response.json();
+}
+
+interface UploadPhotoInput {
+  file: File;
+  listingId: string;
+  order: number;
+}
+
+async function uploadPhoto(
+  input: UploadPhotoInput
+): Promise<{ filePath: string }> {
+  const formData = new FormData();
+  formData.append("file", input.file);
+  formData.append("listingId", input.listingId);
+  formData.append("order", input.order.toString());
+
+  const response = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error("Failed to upload photo");
+  }
+  return response.json();
+}
+
 export function useListings(userId: string) {
   return useQuery({
-    queryKey: ["listings", userId],
+    queryKey: [LISTINGS_QUERY_KEY, userId],
     queryFn: () => fetchListings(userId),
     enabled: !!userId,
   });
@@ -28,8 +74,29 @@ export function useListings(userId: string) {
 
 export function useListing(id: string) {
   return useQuery({
-    queryKey: ["listing", id],
+    queryKey: [LISTINGS_QUERY_KEY, id],
     queryFn: () => fetchListingById(id),
     enabled: !!id,
+  });
+}
+
+export function useCreateListing() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createListing,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
+    },
+  });
+}
+
+export function useUploadPhoto() {
+  return useMutation({
+    mutationFn: uploadPhoto,
+    onError: (error) => {
+      console.error("[UPLOAD_PHOTO_ERROR]", error);
+      toast.error("Failed to upload photo");
+    },
   });
 }

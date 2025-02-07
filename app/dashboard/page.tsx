@@ -26,9 +26,44 @@ export default function Dashboard() {
   const isLoading = isUserLoading || isListingsLoading;
 
   useEffect(() => {
-    // Check if we're in the process of creating a listing
+    // Check for pending listing session
     const pendingSessionId = localStorage.getItem("pendingListingSession");
-    setIsCreatingListing(!!pendingSessionId);
+    if (pendingSessionId) {
+      const pendingFilesData = localStorage.getItem(`pendingFiles_${pendingSessionId}`);
+      if (pendingFilesData) {
+        try {
+          const { files, timestamp } = JSON.parse(pendingFilesData);
+          // Only process if the session is less than 1 hour old
+          if (Date.now() - timestamp < 3600000) {
+            setIsCreatingListing(true);
+            setIsModalOpen(true);
+            
+            // Reconstruct File objects from the stored data
+            const reconstructedFiles = files.map((fileData: any) => {
+              // Convert base64 to blob
+              const [metadata, base64Data] = (fileData.data as string).split(',');
+              const byteString = atob(base64Data);
+              const ab = new ArrayBuffer(byteString.length);
+              const ia = new Uint8Array(ab);
+              
+              for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+              }
+              
+              const blob = new Blob([ab], { type: fileData.type });
+              return new File([blob], fileData.name, { type: fileData.type });
+            });
+            
+            setSelectedFiles(reconstructedFiles);
+          }
+        } catch (error) {
+          console.error("Error processing pending files:", error);
+        }
+      }
+      // Clean up the pending session
+      localStorage.removeItem("pendingListingSession");
+      localStorage.removeItem(`pendingFiles_${pendingSessionId}`);
+    }
   }, []);
 
   const handleFilesSelected = (files: File[]) => {
@@ -39,6 +74,7 @@ export default function Dashboard() {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedFiles([]);
+    setIsCreatingListing(false);
   };
 
   const container = {
@@ -55,6 +91,14 @@ export default function Dashboard() {
     hidden: { opacity: 0, x: -20 },
     show: { opacity: 1, x: 0 }
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <LoadingState />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

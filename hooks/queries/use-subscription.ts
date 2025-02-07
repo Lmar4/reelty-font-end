@@ -11,29 +11,44 @@ async function fetchSubscriptionTiers(): Promise<SubscriptionTier[]> {
   return response.json();
 }
 
-async function createCheckoutSession(input: {
+interface CreateCheckoutSessionParams {
   priceId: string;
   userId: string;
   successUrl: string;
   cancelUrl: string;
-}): Promise<string> {
-  const response = await fetch("/api/subscription/checkout", {
+  isOneTime?: boolean;
+  credits?: number;
+}
+
+async function createCheckoutSession(
+  params: CreateCheckoutSessionParams
+): Promise<string> {
+  const response = await fetch("/api/create-checkout-session", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
   });
+
   if (!response.ok) {
     throw new Error("Failed to create checkout session");
   }
-  return response.json();
+
+  const data = await response.json();
+  return data.url;
 }
 
-async function updateSubscriptionTier(data: {
+interface UpdateSubscriptionParams {
   userId: string;
   tierId: string;
-}): Promise<void> {
+}
+
+async function updateSubscriptionTier(
+  data: UpdateSubscriptionParams
+): Promise<void> {
   const response = await fetch("/api/subscription/tier", {
-    method: "PUT",
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
@@ -41,7 +56,8 @@ async function updateSubscriptionTier(data: {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update subscription");
+    const error = await response.json();
+    throw new Error(error.message || "Failed to update subscription");
   }
 }
 

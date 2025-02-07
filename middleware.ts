@@ -1,31 +1,68 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-// Define public paths that don't require authentication
-const publicPaths = [
+// Define route matchers
+const isPublicPath = createRouteMatcher([
   "/",
   "/login",
   "/sign-up",
   "/reset-password",
   "/recovery-password",
-];
+]);
 
-export default clerkMiddleware((auth, req) => {
-  const isPublicPath = publicPaths.some((path) => req.url.includes(path));
-  const isTrpcPath = req.url.includes("/api/trpc");
+const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+
+export default clerkMiddleware(async (auth, req) => {
+  const { userId, sessionClaims } = await auth();
+  const isPublic = isPublicPath(req);
+  const isAdmin = isAdminRoute(req);
   const isWebhookPath = req.url.includes("/api/webhooks");
 
   // Allow public paths and webhook paths without authentication
-  if (isPublicPath || isWebhookPath) {
-    return;
+  if (isPublic || isWebhookPath) {
+    return NextResponse.next();
   }
 
-  // For TRPC paths, let the API handle authentication
-  if (isTrpcPath) {
-    return;
+  // Handle admin routes
+  if (isAdmin) {
+    if (!userId) {
+      const signInUrl = new URL("/sign-in", req.url);
+      signInUrl.searchParams.set("redirect_url", req.url);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    try {
+      const response = await fetch(`${process.env.BACKEND_URL}/api/users/me`, {
+        headers: {
+          Authorization: `Bearer ${userId}`,
+        },
+      });
+
+      if (!response.ok) {
+        const homeUrl = new URL("/", req.url);
+        return NextResponse.redirect(homeUrl);
+      }
+
+      const user = await response.json();
+      if (!user.currentTier?.name?.toLowerCase().includes("admin")) {
+        const homeUrl = new URL("/", req.url);
+        return NextResponse.redirect(homeUrl);
+      }
+    } catch (error) {
+      console.error("[ADMIN_MIDDLEWARE_ERROR]", error);
+      const homeUrl = new URL("/", req.url);
+      return NextResponse.redirect(homeUrl);
+    }
   }
 
   // Protect all other routes
-  auth.protect();
+  if (!userId) {
+    const signInUrl = new URL("/sign-in", req.url);
+    signInUrl.searchParams.set("redirect_url", req.url);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  return NextResponse.next();
 });
 
 export const config = {

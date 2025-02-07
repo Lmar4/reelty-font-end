@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useCreateJob } from "@/hooks/use-jobs";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import FileUpload from "@/components/reelty/FileUpload";
 
 interface AdditionalPhotosModalProps {
   listingId: string;
@@ -16,93 +14,115 @@ interface AdditionalPhotosModalProps {
   onSuccess?: () => void;
 }
 
-export const AdditionalPhotosModal = ({
+export function AdditionalPhotosModal({
   listingId,
   isOpen,
   onClose,
   onSuccess,
-}: AdditionalPhotosModalProps) => {
-  const [template, setTemplate] = useState("basic");
-  const [files, setFiles] = useState<string[]>([]);
-
+}: AdditionalPhotosModalProps) {
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const createJob = useCreateJob();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePhotosSelected = (files: File[]) => {
+    // Only allow selecting up to 10 additional photos
+    if (files.length > 10) {
+      toast.error("You can only select up to 10 additional photos");
+      return;
+    }
+    setSelectedPhotos(files);
+  };
 
-    if (files.length === 0) {
+  const handleSubmit = async () => {
+    if (selectedPhotos.length === 0) {
       toast.error("Please select at least one photo");
       return;
     }
 
+    setIsUploading(true);
     try {
-      await createJob.mutateAsync({
-        listingId,
-        template,
-        inputFiles: files,
+      // Upload the additional photos
+      const formData = new FormData();
+      selectedPhotos.forEach((file, index) => {
+        formData.append(`files`, file);
+        formData.append(`orders`, index.toString());
+      });
+      formData.append("listingId", listingId);
+
+      const response = await fetch("/api/upload/batch", {
+        method: "POST",
+        body: formData,
       });
 
-      toast.success("Job submitted successfully");
+      if (!response.ok) {
+        throw new Error("Failed to upload photos");
+      }
+
+      const { filePaths } = await response.json();
+
+      // Create a new job with pro template
+      await createJob.mutateAsync({
+        listingId,
+        template: "pro",
+        inputFiles: filePaths,
+      });
+
+      toast.success("Additional photos uploaded and processing started!");
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error("[SUBMIT_JOB_ERROR]", error);
-      toast.error("Failed to submit job");
+      console.error("[ADDITIONAL_PHOTOS_ERROR]", error);
+      toast.error("Failed to process additional photos");
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Additional Photos</DialogTitle>
+          <DialogTitle>Select Additional Photos</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="template">Template</Label>
-            <Input
-              id="template"
-              value={template}
-              onChange={(e) => setTemplate(e.target.value)}
-              required
-            />
+        <div className="space-y-6 py-4">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Congratulations on upgrading! You can now select up to 10 additional photos
+              for your listing. These will be processed with our premium templates.
+            </p>
           </div>
 
-          <div>
-            <Label htmlFor="files">Photos</Label>
-            <Input
-              id="files"
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={(e) => {
-                const fileList = e.target.files;
-                if (fileList) {
-                  setFiles(Array.from(fileList).map((file) => file.name));
-                }
-              }}
-              required
-            />
-          </div>
+          <FileUpload
+            buttonText="Select additional photos"
+            onFilesSelected={handlePhotosSelected}
+            maxFiles={10}
+            accept="image/*"
+            maxSize={15}
+          />
 
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose} type="button">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={createJob.isPending}>
-              {createJob.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                "Submit"
-              )}
-            </Button>
-          </div>
-        </form>
+          {selectedPhotos.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {selectedPhotos.length} photos selected
+            </p>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={isUploading || selectedPhotos.length === 0}
+            className="w-full bg-black text-white rounded-lg h-12 font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              "Process Additional Photos"
+            )}
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );
-};
+}

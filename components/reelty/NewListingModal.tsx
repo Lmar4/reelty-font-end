@@ -2,6 +2,17 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
+import { useLoadScript } from "@react-google-maps/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import usePlacesAutocomplete, {
+  getGeocode,
+  getLatLng,
+} from "use-places-autocomplete";
+import { toast } from "sonner";
+import { useAuth } from "@clerk/nextjs";
+import { useCreateJob } from "@/hooks/use-jobs";
+import { useCreateListing, useUploadPhoto } from "@/hooks/queries/use-listings";
 
 interface NewListingModalProps {
   isOpen: boolean;
@@ -40,11 +51,37 @@ export default function NewListingModal({
   onClose,
   initialFiles,
 }: NewListingModalProps) {
+  const { userId } = useAuth();
+  const createJob = useCreateJob();
+  const createListing = useCreateListing();
+  const uploadPhoto = useUploadPhoto();
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [uploadedPhotos, setUploadedPhotos] = useState<File[]>([]);
   const [compressedUrls, setCompressedUrls] = useState<
     { url: string; id: string }[]
   >([]);
+  const [address, setAddress] = useState("");
+  const [coordinates, setCoordinates] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+    libraries: ["places"],
+  });
+
+  const {
+    ready,
+    value,
+    suggestions: { status, data },
+    setValue,
+    clearSuggestions,
+  } = usePlacesAutocomplete({
+    debounce: 300,
+    cache: 24 * 60 * 60,
+  });
 
   // Handle initial files
   useEffect(() => {
@@ -100,6 +137,80 @@ export default function NewListingModal({
     }
   };
 
+  const handleSelect = async (description: string) => {
+    setValue(description, false);
+    clearSuggestions();
+    setAddress(description);
+
+    try {
+      const results = await getGeocode({ address: description });
+      const { lat, lng } = await getLatLng(results[0]);
+      setCoordinates({ lat, lng });
+    } catch (error) {
+      console.error("Error getting geocode:", error);
+      toast.error("Error getting location coordinates");
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!address) {
+      toast.error("Please enter a listing address");
+      return;
+    }
+
+    if (selectedPhotos.size === 0) {
+      toast.error("Please select at least one photo");
+      return;
+    }
+
+    if (!userId) {
+      toast.error("You must be signed in to create a listing");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // 1. Create listing
+      const listing = await createListing.mutateAsync({
+        userId,
+        address,
+        coordinates,
+        photoLimit: 10,
+      });
+
+      // 2. Upload selected photos
+      const selectedPhotoFiles = Array.from(selectedPhotos).map(
+        (index) => uploadedPhotos[parseInt(index)]
+      );
+
+      const uploadPromises = selectedPhotoFiles.map((file, index) =>
+        uploadPhoto.mutateAsync({
+          file,
+          listingId: listing.id,
+          order: index,
+        })
+      );
+
+      const uploadResults = await Promise.all(uploadPromises);
+      const uploadedFilePaths = uploadResults.map((result) => result.filePath);
+
+      // 3. Create video generation job
+      await createJob.mutateAsync({
+        listingId: listing.id,
+        template: "basic", // Default template for now
+        inputFiles: uploadedFilePaths,
+      });
+
+      toast.success("Generation started!");
+      onClose();
+    } catch (error) {
+      console.error("Error generating listing:", error);
+      toast.error("Failed to generate listing");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Memoize the grid to prevent unnecessary re-renders
   const photoGrid = useMemo(() => {
     return uploadedPhotos
@@ -127,7 +238,9 @@ export default function NewListingModal({
               />
               {/* Dark overlay for unselected images */}
               <div
-                className={`absolute inset-0 transition-opacity duration-200 ${isSelected ? "opacity-0" : "bg-black/40"}`}
+                className={`absolute inset-0 transition-opacity duration-200 ${
+                  isSelected ? "opacity-0" : "bg-black/40"
+                }`}
               />
             </div>
             {isSelected && (
@@ -213,6 +326,34 @@ export default function NewListingModal({
 
         {/* Scrollable Content Area */}
         <div className='overflow-y-auto flex-1'>
+          {/* Address Input Section */}
+          <div className='p-4 border-b'>
+            <Label htmlFor='address'>Listing Address</Label>
+            <div className='relative'>
+              <Input
+                id='address'
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                disabled={!ready || !isLoaded}
+                placeholder='Enter listing address'
+                className='w-full'
+              />
+              {status === "OK" && (
+                <ul className='absolute z-10 w-full bg-white border rounded-md mt-1 shadow-lg max-h-60 overflow-auto'>
+                  {data.map(({ place_id, description }) => (
+                    <li
+                      key={place_id}
+                      onClick={() => handleSelect(description)}
+                      className='px-4 py-2 hover:bg-gray-100 cursor-pointer'
+                    >
+                      {description}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
           {/* Photo Selection Section */}
           <div className='p-4'>
             <div className='flex flex-col gap-3 mb-4'>
@@ -273,20 +414,54 @@ export default function NewListingModal({
 
         {/* Generate Button - Fixed to bottom */}
         <div className='bg-white pb-3 px-3 sm:px-4 sm:pb-4'>
-          <button className='w-full bg-black text-white rounded-lg h-10 sm:h-12 text-[16px] font-semibold flex items-center justify-center gap-2'>
-            <svg
-              width='16'
-              height='16'
-              viewBox='0 0 24 24'
-              fill='white'
-              stroke='currentColor'
-              strokeWidth='1.5'
-            >
-              <path d='M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z' />
-              <path d='M5 17l1 2.5L8.5 21l-2.5 1L5 24l-1-2.5L1.5 21l2.5-1L5 17z' />
-              <path d='M18 17l1 2.5L21.5 21l-2.5 1L18 24l-1-2.5L14.5 21l2.5-1L18 17z' />
-            </svg>
-            Generate Reels
+          <button
+            className='w-full bg-black text-white rounded-lg h-10 sm:h-12 text-[16px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50'
+            onClick={handleGenerate}
+            disabled={isGenerating || selectedPhotos.size === 0 || !address}
+          >
+            {isGenerating ? (
+              <>
+                <svg
+                  className='animate-spin h-5 w-5 text-white'
+                  xmlns='http://www.w3.org/2000/svg'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                >
+                  <circle
+                    className='opacity-25'
+                    cx='12'
+                    cy='12'
+                    r='10'
+                    stroke='currentColor'
+                    strokeWidth='4'
+                  ></circle>
+                  <path
+                    className='opacity-75'
+                    fill='currentColor'
+                    d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                  ></path>
+                </svg>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg
+                  width='16'
+                  height='16'
+                  viewBox='0 0 24 24'
+                  fill='white'
+                  stroke='currentColor'
+                  strokeWidth='1.5'
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                >
+                  <path d='M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z' />
+                  <path d='M5 17l1 2.5L8.5 21l-2.5 1L5 24l-1-2.5L1.5 21l2.5-1L5 17z' />
+                  <path d='M18 17l1 2.5L21.5 21l-2.5 1L18 24l-1-2.5L14.5 21l2.5-1L18 17z' />
+                </svg>
+                Generate Reels
+              </>
+            )}
           </button>
         </div>
       </div>

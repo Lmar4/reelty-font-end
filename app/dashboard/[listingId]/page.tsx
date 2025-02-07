@@ -5,15 +5,15 @@ import { AdditionalPhotosModal } from "@/components/modals/AdditionalPhotosModal
 import PricingModal from "@/components/modals/PricingModal";
 import { RegenerateModal } from "@/components/modals/RegenerateModal";
 import DashboardLayout from "@/components/reelty/DashboardLayout";
-import { useUser } from "@/hooks/queries/use-user";
-import { useListing } from "@/hooks/queries/use-listings";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { VideoJob, User } from "@/types/prisma-types";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Video, RefreshCw } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
+import { useListing } from "@/hooks/queries/use-listings";
+import { useUser } from "@/hooks/queries/use-user";
+import { User, VideoJob } from "@/types/prisma-types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { RefreshCw, Video } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 async function fetchListingJobs(listingId: string): Promise<VideoJob[]> {
   const response = await fetch(`/api/jobs?listingId=${listingId}`);
@@ -32,9 +32,14 @@ async function fetchVideoDownloadUrl(jobId: string): Promise<string> {
   return data.url;
 }
 
-export default function ListingDetail() {
-  const params = useParams();
-  const router = useRouter();
+interface ListingPageProps {
+  params: {
+    listingId: string;
+  };
+}
+
+export default function ListingPage({ params }: ListingPageProps) {
+
   const listingId = params.listingId as string;
   const { showToast } = useToast();
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
@@ -42,6 +47,7 @@ export default function ListingDetail() {
   const [isAdditionalPhotosModalOpen, setIsAdditionalPhotosModalOpen] =
     useState(false);
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { data: userData } = useUser(currentUser?.id || "");
@@ -52,7 +58,7 @@ export default function ListingDetail() {
     }
   }, [userData]);
 
-  const { data: listing } = useListing(listingId);
+  const { data: listing, isLoading } = useListing(listingId);
   const { data: videoJobs } = useQuery({
     queryKey: ['listingJobs', listingId],
     queryFn: () => fetchListingJobs(listingId),
@@ -66,17 +72,15 @@ export default function ListingDetail() {
     enabled: false,
   });
 
-  const isPaidUser = userData?.subscriptionTier !== "free";
+  const isPaidUser = userData?.currentTierId !== "free";
 
-  // Check for post-upgrade redirect
+  // Check for upgrade success and show modal
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("upgrade_success") === "true") {
+    const upgradeSuccess = searchParams.get("upgrade_success");
+    if (upgradeSuccess === "true") {
       setIsAdditionalPhotosModalOpen(true);
-      // Clean up the URL
-      router.replace(`/dashboard/${listingId}`);
     }
-  }, [listingId, router]);
+  }, [searchParams]);
 
   const handleDownload = async (jobId: string) => {
     if (!isPaidUser) {
@@ -101,6 +105,19 @@ export default function ListingDetail() {
 
   const property = listing || null;
   const jobs = videoJobs || [];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+          <LoadingState 
+            text="Loading property details..."
+            size="lg"
+          />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (!property) {
     return (
@@ -255,6 +272,7 @@ export default function ListingDetail() {
             queryClient.invalidateQueries({
               queryKey: ['listingJobs', listingId],
             });
+            window.location.reload();
           }}
         />
       </div>

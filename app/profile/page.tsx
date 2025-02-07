@@ -74,43 +74,36 @@ export default function Profile() {
           schema={userProfileSchema}
           onSubmit={handleSubmit}
           defaultValues={{
-            name: userData?.name || "",
+            name: `${userData?.firstName || ''} ${userData?.lastName || ''}`.trim(),
             email: userData?.email || "",
           }}
           className='space-y-6'
         >
           <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor="name" className='block text-sm font-medium text-gray-700 mb-1'>
                 Name
               </label>
               <input
+                id="name"
                 type='text'
                 name='name'
-                className='w-full px-3 py-2 border rounded-md'
+                className='w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                 placeholder='Your name'
+                aria-label="Name"
               />
             </div>
             <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
+              <label htmlFor="email" className='block text-sm font-medium text-gray-700 mb-1'>
                 Email
               </label>
               <input
+                id="email"
                 type='email'
                 name='email'
-                className='w-full px-3 py-2 border rounded-md'
+                className='w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                 placeholder='your.email@example.com'
-              />
-            </div>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 mb-1'>
-                Phone
-              </label>
-              <input
-                type='tel'
-                name='phone'
-                className='w-full px-3 py-2 border rounded-md'
-                placeholder='+1 (555) 000-0000'
+                aria-label="Email"
               />
             </div>
           </div>

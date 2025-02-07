@@ -3,9 +3,51 @@
 import FileUpload from "@/components/reelty/FileUpload";
 import HomeHeader from "@/components/reelty/HomeHeader";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+import NewListingModal from "@/components/reelty/NewListingModal";
+import { useState } from "react";
 
 export default function Home() {
-  
+  const router = useRouter();
+  const { isSignedIn } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+
+  const handleFilesSelected = (files: File[]) => {
+    if (isSignedIn) {
+      setSelectedFiles(files);
+      setIsModalOpen(true);
+    } else {
+      // Store files in localStorage before redirecting
+      const sessionId = Math.random().toString(36).substring(7);
+      localStorage.setItem("pendingListingSession", sessionId);
+      
+      // Store file data as base64
+      Promise.all(
+        files.map(async (file) => ({
+          name: file.name,
+          type: file.type,
+          data: await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(file);
+          })
+        }))
+      ).then((fileData) => {
+        localStorage.setItem(`pendingFiles_${sessionId}`, JSON.stringify({
+          files: fileData,
+          timestamp: Date.now()
+        }));
+        router.push("/login?returnTo=/dashboard");
+      });
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedFiles([]);
+  };
 
   return (
     <div className='min-h-screen bg-white'>
@@ -169,12 +211,19 @@ export default function Home() {
 
         {/* Input Section */}
         <div className='max-w-[800px] mx-auto px-4'>
-          <FileUpload onFilesSelected={() => {}} />
+          <FileUpload onFilesSelected={handleFilesSelected} />
           <p className='text-[14px] text-[#6B7280] mt-3 md:mt-8 text-center'>
             Try for free. No credit card required.
           </p>
         </div>
       </main>
+
+      {/* New Listing Modal */}
+      <NewListingModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        initialFiles={selectedFiles}
+      />
     </div>
   );
 }

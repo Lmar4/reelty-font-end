@@ -11,36 +11,69 @@ export type JsonValue =
 export type AssetType = "MUSIC" | "WATERMARK" | "LOTTIE";
 
 export interface User {
-  id: string;
+  id: string; // Clerk ID
   email: string;
-  name: string;
-  subscriptionTier: string;
-  fcmToken?: string;
-  lastLoginAt?: Date;
+  firstName: string | null;
+  lastName: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
+  subscriptionStatus: string | null;
+  subscriptionPeriodEnd: Date | null;
+  currentTierId: string | null;
+  lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  subscriptionLogs?: SubscriptionLog[];
+  creditLogs?: CreditLog[];
+  adminCreditLogs?: CreditLog[];
+  tierChanges?: TierChange[];
+  adminTierChanges?: TierChange[];
+  listingCredits?: ListingCredit[];
+  listings?: Listing[];
+  photos?: Photo[];
+  videoJobs?: VideoJob[];
+  searchHistory?: SearchHistory[];
+  errorLogs?: ErrorLog[];
+  tempUploads?: TempUpload[];
+  currentTier?: SubscriptionTier;
 }
 
 export interface SubscriptionTier {
   id: string;
+  name: string;
   description: string;
-  pricing: number;
-  isAdmin: boolean;
-  features: any[];
+  stripePriceId: string;
+  stripeProductId: string;
+  features: string[];
+  monthlyPrice: number;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  users?: User[];
+  templates?: Template[];
+  assets?: Asset[];
 }
 
 export interface Template {
   id: string;
   name: string;
   description: string;
-  sequence: any;
-  durations: any;
-  musicPath?: string;
-  musicVolume?: number;
+  sequence: JsonValue;
+  durations: JsonValue;
+  musicPath: string | null;
+  musicVolume: number | null;
   subscriptionTier: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  tier?: SubscriptionTier;
 }
 
 export interface CreditLog {
@@ -48,8 +81,12 @@ export interface CreditLog {
   userId: string;
   amount: number;
   reason: string;
-  adminId?: string;
+  adminId: string | null;
   createdAt: Date;
+
+  // Relations
+  user?: User;
+  admin?: User;
 }
 
 export interface TierChange {
@@ -58,20 +95,27 @@ export interface TierChange {
   oldTier: string;
   newTier: string;
   reason: string;
-  adminId?: string;
+  adminId: string | null;
   createdAt: Date;
+
+  // Relations
+  user?: User;
+  admin?: User;
 }
 
 export interface Asset {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   filePath: string;
   type: AssetType;
   subscriptionTier: string;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  tier?: SubscriptionTier;
 }
 
 export interface ListingCredit {
@@ -81,17 +125,23 @@ export interface ListingCredit {
   expiryDate: Date;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  user?: User;
 }
 
 export interface Listing {
   id: string;
   userId: string;
   address: string;
-  description?: string;
+  description: string | null;
   status: string;
   photoLimit: number;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  user?: User;
   photos?: Photo[];
   videoJobs?: VideoJob[];
 }
@@ -104,6 +154,10 @@ export interface Photo {
   order: number;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  user?: User;
+  listing?: Listing;
 }
 
 export interface VideoJob {
@@ -111,12 +165,15 @@ export interface VideoJob {
   userId: string;
   listingId: string;
   status: string;
-  template?: string;
-  inputFiles?: any;
-  outputFile?: string;
-  error?: string;
+  template: string | null;
+  inputFiles: JsonValue | null;
+  outputFile: string | null;
+  error: string | null;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  user?: User;
   listing?: Listing;
 }
 
@@ -125,21 +182,45 @@ export interface SearchHistory {
   userId: string;
   query: string;
   createdAt: Date;
+
+  // Relations
+  user?: User;
 }
 
 export interface ErrorLog {
   id: string;
-  userId?: string;
+  userId: string | null;
   error: string;
-  stack?: string;
+  stack: string | null;
   createdAt: Date;
+
+  // Relations
+  user?: User;
 }
 
 export interface TempUpload {
   id: string;
   userId: string;
-  address?: string;
-  files: any[];
+  address: string | null;
+  files: JsonValue;
   createdAt: Date;
   expiresAt: Date;
+
+  // Relations
+  user?: User;
+}
+
+export interface SubscriptionLog {
+  id: string;
+  userId: string;
+  action: string;
+  stripeSubscriptionId: string;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
+  status: string;
+  periodEnd: Date | null;
+  createdAt: Date;
+
+  // Relations
+  user?: User;
 }
