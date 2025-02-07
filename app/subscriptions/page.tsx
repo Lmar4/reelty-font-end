@@ -1,47 +1,35 @@
 "use client";
 
-import { trpc } from "@/lib/trpc";
-import { TRPCClientErrorLike } from "@trpc/client";
 import { useState } from "react";
 import { toast } from "sonner";
 import DashboardLayout from "../../components/reelty/DashboardLayout";
-import { useUserData } from "../../hooks/useUserData";
-
-interface SubscriptionTier {
-  id: string;
-  description: string;
-  pricing: string;
-  isAdmin: boolean;
-  features: string[];
-}
+import { useUser } from "@/hooks/queries/use-user";
+import { useSubscriptionTiers, useUpdateSubscription } from "@/hooks/queries/use-subscription";
+import { User } from "@/types/prisma-types";
 
 export default function Subscriptions() {
   const [isUpdating, setIsUpdating] = useState(false);
-  const { data: userData } = useUserData();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { data: userData } = useUser(currentUser?.id || "");
 
-  const { data: rawSubscriptionTiers } = trpc.subscription.getTiers.useQuery();
-  const subscriptionTiers = rawSubscriptionTiers as SubscriptionTier[] | undefined;
-  
-  const updateSubscriptionMutation = trpc.subscription.updateTier.useMutation({
-    onSuccess: () => {
-      toast.success("Subscription updated successfully");
-      setIsUpdating(false);
-    },
-    onError: (error: TRPCClientErrorLike<any>) => {
-      toast.error(error.message || "Failed to update subscription");
-      setIsUpdating(false);
-    },
-  });
+  const { data: subscriptionTiers } = useSubscriptionTiers();
+  const updateSubscriptionMutation = useUpdateSubscription();
 
   const handleSubscriptionUpdate = async (tierId: string) => {
+    if (!userData?.id) return;
+
     try {
       setIsUpdating(true);
       await updateSubscriptionMutation.mutateAsync({
-        userId: userData?.id || "",
+        userId: userData.id,
         tierId,
       });
+      toast.success("Subscription updated successfully");
     } catch (error) {
       console.error("Subscription update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update subscription");
+    } finally {
+      setIsUpdating(false);
     }
   };
 

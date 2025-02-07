@@ -1,25 +1,25 @@
-import { trpc } from "@/lib/trpc";
-import { useUser } from "@clerk/nextjs";
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
+import type { User } from "@/types/user-types";
+
+async function getUserData(userId: string): Promise<User> {
+  const response = await fetch(`/api/users/${userId}`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch user data");
+  }
+  return response.json();
+}
 
 export function useUserData() {
-  const { user, isLoaded } = useUser();
+  const { userId } = useAuth();
+  
+  const query = useQuery({
+    queryKey: ["user", userId],
+    queryFn: () => getUserData(userId!),
+    enabled: !!userId,
+  });
 
-  const query = trpc.user.getUser.useQuery(
-    { id: user?.id || "" },
-    { 
-      enabled: isLoaded && !!user?.id,
-      // Keep previous data while fetching new data
-      keepPreviousData: true,
-      // Refetch when user data changes
-      refetchOnWindowFocus: true,
-    }
-  );
-
-  return {
-    ...query,
-    // Add isLoaded from Clerk to help components handle the initial loading state
-    isLoading: !isLoaded || query.isLoading,
-    // Ensure user is loaded before returning data
-    data: isLoaded ? query.data : undefined
-  };
+  return query;
 }

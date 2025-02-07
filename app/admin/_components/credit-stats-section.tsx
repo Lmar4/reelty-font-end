@@ -1,104 +1,58 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
-import { Cell, Legend, Pie, PieChart, Tooltip } from "recharts";
+import { Card } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 
 interface CreditStats {
-  _sum: {
-    creditsRemaining: number;
-  };
-  _avg: {
-    creditsRemaining: number;
-  };
+  totalCredits: number;
+  usedCredits: number;
+  remainingCredits: number;
 }
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
+async function getCreditStats(): Promise<CreditStats> {
+  const response = await fetch("/api/admin/stats/credits");
+  if (!response.ok) {
+    throw new Error("Failed to fetch credit stats");
+  }
+  return response.json();
+}
 
 export default function CreditStatsSection() {
-  const { data: creditStats, isLoading } =
-    trpc.adminDashboard.getCreditStats.useQuery();
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["creditStats"],
+    queryFn: getCreditStats,
+  });
 
   if (isLoading) {
-    return <div>Loading credit statistics...</div>;
+    return (
+      <div className='flex justify-center'>
+        <Loader2 className='h-8 w-8 animate-spin' />
+      </div>
+    );
   }
 
-  const totalCredits = creditStats?._sum.creditsRemaining || 0;
-  const avgCredits = creditStats?._avg.creditsRemaining || 0;
-
-  const creditData = [
-    {
-      name: "Average Credits",
-      value: avgCredits,
-    },
-    {
-      name: "Total Credits",
-      value: totalCredits,
-    },
-  ];
+  if (!stats) return null;
 
   return (
-    <div className='space-y-6'>
-      <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Credits</CardTitle>
-            <CardDescription>Sum of all user credits</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className='text-3xl font-bold'>{totalCredits}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Average Credits</CardTitle>
-            <CardDescription>Per user average</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className='text-3xl font-bold'>{avgCredits.toFixed(2)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Credit Distribution</CardTitle>
-          <CardDescription>Visual representation of credits</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className='h-[400px] w-full flex items-center justify-center'>
-            <PieChart width={400} height={400}>
-              <Pie
-                data={creditData}
-                cx='50%'
-                cy='50%'
-                labelLine={false}
-                outerRadius={150}
-                fill='#8884d8'
-                dataKey='value'
-                label={({ name, percent }) =>
-                  `${name}: ${(percent * 100).toFixed(0)}%`
-                }
-              >
-                {creditData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </div>
-        </CardContent>
+    <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+      <Card className='p-4'>
+        <h3 className='text-sm font-medium text-muted-foreground'>
+          Total Credits
+        </h3>
+        <p className='text-2xl font-bold'>{stats.totalCredits}</p>
+      </Card>
+      <Card className='p-4'>
+        <h3 className='text-sm font-medium text-muted-foreground'>
+          Used Credits
+        </h3>
+        <p className='text-2xl font-bold'>{stats.usedCredits}</p>
+      </Card>
+      <Card className='p-4'>
+        <h3 className='text-sm font-medium text-muted-foreground'>
+          Remaining Credits
+        </h3>
+        <p className='text-2xl font-bold'>{stats.remainingCredits}</p>
       </Card>
     </div>
   );

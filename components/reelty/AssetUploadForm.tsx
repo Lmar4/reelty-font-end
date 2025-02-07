@@ -1,5 +1,6 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import { trpc } from "@/lib/trpc";
 import FileUpload from "@/components/reelty/FileUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,18 +16,59 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { AssetType } from "@/types/prisma-types";
 
 interface AssetUploadFormProps {
   onSuccess?: () => void;
+}
+
+async function getPresignedUrl(data: {
+  fileName: string;
+  contentType: string;
+  type: AssetType;
+}): Promise<{ uploadUrl: string; fileKey: string }> {
+  const response = await fetch("/api/storage/presigned-url", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to get presigned URL");
+  }
+
+  return response.json();
+}
+
+async function createAsset(data: {
+  name: string;
+  description?: string;
+  type: AssetType;
+  subscriptionTier: string;
+  filePath: string;
+  isActive: boolean;
+}): Promise<void> {
+  const response = await fetch("/api/admin/assets", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create asset");
+  }
 }
 
 export function AssetUploadForm({ onSuccess }: AssetUploadFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [assetName, setAssetName] = useState("");
   const [assetDescription, setAssetDescription] = useState("");
-  const [assetType, setAssetType] = useState<"MUSIC" | "WATERMARK" | "LOTTIE">(
-    "MUSIC"
-  );
+  const [assetType, setAssetType] = useState<AssetType>("MUSIC");
   const [subscriptionTier, setSubscriptionTier] = useState("basic");
   const [isUploading, setIsUploading] = useState(false);
   const [lottieValidationError, setLottieValidationError] = useState<
@@ -34,8 +76,13 @@ export function AssetUploadForm({ onSuccess }: AssetUploadFormProps) {
   >(null);
   const { toast } = useToast();
 
-  const getPresignedUrlMutation = trpc.storage.getPresignedUrl.useMutation();
-  const createAssetMutation = trpc.adminDashboard.createAsset.useMutation();
+  const getPresignedUrlMutation = useMutation({
+    mutationFn: getPresignedUrl,
+  });
+
+  const createAssetMutation = useMutation({
+    mutationFn: createAsset,
+  });
 
   // Validate Lottie file when selected
   const validateLottieFile = async (file: File) => {
@@ -188,7 +235,7 @@ export function AssetUploadForm({ onSuccess }: AssetUploadFormProps) {
         <Label htmlFor='assetType'>Asset Type</Label>
         <Select
           value={assetType}
-          onValueChange={(value) => setAssetType(value as typeof assetType)}
+          onValueChange={(value) => setAssetType(value as AssetType)}
         >
           <SelectTrigger id='assetType'>
             <SelectValue placeholder='Select asset type' />

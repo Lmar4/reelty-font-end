@@ -1,9 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import type { RouterOutput } from "@/types/trpc";
-
-type Listing = RouterOutput["property"]["getUserListings"][number];
+import { Listing } from "@/types/prisma-types";
 
 interface ListingCardProps {
   listing: Listing;

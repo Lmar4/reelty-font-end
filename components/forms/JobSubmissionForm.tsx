@@ -1,108 +1,90 @@
 "use client";
 
 import { useState } from "react";
-import { trpc } from "@/lib/trpc";
-import { handleError } from "@/lib/error-handler";
+import { toast } from "sonner";
+import { useCreateJob } from "@/hooks/use-jobs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { TRPCClientErrorLike } from "@trpc/client";
-import { toast } from "sonner";
 
 interface JobSubmissionFormProps {
   listingId: string;
-  userId: string;
-  onSuccess?: (jobId: string) => void;
-  className?: string;
-  selectedPhotos?: string[];
-  template?: string;
+  onSuccess?: () => void;
 }
 
-interface VideoJob {
-  id: string;
-  userId: string;
-  listingId: string;
-  status: string;
-  template: string | null;
-  inputFiles: string[] | null;
-  outputFile: string | null;
-  error: string | null;
-}
-
-export default function JobSubmissionForm({
+export const JobSubmissionForm = ({
   listingId,
-  userId,
   onSuccess,
-  className = "",
-  selectedPhotos = [],
-  template = "crescendo",
-}: JobSubmissionFormProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+}: JobSubmissionFormProps) => {
+  const [template, setTemplate] = useState("basic");
+  const [files, setFiles] = useState<string[]>([]);
 
-  const submitJobMutation = trpc.jobs.submit.useMutation<VideoJob>({
-    onSuccess: (job) => {
-      toast.success("Video generation job submitted successfully!");
-      onSuccess?.(job.id);
-    },
-    onError: (error: TRPCClientErrorLike<any>) => {
-      handleError(error, {
-        fallbackMessage: "Failed to submit video generation job",
-      });
-    },
-  });
+  const createJob = useCreateJob();
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     try {
-      setIsSubmitting(true);
-      await submitJobMutation.mutateAsync({
-        userId,
+      await createJob.mutateAsync({
         listingId,
-        inputFiles: selectedPhotos,
         template,
+        inputFiles: files,
       });
+
+      toast.success("Job submitted successfully");
+      onSuccess?.();
     } catch (error) {
-      handleError(error);
-    } finally {
-      setIsSubmitting(false);
+      console.error("[SUBMIT_JOB_ERROR]", error);
+      toast.error("Failed to submit job");
     }
   };
 
   return (
-    <Card className={`p-6 ${className}`}>
-      <div className='space-y-4'>
-        <h3 className='text-lg font-semibold'>Create Video</h3>
-        <p className='text-sm text-gray-500'>
-          Generate a video showcase for your listing using AI
-        </p>
-        {selectedPhotos.length > 0 ? (
-          <p className='text-sm text-gray-600'>
-            {selectedPhotos.length} photo
-            {selectedPhotos.length !== 1 ? "s" : ""} selected
-          </p>
-        ) : (
-          <p className='text-sm text-yellow-600'>
-            No photos selected. Please select photos to generate a video.
-          </p>
-        )}
+    <Card className="p-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="template">Template</Label>
+          <Input
+            id="template"
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            required
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="files">Files</Label>
+          <Input
+            id="files"
+            type="file"
+            multiple
+            onChange={(e) => {
+              const fileList = e.target.files;
+              if (fileList) {
+                setFiles(Array.from(fileList).map((file) => file.name));
+              }
+            }}
+            required
+          />
+        </div>
+
         <Button
-          onClick={handleSubmit}
-          disabled={isSubmitting || selectedPhotos.length === 0}
-          className='w-full'
-          aria-label='Submit job'
+          type="submit"
+          className="w-full"
+          disabled={createJob.isPending}
         >
-          {isSubmitting ? (
+          {createJob.isPending ? (
             <>
-              <Loader2
-                className='mr-2 h-4 w-4 animate-spin'
-                data-testid='loading-spinner'
-              />
-              Processing...
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Submitting...
             </>
           ) : (
-            "Generate Video"
+            "Submit Job"
           )}
         </Button>
-      </div>
+      </form>
     </Card>
   );
-}
+};

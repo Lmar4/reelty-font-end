@@ -1,18 +1,33 @@
 "use client";
 
 import { useToast } from "@/components/common/Toast";
-import AdditionalPhotosModal from "@/components/modals/AdditionalPhotosModal";
+import { AdditionalPhotosModal } from "@/components/modals/AdditionalPhotosModal";
 import PricingModal from "@/components/modals/PricingModal";
-import RegenerateModal from "@/components/modals/RegenerateModal";
+import { RegenerateModal } from "@/components/modals/RegenerateModal";
 import DashboardLayout from "@/components/reelty/DashboardLayout";
-import { useUserData } from "@/hooks/useUserData";
-import { trpc } from "@/lib/trpc";
-import type { PropertyOutput, RouterOutput } from "@/types/trpc";
-import { useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@/hooks/queries/use-user";
+import { useListing } from "@/hooks/queries/use-listings";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { VideoJob, User } from "@/types/prisma-types";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+async function fetchListingJobs(listingId: string): Promise<VideoJob[]> {
+  const response = await fetch(`/api/jobs?listingId=${listingId}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch listing jobs');
+  }
+  return response.json();
+}
 
+async function fetchVideoDownloadUrl(jobId: string): Promise<string> {
+  const response = await fetch(`/api/jobs/${jobId}/download`);
+  if (!response.ok) {
+    throw new Error('Failed to get video download URL');
+  }
+  const data = await response.json();
+  return data.url;
+}
 
 export default function ListingDetail() {
   const params = useParams();
@@ -25,23 +40,28 @@ export default function ListingDetail() {
     useState(false);
   const queryClient = useQueryClient();
 
-  const { data: userData } = useUserData();
-  const { data: listing } = trpc.property.getById.useQuery(
-    { id: listingId },
-    { enabled: !!listingId }
-  );
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { data: userData } = useUser(currentUser?.id || "");
 
-  const { data: videoJobs } = trpc.jobs.getListingJobs.useQuery(
-    { listingId },
-    { enabled: !!listingId }
-  );
+  useEffect(() => {
+    if (userData) {
+      setCurrentUser(userData);
+    }
+  }, [userData]);
+
+  const { data: listing } = useListing(listingId);
+  const { data: videoJobs } = useQuery({
+    queryKey: ['listingJobs', listingId],
+    queryFn: () => fetchListingJobs(listingId),
+    enabled: !!listingId,
+  });
 
   const [downloadJobId, setDownloadJobId] = useState<string>("");
-  const { data: downloadUrl, refetch: refetchDownloadUrl } =
-    trpc.jobs.getVideoDownloadUrl.useQuery(
-      { jobId: downloadJobId },
-      { enabled: false }
-    );
+  const { data: downloadUrl, refetch: refetchDownloadUrl } = useQuery({
+    queryKey: ['videoDownload', downloadJobId],
+    queryFn: () => fetchVideoDownloadUrl(downloadJobId),
+    enabled: false,
+  });
 
   const isPaidUser = userData?.subscriptionTier !== "free";
 
@@ -76,15 +96,38 @@ export default function ListingDetail() {
     setIsPricingModalOpen(true);
   };
 
-  const property = listing || {} as PropertyOutput;
+  const property = listing || null;
   const jobs = videoJobs || [];
+
+  if (!property) {
+    return (
+      <DashboardLayout>
+        <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+          <div className='animate-pulse'>
+            <div className='h-8 bg-gray-200 rounded w-1/2 mb-8' />
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className='rounded-lg overflow-hidden'>
+                  <div className='w-full aspect-video bg-gray-200' />
+                  <div className='p-4 bg-white'>
+                    <div className='h-6 bg-gray-200 rounded w-1/3 mb-4' />
+                    <div className='h-4 bg-gray-200 rounded w-1/4' />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
         <div className='flex justify-between items-center mb-8'>
           <h1 className='text-[32px] font-semibold text-[#1c1c1c]'>
-            {property?.address || "Loading..."}
+            {property.address}
           </h1>
           {!isPaidUser && (
             <button
@@ -97,7 +140,7 @@ export default function ListingDetail() {
         </div>
 
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
-          {jobs.map((job: any) => (
+          {jobs.map((job) => (
             <div
               key={job.id}
               className={`relative rounded-lg overflow-hidden ${
@@ -165,13 +208,12 @@ export default function ListingDetail() {
 
         {/* Regenerate Modal */}
         <RegenerateModal
+          jobId={jobs[0]?.id || ""}
           isOpen={isRegenerateModalOpen}
           onClose={() => setIsRegenerateModalOpen(false)}
-          property={property}
-          job={jobs[0]}
           onSuccess={() => {
             queryClient.invalidateQueries({
-              queryKey: ["jobs", "getListingJobs", { listingId }],
+              queryKey: ['listingJobs', listingId],
             });
           }}
         />
@@ -183,19 +225,19 @@ export default function ListingDetail() {
           listingId={listingId}
           onUpgradeComplete={() => {
             queryClient.invalidateQueries({
-              queryKey: ["userData"],
+              queryKey: ['user'],
             });
           }}
         />
 
         {/* Additional Photos Modal */}
         <AdditionalPhotosModal
+          listingId={listingId}
           isOpen={isAdditionalPhotosModalOpen}
           onClose={() => setIsAdditionalPhotosModalOpen(false)}
-          property={property}
           onSuccess={() => {
             queryClient.invalidateQueries({
-              queryKey: ["jobs", "getListingJobs", { listingId }],
+              queryKey: ['listingJobs', listingId],
             });
           }}
         />

@@ -2,45 +2,38 @@
 
 import Form from "@/components/common/Form";
 import DashboardLayout from "@/components/reelty/DashboardLayout";
-import { useUserData } from "@/hooks/useUserData";
-import { trpc } from "@/lib/trpc";
-import {
-  userProfileSchema,
-  type UserProfileFormData,
-} from "@/schemas/userProfileSchema";
-import { TRPCClientErrorLike } from "@trpc/client";
+import { useUser, useUpdateUser } from "@/hooks/queries/use-user";
+import { userProfileSchema, type UserProfileFormData } from "@/schemas/userProfileSchema";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { User } from "@/types/prisma-types";
 
 export default function Profile() {
   const router = useRouter();
-  const { data: userData, isLoading, error } = useUserData();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { data: userData, isLoading, error } = useUser(currentUser?.id || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const updateProfileMutation = trpc.user.updateUser.useMutation({
-    onSuccess: () => {
-      toast.success("Profile updated successfully");
-      router.refresh();
-      setIsSubmitting(false);
-    },
-    onError: (error: TRPCClientErrorLike<any>) => {
-      toast.error(error.message || "Failed to update profile");
-      setIsSubmitting(false);
-    },
-  });
+  const updateUserMutation = useUpdateUser();
 
   const handleSubmit = async (data: UserProfileFormData) => {
+    if (!userData?.id) return;
+
     try {
       setIsSubmitting(true);
-      await updateProfileMutation.mutateAsync({
-        id: userData?.id || "",
+      await updateUserMutation.mutateAsync({
+        id: userData.id,
         name: data.name,
         email: data.email,
       });
+      toast.success("Profile updated successfully");
+      router.refresh();
     } catch (error) {
-      // Error handled by mutation callbacks
       console.error("Profile update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update profile");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

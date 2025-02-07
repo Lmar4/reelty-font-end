@@ -1,63 +1,36 @@
-import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import UserStatsSection from "./_components/user-stats-section";
-import SystemStatsSection from "./_components/system-stats-section";
-import CreditStatsSection from "./_components/credit-stats-section";
-import FeatureUsageSection from "./_components/feature-usage-section";
-import TemplateManagementSection from "./_components/template-management-section";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import AssetManagementSection from "./_components/asset-management-section";
+import type { Asset } from "@/types/asset-types";
 
-export default function AdminDashboard() {
+async function getInitialAssets(): Promise<Asset[]> {
+  const { userId } = await auth();
+  if (!userId) {
+    redirect("/sign-in");
+  }
+
+  const response = await fetch(`${process.env.BACKEND_URL}/api/admin/assets`, {
+    headers: {
+      Authorization: `Bearer ${userId}`,
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 403) {
+      redirect("/");
+    }
+    throw new Error("Failed to fetch assets");
+  }
+
+  return response.json();
+}
+
+export default async function AdminPage() {
+  const initialAssets = await getInitialAssets();
+
   return (
-    <div className='container mx-auto p-6 space-y-8'>
-      <h1 className='text-3xl font-bold'>Admin Dashboard</h1>
-
-      <Tabs defaultValue='users' className='w-full'>
-        <TabsList className='grid w-full grid-cols-6'>
-          <TabsTrigger value='users'>User Statistics</TabsTrigger>
-          <TabsTrigger value='system'>System Performance</TabsTrigger>
-          <TabsTrigger value='credits'>Credit Usage</TabsTrigger>
-          <TabsTrigger value='features'>Feature Usage</TabsTrigger>
-          <TabsTrigger value='templates'>Templates</TabsTrigger>
-          <TabsTrigger value='assets'>Assets</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value='users' className='mt-6'>
-          <Card className='p-6'>
-            <UserStatsSection />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value='system' className='mt-6'>
-          <Card className='p-6'>
-            <SystemStatsSection />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value='credits' className='mt-6'>
-          <Card className='p-6'>
-            <CreditStatsSection />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value='features' className='mt-6'>
-          <Card className='p-6'>
-            <FeatureUsageSection />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value='templates' className='mt-6'>
-          <Card className='p-6'>
-            <TemplateManagementSection />
-          </Card>
-        </TabsContent>
-
-        <TabsContent value='assets' className='mt-6'>
-          <Card className='p-6'>
-            <AssetManagementSection />
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+    <main className='container mx-auto py-6'>
+      <AssetManagementSection initialAssets={initialAssets} />
+    </main>
   );
 }

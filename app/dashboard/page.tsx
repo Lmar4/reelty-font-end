@@ -5,8 +5,9 @@ import FileUpload from "@/components/reelty/FileUpload";
 import { ListingCard } from "@/components/reelty/ListingCard";
 import NewListingModal from "@/components/reelty/NewListingModal";
 import { useUserData } from "@/hooks/useUserData";
-import { trpc } from "@/lib/trpc";
-import type { ListingOutput } from "@/types/trpc";
+import { useListings } from "@/hooks/queries/use-listings";
+import { Listing } from "@/types/prisma-types";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -16,11 +17,7 @@ export default function Dashboard() {
   const [isCreatingListing, setIsCreatingListing] = useState(false);
 
   const { data: userData, isLoading: isUserLoading } = useUserData();
-  const { data: listings, isLoading: isListingsLoading } =
-    trpc.property.getUserListings.useQuery(
-      { userId: userData?.id || "" },
-      { enabled: !!userData?.id }
-    );
+  const { data: listings, isLoading: isListingsLoading } = useListings(userData?.id || "");
 
   const isLoading = isUserLoading || isListingsLoading;
 
@@ -91,7 +88,7 @@ export default function Dashboard() {
             {[...Array(isCreatingListing ? 1 : 3)].map((_, i) => (
               <ListingCard
                 key={`loading-${i}`}
-                listing={{} as ListingOutput}
+                listing={{} as Listing}
                 isLoading={true}
               />
             ))}

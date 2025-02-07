@@ -1,143 +1,104 @@
 "use client";
 
-import { useToast } from "@/components/common/Toast";
-import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useJobs, useRegenerateJob } from "@/hooks/use-jobs";
+import { VideoJob } from "@/types/user-types";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface JobListProps {
-  userId: string;
+  listingId?: string;
+  status?: "pending" | "processing" | "completed" | "failed";
 }
 
-interface VideoJob {
-  id: string;
-  userId: string;
-  listingId: string;
-  status: string;
-  template: string | null;
-  inputFiles: string[] | null;
-  outputFile: string | null;
-  error: string | null;
-  createdAt: string;
-  updatedAt: string;
-  listing: {
-    id: string;
-    photos: Array<{
-      id: string;
-      filePath: string;
-    }>;
-  };
-}
+export const JobList = ({ listingId, status }: JobListProps) => {
+  const [jobs, setJobs] = useState<VideoJob[]>([]);
+  const { data: rawJobsData, isLoading } = useJobs({ listingId, status });
 
-interface JobsResponse {
-  items: VideoJob[];
-  nextCursor: string | undefined;
-}
+  useEffect(() => {
+    if (rawJobsData) {
+      setJobs(rawJobsData);
+    }
+  }, [rawJobsData]);
 
-export default function JobList({ userId }: JobListProps) {
-  const { showToast } = useToast();
-  const [selectedJob, setSelectedJob] = useState<string | null>(null);
+  const regenerateJob = useRegenerateJob(jobs[0]?.id || "");
 
-  const ITEMS_PER_PAGE = 10;
-
-  const { data: rawJobsData } = trpc.jobs.getUserJobs.useQuery({
-    userId,
-    limit: ITEMS_PER_PAGE,
-    cursor: null, // We'll implement pagination later
-  });
-
-  const jobsData = rawJobsData as JobsResponse | undefined;
-
-  const regenerateVideo = trpc.jobs.regenerateVideos.useMutation({
-    onSuccess: () => {
-      showToast("Job cancelled and new video generation started", "success");
-    },
-    onError: (error) => {
-      showToast(error.message, "error");
-    },
-  });
-
-  const handleCancel = async (
-    jobId: string,
-    listingId: string,
-    template: string
-  ) => {
+  const handleRegenerate = async (jobId: string) => {
     try {
-      setSelectedJob(jobId);
-      await regenerateVideo.mutateAsync({
-        listingId,
-        photoIds: [], // This will effectively cancel the job by creating a new one with no photos
-        template,
-      });
+      await regenerateJob.mutateAsync({});
+      toast.success("Video regeneration started");
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Failed to cancel job",
-        "error"
-      );
-    } finally {
-      setSelectedJob(null);
+      console.error("[REGENERATE_ERROR]", error);
+      toast.error("Failed to regenerate video");
     }
   };
 
-  return (
-    <div className='max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8'>
-      <div className='text-center'>
-        <h2 className='text-3xl font-extrabold text-gray-900 sm:text-4xl'>
-          Job List
-        </h2>
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center p-4'>
+        <Loader2 className='h-6 w-6 animate-spin' />
       </div>
+    );
+  }
 
-      <div className='mt-12'>
-        {!jobsData?.items || jobsData.items.length === 0 ? (
-          <p className='text-center text-gray-600'>No jobs found</p>
-        ) : (
-          <div className='space-y-4'>
-            {jobsData.items.map((job) => (
-              <div key={job.id} className='bg-white shadow rounded-lg p-6'>
-                <div className='flex justify-between items-start'>
-                  <div>
-                    <h3 className='text-lg font-medium text-gray-900'>
-                      Video Generation - {job.template}
-                    </h3>
-                    <p className='mt-2 text-sm text-gray-500'>
-                      Created: {new Date(job.createdAt).toLocaleDateString()}
-                    </p>
-                    <p className='mt-1 text-sm text-gray-500'>
-                      Updated: {new Date(job.updatedAt).toLocaleDateString()}
-                    </p>
-                    <p
-                      className={`mt-2 text-sm ${
-                        job.status === "completed"
-                          ? "text-green-600"
-                          : job.status === "failed"
-                          ? "text-red-600"
-                          : "text-blue-600"
-                      }`}
-                    >
-                      Status: {job.status}
-                    </p>
-                  </div>
-                  {job.status === "pending" && (
-                    <button
-                      onClick={() =>
-                        handleCancel(
-                          job.id,
-                          job.listingId,
-                          job.template || "basic"
-                        )
-                      }
-                      disabled={selectedJob === job.id}
-                      className='text-red-600 hover:text-red-700'
-                      aria-label='Cancel job'
-                    >
-                      {selectedJob === job.id ? "Cancelling..." : "Cancel"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+  if (!jobs.length) {
+    return (
+      <div className='text-center p-4'>
+        <p className='text-muted-foreground'>No jobs found</p>
       </div>
+    );
+  }
+
+  return (
+    <div className='space-y-4'>
+      {jobs.map((job) => (
+        <Card key={job.id} className='p-4'>
+          <div className='flex items-center justify-between'>
+            <div>
+              <p className='font-medium'>Job ID: {job.id}</p>
+              <p className='text-sm text-muted-foreground'>
+                Created {formatDistanceToNow(new Date(job.createdAt))} ago
+              </p>
+              <p className='text-sm text-muted-foreground'>
+                Status:{" "}
+                <span
+                  className={cn(
+                    "font-medium",
+                    job.status === "completed" && "text-green-500",
+                    job.status === "failed" && "text-red-500",
+                    job.status === "processing" && "text-yellow-500",
+                    job.status === "pending" && "text-blue-500"
+                  )}
+                >
+                  {job.status}
+                </span>
+              </p>
+              {job.error && (
+                <p className='text-sm text-red-500 mt-2'>Error: {job.error}</p>
+              )}
+            </div>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => handleRegenerate(job.id)}
+              disabled={regenerateJob.isPending}
+            >
+              {regenerateJob.isPending ? (
+                <>
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                  Regenerating...
+                </>
+              ) : (
+                "Regenerate"
+              )}
+            </Button>
+          </div>
+        </Card>
+      ))}
     </div>
   );
-}
+};

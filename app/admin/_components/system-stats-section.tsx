@@ -1,170 +1,98 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { trpc } from "@/lib/trpc";
-import { formatBytes } from "@/lib/utils";
-import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
+  Legend,
+  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 
 interface SystemStats {
-  totalListings: number;
-  totalSearches: number;
-  errorCount: number;
-  uptime: number;
-  memoryUsage: {
-    heapTotal: number;
-    heapUsed: number;
-    external: number;
-    rss: number;
-  };
+  cpuUsage: number;
+  memoryUsage: number;
+  diskUsage: number;
+  networkUsage: number;
+  timestamp: string;
+}
+
+async function getSystemStats(): Promise<SystemStats[]> {
+  const response = await fetch("/api/admin/stats/system");
+  if (!response.ok) {
+    throw new Error("Failed to fetch system stats");
+  }
+  return response.json();
 }
 
 export default function SystemStatsSection() {
-  const { data: systemStats, isLoading } =
-    trpc.adminDashboard.getSystemStats.useQuery();
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["systemStats"],
+    queryFn: getSystemStats,
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
 
   if (isLoading) {
-    return <div>Loading system statistics...</div>;
+    return (
+      <div className='flex justify-center'>
+        <Loader2 className='h-8 w-8 animate-spin' />
+      </div>
+    );
   }
 
-  const memoryData = [
-    {
-      name: "Heap Total",
-      value: systemStats?.memoryUsage.heapTotal || 0,
-    },
-    {
-      name: "Heap Used",
-      value: systemStats?.memoryUsage.heapUsed || 0,
-    },
-    {
-      name: "External",
-      value: systemStats?.memoryUsage.external || 0,
-    },
-    {
-      name: "RSS",
-      value: systemStats?.memoryUsage.rss || 0,
-    },
-  ];
+  if (!stats) return null;
 
   return (
-    <div className='space-y-6'>
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Listings</CardTitle>
-            <CardDescription>Stored in system</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className='text-3xl font-bold'>{systemStats?.totalListings}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Total Searches</CardTitle>
-            <CardDescription>All time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className='text-3xl font-bold'>{systemStats?.totalSearches}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Error Count</CardTitle>
-            <CardDescription>Last 24 hours</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className='text-3xl font-bold'>{systemStats?.errorCount}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Uptime</CardTitle>
-            <CardDescription>System uptime</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className='text-3xl font-bold'>
-              {Math.floor((systemStats?.uptime || 0) / 3600)}h{" "}
-              {Math.floor(((systemStats?.uptime || 0) % 3600) / 60)}m
-            </p>
-          </CardContent>
-        </Card>
+    <Card className='p-6'>
+      <h2 className='text-2xl font-bold mb-6'>System Performance</h2>
+      <div className='h-[400px]'>
+        <ResponsiveContainer width='100%' height='100%'>
+          <AreaChart data={stats}>
+            <CartesianGrid strokeDasharray='3 3' />
+            <XAxis dataKey='timestamp' />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Area
+              type='monotone'
+              dataKey='cpuUsage'
+              stackId='1'
+              stroke='#8884d8'
+              fill='#8884d8'
+              name='CPU Usage'
+            />
+            <Area
+              type='monotone'
+              dataKey='memoryUsage'
+              stackId='1'
+              stroke='#82ca9d'
+              fill='#82ca9d'
+              name='Memory Usage'
+            />
+            <Area
+              type='monotone'
+              dataKey='diskUsage'
+              stackId='1'
+              stroke='#ffc658'
+              fill='#ffc658'
+              name='Disk Usage'
+            />
+            <Area
+              type='monotone'
+              dataKey='networkUsage'
+              stackId='1'
+              stroke='#ff7300'
+              fill='#ff7300'
+              name='Network Usage'
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Memory Usage</CardTitle>
-          <CardDescription>Current system memory allocation</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className='h-[300px] w-full'>
-            <LineChart
-              width={800}
-              height={300}
-              data={memoryData}
-              margin={{
-                top: 5,
-                right: 30,
-                left: 20,
-                bottom: 5,
-              }}
-            >
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='name' />
-              <YAxis tickFormatter={(value) => formatBytes(value)} />
-              <Tooltip formatter={(value) => formatBytes(Number(value))} />
-              <Line
-                type='monotone'
-                dataKey='value'
-                stroke='#8884d8'
-                activeDot={{ r: 8 }}
-              />
-            </LineChart>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Memory Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className='space-y-2'>
-            <div className='flex justify-between'>
-              <span>Heap Total:</span>
-              <span>
-                {formatBytes(systemStats?.memoryUsage.heapTotal || 0)}
-              </span>
-            </div>
-            <div className='flex justify-between'>
-              <span>Heap Used:</span>
-              <span>{formatBytes(systemStats?.memoryUsage.heapUsed || 0)}</span>
-            </div>
-            <div className='flex justify-between'>
-              <span>External:</span>
-              <span>{formatBytes(systemStats?.memoryUsage.external || 0)}</span>
-            </div>
-            <div className='flex justify-between'>
-              <span>RSS:</span>
-              <span>{formatBytes(systemStats?.memoryUsage.rss || 0)}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    </Card>
   );
 }

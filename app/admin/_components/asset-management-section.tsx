@@ -28,91 +28,37 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { trpc } from "@/lib/trpc";
-import type { AssetOutput } from "@/types/trpc";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { Asset, AssetType } from "@/types/asset-types";
+import {
+  useAssets,
+  useCreateAsset,
+  useUpdateAsset,
+  useDeleteAsset,
+} from "@/hooks/queries/use-assets";
 
-export enum AssetType {
-  MUSIC = "MUSIC",
-  WATERMARK = "WATERMARK",
-  LOTTIE = "LOTTIE",
+interface AssetManagementSectionProps {
+  initialAssets: Asset[];
 }
 
-export default function AssetManagementSection() {
+export default function AssetManagementSection({
+  initialAssets,
+}: AssetManagementSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [selectedType, setSelectedType] = useState<AssetType | undefined>();
   const { toast } = useToast();
 
-  const {
-    data: assets,
-    isLoading,
-    refetch,
-  } = trpc.adminDashboard.getAssets.useQuery(
-    { type: selectedType, includeInactive },
-    {
-      onError: (error) => {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      },
-    }
-  );
-
-  const createAsset = trpc.adminDashboard.createAsset.useMutation({
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Asset created successfully",
-      });
-      setIsOpen(false);
-      refetch();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+  const { data: assets, isLoading } = useAssets({
+    type: selectedType,
+    includeInactive,
+    initialData: initialAssets,
   });
 
-  const updateAsset = trpc.adminDashboard.updateAsset.useMutation({
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Asset updated successfully",
-      });
-      refetch();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteAsset = trpc.adminDashboard.deleteAsset.useMutation({
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Asset deleted successfully",
-      });
-      refetch();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  const createAsset = useCreateAsset();
+  const updateAsset = useUpdateAsset();
+  const deleteAsset = useDeleteAsset();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -126,14 +72,58 @@ export default function AssetManagementSection() {
       isActive: true,
     };
 
-    createAsset.mutate(data);
+    try {
+      await createAsset.mutateAsync(data);
+      toast({
+        title: "Success",
+        description: "Asset created successfully",
+      });
+      setIsOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to create asset",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleToggleActive = (id: string, currentState: boolean) => {
-    updateAsset.mutate({
-      id,
-      isActive: !currentState,
-    });
+  const handleToggleActive = async (id: string, currentState: boolean) => {
+    try {
+      await updateAsset.mutateAsync({
+        id,
+        isActive: !currentState,
+      });
+      toast({
+        title: "Success",
+        description: "Asset updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to update asset",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteAsset.mutateAsync(id);
+      toast({
+        title: "Success",
+        description: "Asset deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to delete asset",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -216,8 +206,8 @@ export default function AssetManagementSection() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type='submit' disabled={createAsset.isLoading}>
-                  {createAsset.isLoading && (
+                <Button type='submit' disabled={createAsset.isPending}>
+                  {createAsset.isPending && (
                     <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                   )}
                   Create Asset
@@ -245,7 +235,7 @@ export default function AssetManagementSection() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assets?.map((asset: AssetOutput) => (
+            {assets?.map((asset) => (
               <TableRow key={asset.id}>
                 <TableCell>{asset.name}</TableCell>
                 <TableCell>{asset.description}</TableCell>
@@ -263,10 +253,10 @@ export default function AssetManagementSection() {
                   <Button
                     variant='destructive'
                     size='sm'
-                    onClick={() => deleteAsset.mutate({ id: asset.id })}
-                    disabled={deleteAsset.isLoading}
+                    onClick={() => handleDelete(asset.id)}
+                    disabled={deleteAsset.isPending}
                   >
-                    {deleteAsset.isLoading && (
+                    {deleteAsset.isPending && (
                       <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                     )}
                     Delete
