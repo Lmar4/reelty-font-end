@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/components/common/Toast";
-import Form, { FormField } from "@/components/common/Form";
+import { useSignIn, useSignUp } from "@clerk/nextjs";
+import { toast } from "sonner";
 import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -15,51 +18,63 @@ const authSchema = z.object({
 export default function Auth() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn, signUp, signInWithGoogle } = useAuth();
-  const { showToast } = useToast();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const { signIn, isLoaded: isSignInLoaded } = useSignIn();
+  const { signUp, isLoaded: isSignUpLoaded } = useSignUp();
+  const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const returnTo = searchParams.get("returnTo") || "/dashboard";
 
-  // Get stored listing data if any
-  useEffect(() => {
-    const storedData = localStorage.getItem("preAuthListingData");
-    if (storedData) {
-      // Keep it in localStorage until we redirect to dashboard
-      console.log("Found stored listing data:", JSON.parse(storedData));
-    }
-  }, []);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if ((!isSignInLoaded && !isSignUpMode) || (!isSignUpLoaded && isSignUpMode))
+      return;
 
-  const handleSubmit = async (data: z.infer<typeof authSchema>) => {
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
     try {
       setIsLoading(true);
-      if (isSignUp) {
-        await signUp(data.email, data.password);
-        showToast("Account created successfully!", "success");
-      } else {
-        await signIn(data.email, data.password);
+      const data = authSchema.parse({ email, password });
+
+      if (isSignUpMode && signUp) {
+        const result = await signUp.create({
+          emailAddress: data.email,
+          password: data.password,
+        });
+
+        if (result.status === "complete") {
+          toast.success("Account created successfully!");
+          router.push(returnTo);
+        } else {
+          console.error("Sign up failed:", result);
+          toast.error("Failed to create account");
+        }
+      } else if (!isSignUpMode && signIn) {
+        const result = await signIn.create({
+          identifier: data.email,
+          password: data.password,
+        });
+
+        if (result.status === "complete") {
+          router.push(returnTo);
+        } else {
+          console.error("Sign in failed:", result);
+          toast.error("Failed to sign in");
+        }
       }
-      router.push(returnTo);
     } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Authentication failed",
-        "error"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      await signInWithGoogle();
-      router.push(returnTo);
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Google sign-in failed",
-        "error"
-      );
+      if (error instanceof z.ZodError) {
+        error.errors.forEach((err) => {
+          toast.error(err.message);
+        });
+      } else if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error(
+          isSignUpMode ? "Failed to create account" : "Failed to sign in"
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -70,66 +85,64 @@ export default function Auth() {
       <div className='max-w-md w-full space-y-8'>
         <div>
           <h2 className='mt-6 text-center text-3xl font-extrabold text-gray-900'>
-            {isSignUp ? "Create your account" : "Sign in to your account"}
+            {isSignUpMode ? "Create your account" : "Sign in to your account"}
           </h2>
         </div>
 
-        <Form
-          schema={authSchema}
-          onSubmit={handleSubmit}
-          className='mt-8 space-y-6'
-        >
-          <div className='rounded-md shadow-sm space-y-6'>
-            <FormField
-              name='email'
-              label='Email address'
-              type='email'
-              placeholder='Email address'
-            />
-            <FormField
-              name='password'
-              label='Password'
-              type='password'
-              placeholder='Password'
-            />
+        <form onSubmit={handleSubmit} className='mt-8 space-y-6'>
+          <div className='rounded-md shadow-sm space-y-4'>
+            <div>
+              <Label htmlFor='email'>Email address</Label>
+              <Input
+                id='email'
+                name='email'
+                type='email'
+                required
+                className='mt-1'
+                placeholder='Enter your email'
+              />
+            </div>
+
+            <div>
+              <Label htmlFor='password'>Password</Label>
+              <Input
+                id='password'
+                name='password'
+                type='password'
+                required
+                className='mt-1'
+                placeholder='Enter your password'
+              />
+            </div>
           </div>
 
-          <div>
-            <button
-              type='submit'
-              disabled={isLoading}
-              className='group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-            >
-              {isLoading
-                ? "Loading..."
-                : isSignUp
-                ? "Create Account"
-                : "Sign In"}
-            </button>
-          </div>
+          <Button
+            type='submit'
+            className='w-full'
+            disabled={isLoading || (!isSignInLoaded && !isSignUpLoaded)}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                {isSignUpMode ? "Creating account..." : "Signing in..."}
+              </>
+            ) : (
+              <>{isSignUpMode ? "Create Account" : "Sign In"}</>
+            )}
+          </Button>
 
-          <div>
+          <div className='text-center'>
             <button
               type='button'
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-              className='group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
+              onClick={() => setIsSignUpMode(!isSignUpMode)}
+              className='text-sm text-blue-600 hover:text-blue-500'
             >
-              Continue with Google
+              {isSignUpMode
+                ? "Already have an account? Sign in"
+                : "Need an account? Sign up"}
             </button>
           </div>
-        </Form>
-
-        <div className='text-center'>
-          <button
-            onClick={() => setIsSignUp(!isSignUp)}
-            className='text-sm text-blue-600 hover:text-blue-500'
-          >
-            {isSignUp
-              ? "Already have an account? Sign in"
-              : "Need an account? Sign up"}
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );

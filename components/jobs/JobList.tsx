@@ -8,17 +8,44 @@ interface JobListProps {
   userId: string;
 }
 
+interface VideoJob {
+  id: string;
+  userId: string;
+  listingId: string;
+  status: string;
+  template: string | null;
+  inputFiles: string[] | null;
+  outputFile: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+  listing: {
+    id: string;
+    photos: Array<{
+      id: string;
+      filePath: string;
+    }>;
+  };
+}
+
+interface JobsResponse {
+  items: VideoJob[];
+  nextCursor: string | undefined;
+}
+
 export default function JobList({ userId }: JobListProps) {
   const { showToast } = useToast();
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
 
   const ITEMS_PER_PAGE = 10;
 
-  const { data: jobsData } = trpc.jobs.getUserJobs.useQuery({
+  const { data: rawJobsData } = trpc.jobs.getUserJobs.useQuery({
     userId,
     limit: ITEMS_PER_PAGE,
     cursor: null, // We'll implement pagination later
   });
+
+  const jobsData = rawJobsData as JobsResponse | undefined;
 
   const regenerateVideo = trpc.jobs.regenerateVideos.useMutation({
     onSuccess: () => {

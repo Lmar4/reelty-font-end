@@ -1,13 +1,20 @@
-import { createTRPCNext } from '@trpc/next';
+import { createTRPCReact } from '@trpc/react-query';
 import { httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "../../reelty_backend/src/trpc/router";
 import { QueryClient } from "@tanstack/react-query";
-import { getAuth } from "firebase/auth";
+import { auth as getAuth } from '@clerk/nextjs/server';
 
 const getBaseUrl = () => {
-  if (typeof window !== "undefined") return ""; // browser should use relative url
-  if (process.env.BACKEND_URL) return process.env.BACKEND_URL; // use backend URL if available
-  return `http://localhost:${process.env.PORT ?? 4000}`; // dev SSR should use localhost
+  if (typeof window !== "undefined") {
+    // Check if we're in development
+    if (process.env.NODE_ENV === 'development') {
+      return 'http://localhost:4000';
+    }
+    // In production, use the deployed backend URL
+    return process.env.NEXT_PUBLIC_API_URL || '';
+  }
+  // SSR should use the backend URL
+  return process.env.BACKEND_URL || 'http://localhost:4000';
 };
 
 export const queryClient = new QueryClient({
@@ -15,28 +22,35 @@ export const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false,
       retry: false,
+      staleTime: 5 * 1000, // Consider data stale after 5 seconds
     },
   },
 });
 
-export const trpc = createTRPCNext<AppRouter>({
-  config() {
-    return {
-      links: [
-        httpBatchLink({
-          url: `${getBaseUrl()}/api/trpc`,
-          async headers() {
-            const auth = getAuth();
-            const token = await auth.currentUser?.getIdToken();
+export const trpc = createTRPCReact<AppRouter>();
 
-            return {
-              ...(token && { Authorization: `Bearer ${token}` }),
-            };
-          },
-        }),
-      ],
-      queryClient,
-    };
-  },
-  ssr: false,
+export const trpcClient = trpc.createClient({
+  links: [
+    httpBatchLink({
+      url: `${getBaseUrl()}/trpc`,
+      headers: async () => {
+        if (typeof window === 'undefined') {
+          // Server-side
+          const session = await getAuth();
+          const token = session.getToken();
+          return {
+            Authorization: token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json',
+          };
+        } else {
+          // Client-side
+          const token = await fetch('/api/auth/token').then(res => res.text());
+          return {
+            Authorization: token ? `Bearer ${token}` : '',
+            'Content-Type': 'application/json',
+          };
+        }
+      },
+    }),
+  ],
 });

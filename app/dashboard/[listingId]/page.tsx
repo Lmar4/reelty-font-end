@@ -12,37 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type VideoJob = {
-  id: string;
-  listingId: string;
-  userId: string;
-  status: string;
-  template: string | null;
-  outputFile: string | null;
-  error: string | null;
-  createdAt: string;
-  updatedAt: string;
-  inputFiles: any;
-  listing: {
-    id: string;
-    userId: string;
-    address: string;
-    description: string | null;
-    status: string;
-    photoLimit: number;
-    createdAt: string;
-    updatedAt: string;
-    photos: Array<{
-      id: string;
-      userId: string;
-      listingId: string;
-      filePath: string;
-      order: number;
-      createdAt: string;
-      updatedAt: string;
-    }>;
-  };
-};
+
 
 export default function ListingDetail() {
   const params = useParams();
@@ -107,8 +77,7 @@ export default function ListingDetail() {
   };
 
   const property = listing || {} as PropertyOutput;
-  // Double type assertion to handle deep type instantiation
-  const jobs = (videoJobs as unknown as VideoJob[]) || [];
+  const jobs = videoJobs || [];
 
   return (
     <DashboardLayout>
@@ -128,7 +97,7 @@ export default function ListingDetail() {
         </div>
 
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
-          {jobs.map((job) => (
+          {jobs.map((job: any) => (
             <div
               key={job.id}
               className={`relative rounded-lg overflow-hidden ${
@@ -198,8 +167,8 @@ export default function ListingDetail() {
         <RegenerateModal
           isOpen={isRegenerateModalOpen}
           onClose={() => setIsRegenerateModalOpen(false)}
-          property={property as any}
-          job={(jobs[0] as unknown as VideoJob) || null}
+          property={property}
+          job={jobs[0]}
           onSuccess={() => {
             queryClient.invalidateQueries({
               queryKey: ["jobs", "getListingJobs", { listingId }],

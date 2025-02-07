@@ -18,6 +18,17 @@ interface JobSubmissionFormProps {
   template?: string;
 }
 
+interface VideoJob {
+  id: string;
+  userId: string;
+  listingId: string;
+  status: string;
+  template: string | null;
+  inputFiles: string[] | null;
+  outputFile: string | null;
+  error: string | null;
+}
+
 export default function JobSubmissionForm({
   listingId,
   userId,
@@ -28,7 +39,7 @@ export default function JobSubmissionForm({
 }: JobSubmissionFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const submitJobMutation = trpc.jobs.submit.useMutation({
+  const submitJobMutation = trpc.jobs.submit.useMutation<VideoJob>({
     onSuccess: (job) => {
       toast.success("Video generation job submitted successfully!");
       onSuccess?.(job.id);

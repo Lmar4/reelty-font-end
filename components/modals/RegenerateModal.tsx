@@ -2,13 +2,14 @@
 
 import { Dialog } from "@headlessui/react";
 import { useToast } from "../common/Toast";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/providers/AuthProvider";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { TRPCClientErrorLike } from "@trpc/client";
 import type { RouterOutput, VideoJobOutput, PropertyOutput } from "@/types/trpc";
 import { useState } from "react";
 import Image from "next/image";
+import { useUser } from "@clerk/nextjs";
 
 type VideoTemplate = "crescendo" | "wave" | "storyteller" | "googleZoom";
 type VideoJob = RouterOutput["jobs"]["createVideo"];
@@ -30,7 +31,7 @@ export default function RegenerateModal({
   onSuccess,
 }: RegenerateModalProps) {
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user } = useUser();
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
 
   const { data: listing } = trpc.property.getById.useQuery(

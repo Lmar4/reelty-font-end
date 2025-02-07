@@ -1,10 +1,10 @@
 "use client";
 
 import { useToast } from "@/components/common/Toast";
-import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
 
 type SubscriptionTier = {
   id: string;
@@ -16,7 +16,7 @@ type SubscriptionTier = {
 export default function BillingPage() {
   const { showToast } = useToast();
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, isLoaded } = useUser();
 
   const { data: tiers, isLoading } = trpc.subscription.getTiers.useQuery();
   const checkoutMutation = trpc.subscription.createCheckoutSession.useMutation({
@@ -33,7 +33,8 @@ export default function BillingPage() {
   });
 
   const handleSubscribe = async (tierId: string) => {
-    if (!user?.uid) {
+    if (!isLoaded) return;
+    if (!user) {
       showToast("Please sign in to subscribe", "error");
       return;
     }
@@ -42,7 +43,7 @@ export default function BillingPage() {
       setSelectedTier(tierId);
       await checkoutMutation.mutateAsync({
         priceId: tierId,
-        userId: user.uid,
+        userId: user.id,
         successUrl: `${window.location.origin}/dashboard`,
         cancelUrl: `${window.location.origin}/billing`,
       });
@@ -53,10 +54,20 @@ export default function BillingPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || !isLoaded) {
     return (
       <div className='flex justify-center items-center min-h-screen'>
         <Loader2 className='w-8 h-8 animate-spin' />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className='flex justify-center items-center min-h-screen'>
+        <p className='text-lg text-gray-600'>
+          Please sign in to view billing information
+        </p>
       </div>
     );
   }

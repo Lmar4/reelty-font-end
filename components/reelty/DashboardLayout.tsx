@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardHeader from "./DashboardHeader";
+import { DashboardHeader } from "./DashboardHeader";
 import FreeTrial from "./FreeTrial";
 
 interface DashboardLayoutProps {
@@ -27,9 +27,7 @@ export default function DashboardLayout({
   return (
     <div className='min-h-screen bg-white'>
       {!isPaidMember && <FreeTrial />}
-      <DashboardHeader isScrolled={isScrolled} />
-
-      {/* Page Content */}
+      <DashboardHeader />
       <main>{children}</main>
     </div>
   );

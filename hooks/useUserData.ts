@@ -1,12 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "./useAuth";
+import { useUser } from "@clerk/nextjs";
 
 export function useUserData() {
-  const { user } = useAuth();
+  const { user, isLoaded } = useUser();
 
-  return trpc.user.getUser.useQuery(
-    { id: user?.uid || "" },
-    { enabled: !!user?.uid }
+  const query = trpc.user.getUser.useQuery(
+    { id: user?.id || "" },
+    { 
+      enabled: isLoaded && !!user?.id,
+      // Keep previous data while fetching new data
+      keepPreviousData: true,
+      // Refetch when user data changes
+      refetchOnWindowFocus: true,
+    }
   );
+
+  return {
+    ...query,
+    // Add isLoaded from Clerk to help components handle the initial loading state
+    isLoading: !isLoaded || query.isLoading,
+    // Ensure user is loaded before returning data
+    data: isLoaded ? query.data : undefined
+  };
 }

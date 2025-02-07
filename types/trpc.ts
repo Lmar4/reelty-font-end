@@ -17,4 +17,5 @@ export type TempUploadOutput = NonNullable<RouterOutput["property"]["getTempUplo
 export type FeatureUsageOutput = RouterOutput["adminPanel"]["getFeatureUsage"];
 export type SystemStatsOutput = RouterOutput["adminPanel"]["getSystemStats"];
 export type JobsOutput = RouterOutput["jobs"]["getListingJobs"];
+export type SubscriptionTierOutput = RouterOutput["subscription"]["getTiers"][number];
 

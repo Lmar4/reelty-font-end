@@ -6,11 +6,9 @@ import { ListingCard } from "@/components/reelty/ListingCard";
 import NewListingModal from "@/components/reelty/NewListingModal";
 import { useUserData } from "@/hooks/useUserData";
 import { trpc } from "@/lib/trpc";
-import type { ListingOutput, RouterOutput } from "@/types/trpc";
+import type { ListingOutput } from "@/types/trpc";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-type Property = RouterOutput["property"]["getUserListings"][number];
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,8 +39,6 @@ export default function Dashboard() {
     setIsModalOpen(false);
     setSelectedFiles([]);
   };
-
-
 
   return (
     <DashboardLayout>
@@ -76,14 +72,6 @@ export default function Dashboard() {
         />
 
         {/* Empty State */}
-        {/* <div className="mb-24">
-            <div className="bg-[#EDEDED] rounded-lg p-4 text-left">
-              <p className="text-[15px] text-[#1c1c1c]">Create your first Reelty!</p>
-              <p className="text-[14px] text-[#1c1c1c]/60">You have not created any listing Reels yet.</p>
-            </div>
-          </div> */}
-
-        {/* Empty State */}
         {listings?.length === 0 && !isLoading && !isCreatingListing && (
           <div className='mb-24'>
             <div className='bg-[#EDEDED] rounded-lg p-4 text-left'>
@@ -103,7 +91,7 @@ export default function Dashboard() {
             {[...Array(isCreatingListing ? 1 : 3)].map((_, i) => (
               <ListingCard
                 key={`loading-${i}`}
-                listing={{} as Property}
+                listing={{} as ListingOutput}
                 isLoading={true}
               />
             ))}

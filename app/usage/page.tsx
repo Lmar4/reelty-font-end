@@ -1,39 +1,27 @@
-import DashboardLayout from "@/components/reelty/DashboardLayout";
-import ProtectedRoute from "@/components/reelty/ProtectedRoute";
+"use client";
 
-export default function Usage() {
+import { ProtectedRoute } from "@/components/reelty/ProtectedRoute";
+import { useUser } from "@clerk/nextjs";
+
+export default function UsagePage() {
+  const { user } = useUser();
+
   return (
     <ProtectedRoute>
-      <DashboardLayout>
-        <div className='max-w-[800px] mx-auto px-4 py-16'>
-          <h1 className='text-[32px] font-semibold text-[#1c1c1c] mb-12'>
-            Usage
-          </h1>
-
-          <div className='text-[15px] text-[#6B7280] mb-12'>
-            Reset monthly or yearly (depending on your plan)
-          </div>
-
-          {/* Listings Usage */}
-          <div>
-            <h2 className='text-[22px] font-semibold text-[#1c1c1c] mb-4'>
-              Listings
-            </h2>
-            <div className='relative'>
-              {/* Progress Bar Background */}
-              <div className='h-2 bg-[#F3F4F6] rounded-full mb-3'>
-                {/* Progress Bar Fill */}
-                <div
-                  className='h-full bg-[#0066FF] rounded-full'
-                  style={{ width: "0%" }}
-                />
-              </div>
-              {/* Usage Count */}
-              <div className='text-[15px] text-[#6B7280]'>0 / 1</div>
+      <div className='container mx-auto px-4 py-8'>
+        <h1 className='text-2xl font-bold mb-4'>Usage Statistics</h1>
+        <div className='bg-white rounded-lg shadow p-6'>
+          <div className='space-y-4'>
+            <div>
+              <h2 className='text-lg font-semibold'>Current Usage</h2>
+              <p className='text-gray-600'>
+                Account: {user?.emailAddresses[0]?.emailAddress}
+              </p>
+              {/* TODO: Add usage statistics here */}
             </div>
           </div>
         </div>
-      </DashboardLayout>
+      </div>
     </ProtectedRoute>
   );
 }

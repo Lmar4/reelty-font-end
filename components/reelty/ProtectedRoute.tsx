@@ -1,30 +1,37 @@
 "use client";
 
-import { useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
-export default function ProtectedRoute({
-  children,
-}: {
+interface ProtectedRouteProps {
   children: React.ReactNode;
-}) {
-  const { user, loading } = useAuth();
+}
+
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
+    if (isLoaded && !isSignedIn) {
+      router.replace("/login");
     }
-  }, [user, loading, router]);
+  }, [isLoaded, isSignedIn, router]);
 
-  if (loading) {
+  if (!isLoaded) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
-        <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black'></div>
+        <div className='animate-pulse space-y-4'>
+          <div className='h-8 w-32 bg-gray-200 rounded'></div>
+          <div className='h-4 w-48 bg-gray-200 rounded'></div>
+        </div>
       </div>
     );
   }
 
-  return user ? <>{children}</> : null;
+  if (!isSignedIn) {
+    return null;
+  }
+
+  return <>{children}</>;
 }

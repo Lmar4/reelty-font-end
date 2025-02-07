@@ -65,17 +65,14 @@ export default function AdditionalPhotosModal({
 
     setIsLoading(true);
     try {
-      // Generate videos for each premium template
       const templates = ["wave", "storyteller", "googleZoom"] as const;
-      await Promise.all(
-        templates.map((template) =>
-          generateVideosMutation.mutateAsync({
-            listingId: property.id,
-            photoIds: selectedPhotos,
-            template,
-          })
-        )
-      );
+      for (const template of templates) {
+        await generateVideosMutation.mutateAsync({
+          listingId: property.id,
+          photoIds: selectedPhotos,
+          template,
+        });
+      }
     } catch (error) {
       console.error("Error generating videos:", error);
     } finally {
