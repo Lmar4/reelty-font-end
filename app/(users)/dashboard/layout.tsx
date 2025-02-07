@@ -1,8 +1,6 @@
 "use client";
 
-import InternalNavigation from "@/components/reelty/InternalNavigation";
 import { MobileNav } from "@/components/reelty/MobileNav";
-import { userNavigation } from "@/config/navigation";
 
 export default function SettingsLayout({
   children,
@@ -13,14 +11,6 @@ export default function SettingsLayout({
     <>
       <div className='container mx-auto px-4 pb-20 md:pb-8'>
         <div className='flex flex-col md:flex-row gap-8 pt-4'>
-          {/* Desktop Settings Navigation */}
-          <aside className='hidden md:block w-64 flex-shrink-0'>
-            <InternalNavigation
-              sections={[userNavigation[1]]}
-              className='sticky top-4'
-            />
-          </aside>
-
           {/* Main Content */}
           <main className='flex-1'>
             <div className='bg-white rounded-lg shadow-sm border p-6'>

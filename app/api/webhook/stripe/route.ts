@@ -11,9 +11,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
+// This is your Stripe CLI webhook secret for testing your endpoint locally.
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
 export async function POST(request: Request) {
   try {
-    const body = await request.text();
+    const body = await request.text(); // Get raw body as text
     const headersList = await headers();
     const signature = headersList.get("stripe-signature");
 
@@ -27,19 +30,20 @@ export async function POST(request: Request) {
     let event: Stripe.Event;
 
     try {
-      event = stripe.webhooks.constructEvent(
-        body,
-        signature,
-        process.env.STRIPE_WEBHOOK_SECRET!
-      );
+      event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
     } catch (error) {
       console.error("[STRIPE_WEBHOOK_ERROR]", error);
       return NextResponse.json(
-        { error: "Invalid webhook signature" },
+        {
+          error: `Webhook Error: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        },
         { status: 400 }
       );
     }
 
+    // Handle the event
     switch (event.type) {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
@@ -294,8 +298,12 @@ export async function POST(request: Request) {
         }
         break;
       }
+
+      default:
+        console.log(`Unhandled event type ${event.type}`);
     }
 
+    // Return a 200 response to acknowledge receipt of the event
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("[STRIPE_WEBHOOK_ERROR]", error);

@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-
+import DashboardLayout from "@/components/reelty/DashboardLayout";
 export default async function AuthenticatedLayout({
   children,
 }: {
@@ -14,7 +14,9 @@ export default async function AuthenticatedLayout({
 
   return (
     <div className='min-h-screen bg-gray-50'>
-      <main className='flex-1'>{children}</main>
+      <DashboardLayout>
+        <main className='flex-1'>{children}</main>
+      </DashboardLayout>
     </div>
   );
 }

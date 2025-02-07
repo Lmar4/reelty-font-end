@@ -9,10 +9,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useListing } from "@/hooks/queries/use-listings";
 import { useUser } from "@/hooks/queries/use-user";
-import { Listing, User, VideoJob } from "@/types/prisma-types";
+import { Listing, VideoJob } from "@/types/prisma-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Video } from "lucide-react";
+import { Video } from "lucide-react";
 import { useEffect, useState } from "react";
+import { VideoJobCard } from "./components/VideoJobCard";
+import FileUpload from "@/components/reelty/FileUpload";
 
 async function fetchListingJobs(listingId: string): Promise<VideoJob[]> {
   const response = await fetch(`/api/jobs?listingId=${listingId}`);
@@ -48,33 +50,27 @@ export function ListingClient({
 }: ListingClientProps) {
   const listingId = params.listingId;
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
+
+  // State
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isAdditionalPhotosModalOpen, setIsAdditionalPhotosModalOpen] =
     useState(false);
-  const queryClient = useQueryClient();
+  const [downloadJobId, setDownloadJobId] = useState<string>("");
 
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Queries
+  const { data: currentUser } = useUser("");
   const { data: userData } = useUser(currentUser?.id || "");
-
-  useEffect(() => {
-    if (userData) {
-      setCurrentUser(userData);
-    }
-  }, [userData]);
-
   const { data: listing, isLoading } = useListing(listingId, {
     initialData: initialListing,
   });
-
   const { data: videoJobs } = useQuery({
     queryKey: ["listingJobs", listingId],
     queryFn: () => fetchListingJobs(listingId),
     enabled: !!listingId,
     initialData: initialJobs,
   });
-
-  const [downloadJobId, setDownloadJobId] = useState<string>("");
   const { refetch: refetchDownloadUrl } = useQuery({
     queryKey: ["videoDownload", downloadJobId],
     queryFn: () => fetchVideoDownloadUrl(downloadJobId),
@@ -83,7 +79,7 @@ export function ListingClient({
 
   const isPaidUser = userData?.currentTierId !== "free";
 
-  // Check for upgrade success and show modal
+  // Effects
   useEffect(() => {
     const upgradeSuccess = searchParams["upgrade_success"];
     if (upgradeSuccess === "true") {
@@ -91,6 +87,7 @@ export function ListingClient({
     }
   }, [searchParams]);
 
+  // Handlers
   const handleDownload = async (jobId: string) => {
     if (!isPaidUser) {
       setIsPricingModalOpen(true);
@@ -108,39 +105,55 @@ export function ListingClient({
     }
   };
 
-  const handleUpgradeClick = () => {
-    setIsPricingModalOpen(true);
+  const handleRegenerate = () => setIsRegenerateModalOpen(true);
+  const handleUpgradeClick = () => setIsPricingModalOpen(true);
+  const handleFilesSelected = async (files: File[]) => {
+    try {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      const response = await fetch(`/api/listings/${listingId}/photos`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload files");
+      }
+
+      // Refresh listing data to get new photos
+      queryClient.invalidateQueries({
+        queryKey: ["listing", listingId],
+      });
+
+      showToast("Files uploaded successfully", "success");
+    } catch (error) {
+      console.error("[UPLOAD_ERROR]", error);
+      showToast("Failed to upload files", "error");
+    }
   };
 
-  const property = listing || null;
+  if (isLoading || !listing) {
+    return (
+      <DashboardLayout>
+        <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+          <LoadingState text='Loading property details...' size='lg' />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   const jobs = videoJobs || [];
-
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-          <LoadingState text='Loading property details...' size='lg' />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (!property) {
-    return (
-      <DashboardLayout>
-        <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-          <LoadingState text='Loading property details...' size='lg' />
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>
       <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+        {/* Header */}
         <div className='flex justify-between items-center mb-8'>
           <h1 className='text-[32px] font-semibold text-[#1c1c1c]'>
-            {property.address}
+            {listing.address}
           </h1>
           {!isPaidUser && (
             <button
@@ -152,6 +165,17 @@ export function ListingClient({
           )}
         </div>
 
+        {/* File Upload Section */}
+        <div className='mb-8'>
+          <FileUpload
+            buttonText='Add more photos'
+            onFilesSelected={handleFilesSelected}
+            maxFiles={10}
+            maxSize={15}
+          />
+        </div>
+
+        {/* Content */}
         {jobs.length === 0 ? (
           <EmptyState
             icon={Video}
@@ -161,7 +185,7 @@ export function ListingClient({
               jobs.some((job) => job.status === "failed")
                 ? {
                     label: "Regenerate Videos",
-                    onClick: () => setIsRegenerateModalOpen(true),
+                    onClick: handleRegenerate,
                   }
                 : undefined
             }
@@ -169,84 +193,18 @@ export function ListingClient({
         ) : (
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
             {jobs.map((job) => (
-              <div
+              <VideoJobCard
                 key={job.id}
-                className={`relative rounded-lg overflow-hidden ${
-                  !isPaidUser && job.template !== "basic"
-                    ? "opacity-50 cursor-not-allowed"
-                    : ""
-                }`}
-              >
-                {job.status === "processing" ? (
-                  <div className='w-full aspect-video bg-gray-100 flex items-center justify-center'>
-                    <LoadingState
-                      text='Processing video...'
-                      size='sm'
-                      className='min-h-0'
-                    />
-                  </div>
-                ) : (
-                  <video
-                    src={job.outputFile || undefined}
-                    className='w-full aspect-video object-cover'
-                    controls
-                    poster={job.listing?.photos?.[0]?.filePath}
-                  />
-                )}
-                <div className='p-4 bg-white'>
-                  <h3 className='text-lg font-semibold mb-2'>
-                    {job.template
-                      ? job.template.charAt(0).toUpperCase() +
-                        job.template.slice(1)
-                      : "Basic"}
-                  </h3>
-                  <div className='flex justify-between items-center'>
-                    <div className='flex items-center gap-2'>
-                      <span className='text-sm text-gray-500'>
-                        {job.status === "completed"
-                          ? "Ready"
-                          : job.status === "failed"
-                          ? "Failed"
-                          : "Processing..."}
-                      </span>
-                      {job.status === "failed" && (
-                        <button
-                          onClick={() => setIsRegenerateModalOpen(true)}
-                          className='text-sm text-blue-600 hover:text-blue-700 inline-flex items-center gap-1'
-                        >
-                          <RefreshCw className='w-3 h-3' />
-                          Regenerate
-                        </button>
-                      )}
-                    </div>
-                    {job.status === "completed" && (
-                      <button
-                        onClick={() => handleDownload(job.id)}
-                        disabled={!isPaidUser && job.template !== "basic"}
-                        className={`px-4 py-2 rounded-lg ${
-                          !isPaidUser && job.template !== "basic"
-                            ? "bg-gray-300 cursor-not-allowed"
-                            : "bg-blue-500 hover:bg-blue-600 text-white"
-                        }`}
-                      >
-                        Download
-                      </button>
-                    )}
-                  </div>
-                  {!isPaidUser && job.template !== "basic" && (
-                    <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
-                      <span className='text-white text-lg font-semibold'>
-                        Premium Template
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                job={job}
+                isPaidUser={isPaidUser}
+                onDownload={handleDownload}
+                onRegenerate={handleRegenerate}
+              />
             ))}
           </div>
         )}
 
-        {/* Regenerate Modal */}
+        {/* Modals */}
         <RegenerateModal
           jobId={jobs[0]?.id || ""}
           isOpen={isRegenerateModalOpen}
@@ -258,7 +216,6 @@ export function ListingClient({
           }}
         />
 
-        {/* Pricing Modal */}
         <PricingModal
           isOpen={isPricingModalOpen}
           onClose={() => setIsPricingModalOpen(false)}
@@ -270,7 +227,6 @@ export function ListingClient({
           }}
         />
 
-        {/* Additional Photos Modal */}
         <AdditionalPhotosModal
           listingId={listingId}
           isOpen={isAdditionalPhotosModalOpen}
