@@ -1,82 +1,99 @@
-import { Suspense } from "react";
-import UserStatsSection from "./_components/user-stats-section";
-import SystemStatsSection from "./_components/system-stats-section";
-import CreditStatsSection from "./_components/credit-stats-section";
-import RecentActivitySection from "./_components/recent-activity-section";
-import VideoAnalyticsSection from "./_components/video-analytics-section";
-import RevenueAnalyticsSection from "./_components/revenue-analytics-section";
-import CreditAnalyticsSection from "./_components/credit-analytics-section";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { LoadingState } from "@/components/ui/loading-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Suspense } from "react";
+import CreditAnalyticsSection from "./_components/credit-analytics-section";
+import RecentActivitySection from "./_components/recent-activity-section";
+import RevenueAnalyticsSection from "./_components/revenue-analytics-section";
+import SystemStatsSection from "./_components/system-stats-section";
+import VideoAnalyticsSection from "./_components/video-analytics-section";
+import {
+  getCreditAnalytics,
+  getRevenueAnalytics,
+  getVideoAnalytics,
+} from "./actions";
 
-function LoadingState() {
-  return (
-    <div className='flex h-[500px] w-full items-center justify-center'>
-      <Loader2 className='h-8 w-8 animate-spin' />
-    </div>
+export default async function AdminPage() {
+  // Fetch initial data in parallel
+  const [revenueAnalytics, videoAnalytics, creditAnalytics] = await Promise.all(
+    [getRevenueAnalytics(), getVideoAnalytics(), getCreditAnalytics()]
   );
-}
 
-export default function AdminPage() {
   return (
-    <div className='space-y-8 pt-8'>
-      <div>
-        <h1 className='text-3xl font-bold'>Dashboard Overview</h1>
-        <p className='text-muted-foreground'>
-          Monitor your application's performance and user activity.
-        </p>
+    <div className='space-y-6 p-6'>
+      <div className='flex items-center justify-between'>
+        <h1 className='text-3xl font-bold'>Admin Dashboard</h1>
       </div>
 
-      <Suspense fallback={<LoadingState />}>
-        <div className='grid gap-8'>
-          {/* Overview Stats */}
-          <div>
-            <h2 className='text-2xl font-semibold mb-4'>Quick Stats</h2>
-            <div className='grid gap-4'>
-              <UserStatsSection />
-              <CreditStatsSection />
-            </div>
-          </div>
+      {/* Quick Stats */}
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+        <Card className='p-4'>
+          <h3 className='text-sm font-medium text-muted-foreground'>
+            Current MRR
+          </h3>
+          <p className='text-2xl font-bold'>
+            ${revenueAnalytics.currentMRR.toLocaleString()}
+          </p>
+        </Card>
+        <Card className='p-4'>
+          <h3 className='text-sm font-medium text-muted-foreground'>
+            Total Videos
+          </h3>
+          <p className='text-2xl font-bold'>
+            {videoAnalytics.totalVideos.toLocaleString()}
+          </p>
+        </Card>
+        <Card className='p-4'>
+          <h3 className='text-sm font-medium text-muted-foreground'>
+            Success Rate
+          </h3>
+          <p className='text-2xl font-bold'>{videoAnalytics.successRate}%</p>
+        </Card>
+      </div>
 
-          {/* Detailed Analytics */}
-          <div>
-            <h2 className='text-2xl font-semibold mb-4'>Detailed Analytics</h2>
-            <Tabs defaultValue='revenue' className='space-y-4'>
-              <TabsList>
-                <TabsTrigger value='revenue'>Revenue</TabsTrigger>
-                <TabsTrigger value='credits'>Credits</TabsTrigger>
-                <TabsTrigger value='videos'>Videos</TabsTrigger>
-              </TabsList>
-              <TabsContent value='revenue'>
-                <RevenueAnalyticsSection />
-              </TabsContent>
-              <TabsContent value='credits'>
-                <CreditAnalyticsSection />
-              </TabsContent>
-              <TabsContent value='videos'>
-                <VideoAnalyticsSection />
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* System Performance */}
-          <div>
-            <h2 className='text-2xl font-semibold mb-4'>System Performance</h2>
-            <SystemStatsSection />
-          </div>
-
-          {/* Recent Activity */}
-          <div>
-            <h2 className='text-2xl font-semibold mb-4'>Recent Activity</h2>
-            <Card className='p-6'>
+      {/* Detailed Analytics */}
+      <Card>
+        <Tabs defaultValue='revenue' className='w-full'>
+          <TabsList className='w-full justify-start border-b rounded-none px-6'>
+            <TabsTrigger value='revenue'>Revenue</TabsTrigger>
+            <TabsTrigger value='videos'>Videos</TabsTrigger>
+            <TabsTrigger value='credits'>Credits</TabsTrigger>
+          </TabsList>
+          <div className='p-6'>
+            <TabsContent value='revenue'>
               <Suspense fallback={<LoadingState />}>
-                <RecentActivitySection />
+                <RevenueAnalyticsSection initialData={revenueAnalytics} />
               </Suspense>
-            </Card>
+            </TabsContent>
+            <TabsContent value='videos'>
+              <Suspense fallback={<LoadingState />}>
+                <VideoAnalyticsSection initialData={videoAnalytics} />
+              </Suspense>
+            </TabsContent>
+            <TabsContent value='credits'>
+              <Suspense fallback={<LoadingState />}>
+                <CreditAnalyticsSection initialData={creditAnalytics} />
+              </Suspense>
+            </TabsContent>
           </div>
-        </div>
-      </Suspense>
+        </Tabs>
+      </Card>
+
+      {/* System Performance */}
+      <div>
+        <h2 className='text-2xl font-semibold mb-4'>System Performance</h2>
+        <SystemStatsSection />
+      </div>
+
+      {/* Recent Activity */}
+      <div>
+        <h2 className='text-2xl font-semibold mb-4'>Recent Activity</h2>
+        <Card className='p-6'>
+          <Suspense fallback={<LoadingState />}>
+            <RecentActivitySection />
+          </Suspense>
+        </Card>
+      </div>
     </div>
   );
 }

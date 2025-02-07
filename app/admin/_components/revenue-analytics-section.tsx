@@ -1,46 +1,21 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  Bar,
-  BarChart,
 } from "recharts";
-
-interface RevenueAnalytics {
-  currentMRR: number;
-  currentARR: number;
-  revenueGrowth: number;
-  churnRate: number;
-  revenueByTier: {
-    tier: string;
-    revenue: number;
-    users: number;
-  }[];
-  monthlyRevenue: {
-    month: string;
-    revenue: number;
-    newSubscriptions: number;
-    churned: number;
-  }[];
-  upgrades: number;
-  downgrades: number;
-}
-
-async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
-  const response = await fetch("/api/admin/stats/revenue");
-  if (!response.ok) {
-    throw new Error("Failed to fetch revenue analytics");
-  }
-  return response.json();
-}
+import { type RevenueAnalytics } from "../actions";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -49,22 +24,25 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export default function RevenueAnalyticsSection() {
-  const { data: analytics, isLoading } = useQuery({
+interface RevenueAnalyticsSectionProps {
+  initialData: RevenueAnalytics;
+}
+
+export default function RevenueAnalyticsSection({
+  initialData,
+}: RevenueAnalyticsSectionProps) {
+  const { data: analytics } = useQuery({
     queryKey: ["revenueAnalytics"],
-    queryFn: getRevenueAnalytics,
+    queryFn: async () => {
+      const response = await fetch("/api/admin/stats/revenue");
+      if (!response.ok) {
+        throw new Error("Failed to fetch revenue analytics");
+      }
+      return response.json();
+    },
+    initialData,
     refetchInterval: 60000, // Refresh every minute
   });
-
-  if (isLoading) {
-    return (
-      <div className='flex justify-center'>
-        <Loader2 className='h-8 w-8 animate-spin' />
-      </div>
-    );
-  }
-
-  if (!analytics) return null;
 
   return (
     <div className='space-y-6'>

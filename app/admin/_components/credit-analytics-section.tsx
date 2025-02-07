@@ -1,6 +1,7 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -13,99 +14,65 @@ import {
   Bar,
   BarChart,
 } from "recharts";
+import { type CreditAnalytics } from "../actions";
 
-interface CreditAnalytics {
-  totalCreditsIssued: number;
-  totalCreditsUsed: number;
-  averageCreditsPerUser: number;
-  expiringCredits: number;
-  creditUsageByDay: {
-    date: string;
-    used: number;
-    issued: number;
-  }[];
-  creditsByReason: {
-    reason: string;
-    count: number;
-  }[];
-  userSegments: {
-    segment: string;
-    users: number;
-    averageCredits: number;
-  }[];
+interface CreditAnalyticsSectionProps {
+  initialData: CreditAnalytics;
 }
 
-async function getCreditAnalytics(): Promise<CreditAnalytics> {
-  const response = await fetch("/api/admin/stats/credits");
-  if (!response.ok) {
-    throw new Error("Failed to fetch credit analytics");
-  }
-  return response.json();
-}
-
-export default function CreditAnalyticsSection() {
-  const { data: analytics, isLoading } = useQuery({
+export default function CreditAnalyticsSection({
+  initialData,
+}: CreditAnalyticsSectionProps) {
+  const { data: analytics } = useQuery({
     queryKey: ["creditAnalytics"],
-    queryFn: getCreditAnalytics,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    queryFn: async () => {
+      const response = await fetch("/api/admin/stats/credits");
+      if (!response.ok) {
+        throw new Error("Failed to fetch credit analytics");
+      }
+      return response.json();
+    },
+    initialData,
+    refetchInterval: 60000, // Refresh every minute
   });
-
-  if (isLoading) {
-    return (
-      <div className='flex justify-center'>
-        <Loader2 className='h-8 w-8 animate-spin' />
-      </div>
-    );
-  }
-
-  if (!analytics) return null;
 
   return (
     <div className='space-y-6'>
-      <h2 className='text-2xl font-bold'>Credit Usage Analytics</h2>
+      <h2 className='text-2xl font-bold'>Credit Analytics</h2>
 
       {/* Key Metrics */}
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-        <Card className='p-4'>
-          <h3 className='text-sm font-medium text-muted-foreground'>
-            Total Credits Issued
-          </h3>
-          <p className='text-2xl font-bold'>
-            {analytics.totalCreditsIssued.toLocaleString()}
-          </p>
-        </Card>
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
             Total Credits Used
           </h3>
-          <p className='text-2xl font-bold'>
-            {analytics.totalCreditsUsed.toLocaleString()}
-          </p>
-        </Card>
-        <Card className='p-4'>
-          <h3 className='text-sm font-medium text-muted-foreground'>
-            Average Credits per User
-          </h3>
-          <p className='text-2xl font-bold'>
-            {analytics.averageCreditsPerUser.toFixed(1)}
-          </p>
-        </Card>
-        <Card className='p-4'>
-          <h3 className='text-sm font-medium text-muted-foreground'>
-            Credits Expiring (30 days)
-          </h3>
-          <p className='text-2xl font-bold'>
-            {analytics.expiringCredits.toLocaleString()}
-          </p>
+          <p className='text-2xl font-bold'>{analytics.totalCredits}</p>
         </Card>
       </div>
 
-      {/* Credit Usage Trend */}
+      {/* Credits by Type */}
       <Card className='p-6'>
-        <h3 className='text-lg font-semibold mb-4'>Credit Usage Trend</h3>
+        <h3 className='text-lg font-semibold mb-4'>Credits by Type</h3>
         <div className='h-[300px]'>
           <ResponsiveContainer width='100%' height='100%'>
-            <AreaChart data={analytics.creditUsageByDay}>
+            <BarChart data={analytics.creditsByType}>
+              <CartesianGrid strokeDasharray='3 3' />
+              <XAxis dataKey='reason' />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey='amount' fill='#4ade80' name='Credits' />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Daily Credit Usage */}
+      <Card className='p-6'>
+        <h3 className='text-lg font-semibold mb-4'>Daily Credit Usage</h3>
+        <div className='h-[300px]'>
+          <ResponsiveContainer width='100%' height='100%'>
+            <AreaChart data={analytics.dailyCredits}>
               <CartesianGrid strokeDasharray='3 3' />
               <XAxis dataKey='date' />
               <YAxis />
@@ -113,69 +80,31 @@ export default function CreditAnalyticsSection() {
               <Legend />
               <Area
                 type='monotone'
-                dataKey='used'
-                stackId='1'
-                stroke='#f87171'
-                fill='#f87171'
-                name='Credits Used'
-              />
-              <Area
-                type='monotone'
-                dataKey='issued'
-                stackId='2'
+                dataKey='amount'
                 stroke='#4ade80'
                 fill='#4ade80'
-                name='Credits Issued'
+                name='Credits'
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
-      {/* Credit Usage by Reason */}
+      {/* Top Users */}
       <Card className='p-6'>
-        <h3 className='text-lg font-semibold mb-4'>Credit Usage by Reason</h3>
-        <div className='h-[300px]'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={analytics.creditsByReason}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='reason' />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey='count' fill='#60a5fa' name='Credits' />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      {/* User Segments */}
-      <Card className='p-6'>
-        <h3 className='text-lg font-semibold mb-4'>
-          Credit Usage by User Segment
-        </h3>
-        <div className='h-[300px]'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={analytics.userSegments}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='segment' />
-              <YAxis yAxisId='left' orientation='left' stroke='#60a5fa' />
-              <YAxis yAxisId='right' orientation='right' stroke='#4ade80' />
-              <Tooltip />
-              <Legend />
-              <Bar
-                yAxisId='left'
-                dataKey='users'
-                fill='#60a5fa'
-                name='Number of Users'
-              />
-              <Bar
-                yAxisId='right'
-                dataKey='averageCredits'
-                fill='#4ade80'
-                name='Average Credits'
-              />
-            </BarChart>
-          </ResponsiveContainer>
+        <h3 className='text-lg font-semibold mb-4'>Top Credit Users</h3>
+        <div className='space-y-4'>
+          {analytics.topUsers.map(
+            (user: { id: string; email: string; credits: number }) => (
+              <div
+                key={user.id}
+                className='flex items-center justify-between p-2 bg-muted rounded-lg'
+              >
+                <span className='text-sm font-medium'>{user.email}</span>
+                <span className='text-sm'>{user.credits} credits</span>
+              </div>
+            )
+          )}
         </div>
       </Card>
     </div>

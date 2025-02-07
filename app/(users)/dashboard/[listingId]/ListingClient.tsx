@@ -9,10 +9,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useListing } from "@/hooks/queries/use-listings";
 import { useUser } from "@/hooks/queries/use-user";
-import { User, VideoJob } from "@/types/prisma-types";
+import { Listing, User, VideoJob } from "@/types/prisma-types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Video } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 async function fetchListingJobs(listingId: string): Promise<VideoJob[]> {
@@ -37,9 +36,16 @@ interface ListingClientProps {
     listingId: string;
   };
   searchParams: { [key: string]: string | string[] | undefined };
+  initialListing: Listing;
+  initialJobs: VideoJob[];
 }
 
-export function ListingClient({ params, searchParams }: ListingClientProps) {
+export function ListingClient({
+  params,
+  searchParams,
+  initialListing,
+  initialJobs,
+}: ListingClientProps) {
   const listingId = params.listingId;
   const { showToast } = useToast();
   const [isRegenerateModalOpen, setIsRegenerateModalOpen] = useState(false);
@@ -57,11 +63,15 @@ export function ListingClient({ params, searchParams }: ListingClientProps) {
     }
   }, [userData]);
 
-  const { data: listing, isLoading } = useListing(listingId);
+  const { data: listing, isLoading } = useListing(listingId, {
+    initialData: initialListing,
+  });
+
   const { data: videoJobs } = useQuery({
     queryKey: ["listingJobs", listingId],
     queryFn: () => fetchListingJobs(listingId),
     enabled: !!listingId,
+    initialData: initialJobs,
   });
 
   const [downloadJobId, setDownloadJobId] = useState<string>("");
@@ -93,7 +103,7 @@ export function ListingClient({ params, searchParams }: ListingClientProps) {
       if (downloadUrl) {
         window.open(downloadUrl, "_blank");
       }
-    } catch (error) {
+    } catch (_error) {
       showToast("Failed to download video", "error");
     }
   };
