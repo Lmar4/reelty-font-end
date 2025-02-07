@@ -13,7 +13,7 @@ const isPublicPath = createRouteMatcher([
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
-  const { userId, sessionClaims } = await auth();
+  const { userId } = await auth();
   const isPublic = isPublicPath(req);
   const isAdmin = isAdminRoute(req);
   const isWebhookPath = req.url.includes("/api/webhooks");

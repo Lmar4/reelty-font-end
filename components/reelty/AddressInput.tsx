@@ -1,4 +1,3 @@
-import { useLoadScript } from "@react-google-maps/api";
 import usePlacesAutocomplete, {
   getGeocode,
   getLatLng,
@@ -14,11 +13,6 @@ interface AddressInputProps {
 }
 
 export default function AddressInput({ onAddressSelect }: AddressInputProps) {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ["places"],
-  });
-
   const {
     ready,
     value,
@@ -51,7 +45,7 @@ export default function AddressInput({ onAddressSelect }: AddressInputProps) {
           id='address'
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          disabled={!ready || !isLoaded}
+          disabled={!ready}
           placeholder='Enter property address'
           className='w-full'
         />

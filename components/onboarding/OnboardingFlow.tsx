@@ -36,7 +36,7 @@ export default function OnboardingFlow() {
   };
 
   return (
-    <div className='min-h-screen bg-gray-50 flex items-center justify-center px-4'>
+    <div className='pt-8 lg:h-[calc(100vh-111px)] bg-gray-50 flex items-center justify-center px-4'>
       <Card className='w-full max-w-2xl p-8 space-y-6'>
         <Progress value={steps[currentStep].progress} className='w-full' />
 

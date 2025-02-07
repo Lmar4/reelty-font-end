@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import UpgradePricingModal from "./UpgradePricingModal";
+import PricingModal from "./PricingModal";
 
 export default function FreeTrial() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   return (
     <>
-      <div className='bg-[#1c1c1c] text-white px-4 py-2 text-[14px] flex items-center justify-between'>
+      <div className='bg-[#1c1c1c] text-white px-4 py-2 text-[14px] flex space-x-4 items-center justify-between'>
         <div>
           <span className='text-white font-semibold'>
             You're in free trial.
@@ -25,9 +25,11 @@ export default function FreeTrial() {
         </button>
       </div>
 
-      <UpgradePricingModal
+      <PricingModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
+        listingId=''
+        onUpgradeComplete={() => setIsUpgradeModalOpen(false)}
       />
     </>
   );
