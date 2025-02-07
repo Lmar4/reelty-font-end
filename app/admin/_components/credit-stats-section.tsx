@@ -23,7 +23,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
 export default function CreditStatsSection() {
   const { data: creditStats, isLoading } =
-    trpc.adminPanel.getCreditStats.useQuery();
+    trpc.adminDashboard.getCreditStats.useQuery();
 
   if (isLoading) {
     return <div>Loading credit statistics...</div>;

@@ -62,7 +62,7 @@ export default function FeatureUsageSection() {
   };
 
   const { data: featureUsage, isLoading } =
-    trpc.adminPanel.getFeatureUsage.useQuery(
+    trpc.adminDashboard.getFeatureUsage.useQuery(
       {
         startDate: dateRange.from!,
         endDate: dateRange.to!,

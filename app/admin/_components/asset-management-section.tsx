@@ -1,15 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -28,10 +17,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { trpc } from "@/lib/trpc";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import type { AssetOutput } from "@/types/trpc";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
 export enum AssetType {
   MUSIC = "MUSIC",
@@ -49,7 +49,7 @@ export default function AssetManagementSection() {
     data: assets,
     isLoading,
     refetch,
-  } = trpc.adminPanel.getAssets.useQuery(
+  } = trpc.adminDashboard.getAssets.useQuery(
     { type: selectedType, includeInactive },
     {
       onError: (error) => {
@@ -62,7 +62,7 @@ export default function AssetManagementSection() {
     }
   );
 
-  const createAsset = trpc.adminPanel.createAsset.useMutation({
+  const createAsset = trpc.adminDashboard.createAsset.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
@@ -80,7 +80,7 @@ export default function AssetManagementSection() {
     },
   });
 
-  const updateAsset = trpc.adminPanel.updateAsset.useMutation({
+  const updateAsset = trpc.adminDashboard.updateAsset.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
@@ -97,7 +97,7 @@ export default function AssetManagementSection() {
     },
   });
 
-  const deleteAsset = trpc.adminPanel.deleteAsset.useMutation({
+  const deleteAsset = trpc.adminDashboard.deleteAsset.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",

@@ -33,7 +33,7 @@ interface SystemStats {
 
 export default function SystemStatsSection() {
   const { data: systemStats, isLoading } =
-    trpc.adminPanel.getSystemStats.useQuery();
+    trpc.adminDashboard.getSystemStats.useQuery();
 
   if (isLoading) {
     return <div>Loading system statistics...</div>;

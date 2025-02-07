@@ -52,9 +52,8 @@ export default function TemplateManagementSection() {
   const { toast } = useToast();
 
   const utils = trpc.useContext();
-  const { data: templates, isLoading } = trpc.adminPanel.getTemplates.useQuery(
-    undefined,
-    {
+  const { data: templates, isLoading } =
+    trpc.adminDashboard.getTemplates.useQuery(undefined, {
       onError: (error) => {
         toast({
           title: "Error",
@@ -62,17 +61,16 @@ export default function TemplateManagementSection() {
           variant: "destructive",
         });
       },
-    }
-  );
+    });
 
-  const createTemplate = trpc.adminPanel.createTemplate.useMutation({
+  const createTemplate = trpc.adminDashboard.createTemplate.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Template created successfully",
       });
       setIsOpen(false);
-      utils.adminPanel.getTemplates.invalidate();
+      utils.adminDashboard.getTemplates.invalidate();
     },
     onError: (error) => {
       toast({
@@ -83,13 +81,13 @@ export default function TemplateManagementSection() {
     },
   });
 
-  const updateTemplate = trpc.adminPanel.updateTemplate.useMutation({
+  const updateTemplate = trpc.adminDashboard.updateTemplate.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Template updated successfully",
       });
-      utils.adminPanel.getTemplates.invalidate();
+      utils.adminDashboard.getTemplates.invalidate();
     },
     onError: (error) => {
       toast({
@@ -100,13 +98,13 @@ export default function TemplateManagementSection() {
     },
   });
 
-  const deleteTemplate = trpc.adminPanel.deleteTemplate.useMutation({
+  const deleteTemplate = trpc.adminDashboard.deleteTemplate.useMutation({
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Template deleted successfully",
       });
-      utils.adminPanel.getTemplates.invalidate();
+      utils.adminDashboard.getTemplates.invalidate();
     },
     onError: (error) => {
       toast({
