@@ -22,7 +22,7 @@ export default function Home() {
       // Store files in localStorage before redirecting
       const sessionId = Math.random().toString(36).substring(7);
       localStorage.setItem("pendingListingSession", sessionId);
-      
+
       // Store file data as base64
       Promise.all(
         files.map(async (file) => ({
@@ -32,13 +32,16 @@ export default function Home() {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
             reader.readAsDataURL(file);
-          })
+          }),
         }))
       ).then((fileData) => {
-        localStorage.setItem(`pendingFiles_${sessionId}`, JSON.stringify({
-          files: fileData,
-          timestamp: Date.now()
-        }));
+        localStorage.setItem(
+          `pendingFiles_${sessionId}`,
+          JSON.stringify({
+            files: fileData,
+            timestamp: Date.now(),
+          })
+        );
         router.push("/login?returnTo=/dashboard");
       });
     }

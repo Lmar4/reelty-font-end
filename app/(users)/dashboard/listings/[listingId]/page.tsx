@@ -60,9 +60,10 @@ export default async function ListingPage({
   searchParams,
 }: {
   params: Promise<{ listingId: string }>;
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { listingId } = await params;
+  const resolvedSearchParams = await searchParams;
 
   try {
     const [listing, jobs] = await Promise.all([
@@ -73,7 +74,7 @@ export default async function ListingPage({
     return (
       <ListingClient
         listingId={listingId}
-        searchParams={searchParams}
+        searchParams={resolvedSearchParams}
         initialListing={listing}
         initialJobs={jobs}
       />

@@ -15,12 +15,6 @@ export default function DashboardPage() {
   );
   const { data: jobs, isLoading: isJobsLoading } = useJobs();
 
-  const isLoading = isListingsLoading || isJobsLoading;
-
-  if (isLoading) {
-    return <LoadingState />;
-  }
-
   // Calculate statistics
   const totalListings = listings?.length || 0;
   const completedJobs =
@@ -47,10 +41,17 @@ export default function DashboardPage() {
             <div className='bg-primary/10 p-3 rounded-lg'>
               <Building className='w-6 h-6 text-primary' />
             </div>
-            <div>
-              <p className='text-2xl font-semibold'>{totalListings}</p>
-              <p className='text-sm text-gray-500'>Total Listings</p>
-            </div>
+            {isListingsLoading ? (
+              <div className='w-full'>
+                <div className='h-8 w-16 bg-gray-200 rounded animate-pulse mb-1'></div>
+                <div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+              </div>
+            ) : (
+              <div>
+                <p className='text-2xl font-semibold'>{totalListings}</p>
+                <p className='text-sm text-gray-500'>Total Listings</p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -59,10 +60,17 @@ export default function DashboardPage() {
             <div className='bg-primary/10 p-3 rounded-lg'>
               <Film className='w-6 h-6 text-primary' />
             </div>
-            <div>
-              <p className='text-2xl font-semibold'>{completedJobs}</p>
-              <p className='text-sm text-gray-500'>Generated Videos</p>
-            </div>
+            {isJobsLoading ? (
+              <div className='w-full'>
+                <div className='h-8 w-16 bg-gray-200 rounded animate-pulse mb-1'></div>
+                <div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+              </div>
+            ) : (
+              <div>
+                <p className='text-2xl font-semibold'>{completedJobs}</p>
+                <p className='text-sm text-gray-500'>Generated Videos</p>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -71,10 +79,17 @@ export default function DashboardPage() {
             <div className='bg-primary/10 p-3 rounded-lg'>
               <Calendar className='w-6 h-6 text-primary' />
             </div>
-            <div>
-              <p className='text-2xl font-semibold'>{daysAsMember}</p>
-              <p className='text-sm text-gray-500'>Days as Member</p>
-            </div>
+            {!user ? (
+              <div className='w-full'>
+                <div className='h-8 w-16 bg-gray-200 rounded animate-pulse mb-1'></div>
+                <div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+              </div>
+            ) : (
+              <div>
+                <p className='text-2xl font-semibold'>{daysAsMember}</p>
+                <p className='text-sm text-gray-500'>Days as Member</p>
+              </div>
+            )}
           </div>
         </Card>
       </div>
