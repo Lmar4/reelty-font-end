@@ -3,12 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { Listing, VideoJob } from "@/types/prisma-types";
 
-interface PageProps {
-  params: {
-    listingId: string;
-  };
+type PageProps = {
+  params: Promise<{ listingId: string }>;
   searchParams: { [key: string]: string | string[] | undefined };
-}
+};
 
 // Utility function to handle API responses
 async function handleApiResponse<T>(
@@ -63,15 +61,17 @@ async function getListingJobs(listingId: string): Promise<VideoJob[]> {
 }
 
 export default async function ListingPage({ params, searchParams }: PageProps) {
+  const { listingId } = await params;
+
   try {
     const [listing, jobs] = await Promise.all([
-      getListing(params.listingId),
-      getListingJobs(params.listingId),
+      getListing(listingId),
+      getListingJobs(listingId),
     ]);
 
     return (
       <ListingClient
-        params={params}
+        listingId={listingId}
         searchParams={searchParams}
         initialListing={listing}
         initialJobs={jobs}

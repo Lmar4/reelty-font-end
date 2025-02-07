@@ -34,21 +34,19 @@ async function fetchVideoDownloadUrl(jobId: string): Promise<string> {
 }
 
 interface ListingClientProps {
-  params: {
-    listingId: string;
-  };
+  listingId: string;
+
   searchParams: { [key: string]: string | string[] | undefined };
   initialListing: Listing;
   initialJobs: VideoJob[];
 }
 
 export function ListingClient({
-  params,
+  listingId,
   searchParams,
   initialListing,
   initialJobs,
 }: ListingClientProps) {
-  const listingId = params.listingId;
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
