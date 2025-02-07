@@ -1,59 +1,63 @@
 # Reelty Frontend
 
-Modern real estate video generation platform built with Next.js 15.
+A modern real estate video generation platform built with Next.js 15, designed to help real estate professionals create engaging property videos with AI.
 
-## Quick Start
+## Features
 
-```bash
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env.local
-
-# Start development server
-npm run dev
-```
-
-## Core Features
-
+### Core Functionality
 - AI-powered real estate video generation
-- Property management dashboard
-- Subscription tiers with Stripe integration
-- Google Maps integration for property locations
-- Dark/light theme support
+- Intuitive property management dashboard
+- Smart address lookup with Google Maps integration
+- Drag-and-drop photo management
+- Custom video templates and configurations
+
+### User Experience
+- Responsive design with dark/light theme support
+- Real-time video generation progress
+- Interactive property management
+- Seamless file uploads
+
+### Business Features
+- Flexible subscription plans with Stripe integration
+- Credit-based usage system
+- Detailed analytics and usage tracking
+- Email notifications for key events
 
 ## Tech Stack
 
-- Next.js 15
-- TypeScript
-- TailwindCSS + Radix UI
-- Clerk Authentication
-- TanStack Query
-- Stripe Payments
-- Google Maps API
-- PostHog Analytics
+### Frontend
+- **Framework:** Next.js 15
+- **Language:** TypeScript
+- **Styling:** TailwindCSS
+- **UI Components:** 
+  - Radix UI primitives
+  - Shadcn/ui components
+  - Custom reusable components
 
-## Development
+### Authentication & Payments
+- **Auth:** Clerk Authentication
+- **Payments:** Stripe Integration
+- **Analytics:** PostHog
 
+### APIs & Integration
+- **State Management:** TanStack Query
+- **Maps:** Google Maps API
+- **Email:** React Email
+
+## Getting Started
+
+1. Clone and install dependencies:
 ```bash
-# Start dev server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm run start
-
-# Lint code
-npm run lint
+git clone <repository-url>
+pnpm install
 ```
 
-## Environment Variables
+2. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
 
-Required variables in `.env.local`:
-
+Required variables:
 ```
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
@@ -63,14 +67,46 @@ STRIPE_SECRET_KEY=
 NEXT_PUBLIC_POSTHOG_KEY=
 ```
 
+3. Start development server:
+```bash
+pnpm dev
+```
+
 ## Project Structure
 
 ```
-├── app/                # Next.js app router pages
-├── components/         # React components
-├── lib/               # Utilities and config
-├── public/            # Static assets
-└── types/             # TypeScript types
+├── app/                    # Next.js app router pages
+│   ├── (auth)/            # Authentication routes
+│   ├── (marketing)/       # Public marketing pages
+│   ├── (users)/           # Protected user routes
+│   ├── admin/             # Admin dashboard
+│   └── api/               # API routes
+├── components/
+│   ├── ui/               # Base UI components
+│   ├── forms/            # Form components
+│   ├── modals/           # Modal dialogs
+│   └── reelty/           # Feature-specific components
+├── emails/                # Email templates
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utility functions
+├── schemas/               # Zod validation schemas
+└── types/                # TypeScript types
+```
+
+## Development Commands
+
+```bash
+# Development
+pnpm dev
+
+# Production build
+pnpm build
+
+# Start production server
+pnpm start
+
+# Linting
+pnpm lint
 ```
 
 ## License
