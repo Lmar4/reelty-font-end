@@ -3,11 +3,6 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { Listing, VideoJob } from "@/types/prisma-types";
 
-type PageProps = {
-  params: Promise<{ listingId: string }>;
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
 // Utility function to handle API responses
 async function handleApiResponse<T>(
   response: Response,
@@ -60,7 +55,13 @@ async function getListingJobs(listingId: string): Promise<VideoJob[]> {
   );
 }
 
-export default async function ListingPage({ params, searchParams }: PageProps) {
+export default async function ListingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ listingId: string }>;
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const { listingId } = await params;
 
   try {
