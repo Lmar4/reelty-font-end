@@ -3,10 +3,12 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { Listing, VideoJob } from "@/types/prisma-types";
 
-type PageProps = {
-  params: { listingId: string };
+interface PageProps {
+  params: {
+    listingId: string;
+  };
   searchParams: { [key: string]: string | string[] | undefined };
-};
+}
 
 // Utility function to handle API responses
 async function handleApiResponse<T>(
