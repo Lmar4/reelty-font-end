@@ -72,11 +72,12 @@ export function useListings(userId: string) {
   });
 }
 
-export function useListing(id: string) {
+export function useListing(id: string, options?: { initialData?: Listing }) {
   return useQuery({
     queryKey: [LISTINGS_QUERY_KEY, id],
     queryFn: () => fetchListingById(id),
     enabled: !!id,
+    initialData: options?.initialData,
   });
 }
 
