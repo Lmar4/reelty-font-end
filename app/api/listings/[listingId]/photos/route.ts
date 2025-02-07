@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   request: Request,
-  { params }: { params: { listingId: string } }
+  { params }: { params: Promise<{ listingId: string }> }
 ) {
+  const { listingId } = await params;
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -25,7 +26,7 @@ export async function POST(
     });
 
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${params.listingId}/photos`,
+      `${process.env.BACKEND_URL}/api/listings/${listingId}/photos`,
       {
         method: "POST",
         headers: {
