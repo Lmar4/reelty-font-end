@@ -2,7 +2,6 @@ import { createTRPCReact } from '@trpc/react-query';
 import { httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "../../reelty_backend/src/trpc/router";
 import { QueryClient } from "@tanstack/react-query";
-import { auth as getAuth } from '@clerk/nextjs/server';
 
 const getBaseUrl = () => {
   if (typeof window !== "undefined") {
@@ -34,22 +33,11 @@ export const trpcClient = trpc.createClient({
     httpBatchLink({
       url: `${getBaseUrl()}/trpc`,
       headers: async () => {
-        if (typeof window === 'undefined') {
-          // Server-side
-          const session = await getAuth();
-          const token = session.getToken();
-          return {
-            Authorization: token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          };
-        } else {
-          // Client-side
-          const token = await fetch('/api/auth/token').then(res => res.text());
-          return {
-            Authorization: token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-          };
-        }
+        const token = await fetch('/api/auth/token').then(res => res.text());
+        return {
+          Authorization: token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json',
+        };
       },
     }),
   ],
