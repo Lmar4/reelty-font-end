@@ -6,8 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
+import { Suspense } from "react";
 
-export default function RecoveryPasswordPage() {
+function RecoveryPasswordContent() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -124,5 +125,22 @@ export default function RecoveryPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RecoveryPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className='min-h-screen flex flex-col bg-white px-4 items-center justify-center'>
+          <div className='animate-pulse space-y-4'>
+            <div className='h-8 w-32 bg-gray-200 rounded mx-auto'></div>
+            <div className='h-4 w-48 bg-gray-200 rounded mx-auto'></div>
+          </div>
+        </div>
+      }
+    >
+      <RecoveryPasswordContent />
+    </Suspense>
   );
 }

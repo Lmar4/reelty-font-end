@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -11,8 +11,9 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { jobId } = await params;
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/jobs/${params.jobId}`,
+      `${process.env.BACKEND_URL}/api/jobs/${jobId}`,
       {
         headers: {
           Authorization: `Bearer ${userId}`,
@@ -34,7 +35,7 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -42,9 +43,10 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { jobId } = await params;
     const body = await request.json();
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/jobs/${params.jobId}`,
+      `${process.env.BACKEND_URL}/api/jobs/${jobId}`,
       {
         method: "PATCH",
         headers: {
@@ -69,7 +71,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -77,8 +79,9 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { jobId } = await params;
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/jobs/${params.jobId}`,
+      `${process.env.BACKEND_URL}/api/jobs/${jobId}`,
       {
         method: "DELETE",
         headers: {

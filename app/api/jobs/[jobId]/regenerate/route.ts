@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(
   request: Request,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -11,9 +11,10 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { jobId } = await params;
     const body = await request.json();
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/jobs/${params.jobId}/regenerate`,
+      `${process.env.BACKEND_URL}/api/jobs/${jobId}/regenerate`,
       {
         method: "POST",
         headers: {

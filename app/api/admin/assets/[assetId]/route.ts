@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { assetId: string } }
+  { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -12,8 +12,9 @@ export async function PATCH(
     }
 
     const body = await request.json();
+    const { assetId } = await params;
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/admin/assets/${params.assetId}`,
+      `${process.env.BACKEND_URL}/api/admin/assets/${assetId}`,
       {
         method: "PATCH",
         headers: {
@@ -38,7 +39,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { assetId: string } }
+  { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -46,8 +47,9 @@ export async function DELETE(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { assetId } = await params;
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/admin/assets/${params.assetId}`,
+      `${process.env.BACKEND_URL}/api/admin/assets/${assetId}`,
       {
         method: "DELETE",
         headers: {

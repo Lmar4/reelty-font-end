@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const { userId: authUserId } = await auth();
@@ -11,13 +11,14 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { userId } = await params;
     // Users can only access their own data
-    if (authUserId !== params.userId) {
+    if (authUserId !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/users/${params.userId}`,
+      `${process.env.BACKEND_URL}/api/users/${userId}`,
       {
         headers: {
           Authorization: `Bearer ${authUserId}`,
@@ -42,7 +43,7 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const { userId: authUserId } = await auth();
@@ -50,14 +51,15 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { userId } = await params;
     // Users can only update their own data
-    if (authUserId !== params.userId) {
+    if (authUserId !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
     const body = await request.json();
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/users/${params.userId}`,
+      `${process.env.BACKEND_URL}/api/users/${userId}`,
       {
         method: "PATCH",
         headers: {

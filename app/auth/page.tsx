@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { Suspense } from "react";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-export default function Auth() {
+function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, isLoaded: isSignInLoaded } = useSignIn();
@@ -145,5 +146,26 @@ export default function Auth() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function Auth() {
+  return (
+    <Suspense
+      fallback={
+        <div className='min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'>
+          <div className='animate-pulse space-y-4'>
+            <div className='h-8 w-64 bg-gray-200 rounded mx-auto'></div>
+            <div className='h-4 w-48 bg-gray-200 rounded mx-auto'></div>
+            <div className='space-y-3'>
+              <div className='h-10 bg-gray-200 rounded'></div>
+              <div className='h-10 bg-gray-200 rounded'></div>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <AuthContent />
+    </Suspense>
   );
 }
