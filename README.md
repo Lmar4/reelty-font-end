@@ -14,7 +14,6 @@ A modern real estate management platform built with Next.js, TypeScript, and Tai
 - Optimized for accessibility
 - Real-time notifications and toasts
 - File upload capabilities
-- Comprehensive testing setup with Vitest
 
 ## 🛠️ Tech Stack
 
@@ -22,12 +21,11 @@ A modern real estate management platform built with Next.js, TypeScript, and Tai
 - **Language:** TypeScript
 - **Styling:** TailwindCSS
 - **UI Components:** Radix UI, Shadcn
-- **Authentication:** Firebase Auth
+- **Authentication:** Clerk
 - **State Management:** TanStack Query (React Query)
 - **API Layer:** tRPC
 - **Forms:** React Hook Form + Zod
 - **Maps:** Google Maps API
-- **Testing:** Vitest + React Testing Library
 - **Payment Processing:** Stripe
 - **Analytics:** PostHog
 
