@@ -50,6 +50,8 @@ export default function BillingSettings() {
       <PricingModal
         isOpen={isPricingOpen}
         onClose={() => setIsPricingOpen(false)}
+        listingId=''
+        onUpgradeComplete={() => setIsPricingOpen(false)}
       />
     </div>
   );
