@@ -3,8 +3,9 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { listingId: string } }
+  { params }: { params: Promise<{ listingId: string }> }
 ) {
+  const { listingId } = await params;
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -12,7 +13,7 @@ export async function GET(
     }
 
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${params.listingId}`,
+      `${process.env.BACKEND_URL}/api/listings/${listingId}`,
       {
         headers: {
           Authorization: `Bearer ${userId}`,
@@ -37,8 +38,9 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { listingId: string } }
+  { params }: { params: Promise<{ listingId: string }> }
 ) {
+  const { listingId } = await params;
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -47,7 +49,7 @@ export async function PATCH(
 
     const body = await request.json();
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${params.listingId}`,
+      `${process.env.BACKEND_URL}/api/listings/${listingId}`,
       {
         method: "PATCH",
         headers: {
@@ -74,8 +76,9 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { listingId: string } }
+  { params }: { params: Promise<{ listingId: string }> }
 ) {
+  const { listingId } = await params;
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -83,7 +86,7 @@ export async function DELETE(
     }
 
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${params.listingId}`,
+      `${process.env.BACKEND_URL}/api/listings/${listingId}`,
       {
         method: "DELETE",
         headers: {
