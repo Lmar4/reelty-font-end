@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { listingId: string } }
+  { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -11,7 +11,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { listingId } = params;
+    const { listingId } = await params;
 
     // Fetch video details from backend
     const response = await fetch(

@@ -3,8 +3,12 @@ import UserStatsSection from "./_components/user-stats-section";
 import SystemStatsSection from "./_components/system-stats-section";
 import CreditStatsSection from "./_components/credit-stats-section";
 import RecentActivitySection from "./_components/recent-activity-section";
+import VideoAnalyticsSection from "./_components/video-analytics-section";
+import RevenueAnalyticsSection from "./_components/revenue-analytics-section";
+import CreditAnalyticsSection from "./_components/credit-analytics-section";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function LoadingState() {
   return (
@@ -26,16 +30,34 @@ export default function AdminPage() {
 
       <Suspense fallback={<LoadingState />}>
         <div className='grid gap-8'>
-          {/* User Statistics */}
+          {/* Overview Stats */}
           <div>
-            <h2 className='text-2xl font-semibold mb-4'>User Analytics</h2>
-            <UserStatsSection />
+            <h2 className='text-2xl font-semibold mb-4'>Quick Stats</h2>
+            <div className='grid gap-4'>
+              <UserStatsSection />
+              <CreditStatsSection />
+            </div>
           </div>
 
-          {/* Credit Statistics */}
+          {/* Detailed Analytics */}
           <div>
-            <h2 className='text-2xl font-semibold mb-4'>Credit Usage</h2>
-            <CreditStatsSection />
+            <h2 className='text-2xl font-semibold mb-4'>Detailed Analytics</h2>
+            <Tabs defaultValue='revenue' className='space-y-4'>
+              <TabsList>
+                <TabsTrigger value='revenue'>Revenue</TabsTrigger>
+                <TabsTrigger value='credits'>Credits</TabsTrigger>
+                <TabsTrigger value='videos'>Videos</TabsTrigger>
+              </TabsList>
+              <TabsContent value='revenue'>
+                <RevenueAnalyticsSection />
+              </TabsContent>
+              <TabsContent value='credits'>
+                <CreditAnalyticsSection />
+              </TabsContent>
+              <TabsContent value='videos'>
+                <VideoAnalyticsSection />
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* System Performance */}
