@@ -1,3 +1,10 @@
+import HomeHeader from "@/components/reelty/HomeHeader";
+
 export default function Privacy() {
-  return <div>Privacy</div>;
+  return (
+    <div>
+      <HomeHeader />
+      Privacy
+    </div>
+  );
 }

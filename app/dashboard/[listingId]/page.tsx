@@ -11,6 +11,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { VideoJob, User } from "@/types/prisma-types";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Video, RefreshCw } from "lucide-react";
 
 async function fetchListingJobs(listingId: string): Promise<VideoJob[]> {
   const response = await fetch(`/api/jobs?listingId=${listingId}`);
@@ -103,20 +106,10 @@ export default function ListingDetail() {
     return (
       <DashboardLayout>
         <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-          <div className='animate-pulse'>
-            <div className='h-8 bg-gray-200 rounded w-1/2 mb-8' />
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className='rounded-lg overflow-hidden'>
-                  <div className='w-full aspect-video bg-gray-200' />
-                  <div className='p-4 bg-white'>
-                    <div className='h-6 bg-gray-200 rounded w-1/3 mb-4' />
-                    <div className='h-4 bg-gray-200 rounded w-1/4' />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <LoadingState 
+            text="Loading property details..."
+            size="lg"
+          />
         </div>
       </DashboardLayout>
     );
@@ -139,72 +132,95 @@ export default function ListingDetail() {
           )}
         </div>
 
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
-          {jobs.map((job) => (
-            <div
-              key={job.id}
-              className={`relative rounded-lg overflow-hidden ${
-                !isPaidUser && job.template !== "basic"
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-            >
-              <video
-                src={job.outputFile || undefined}
-                className='w-full aspect-video object-cover'
-                controls
-                poster={job.listing?.photos?.[0]?.filePath}
-              />
-              <div className='p-4 bg-white'>
-                <h3 className='text-lg font-semibold mb-2'>
-                  {job.template 
-                    ? job.template.charAt(0).toUpperCase() + job.template.slice(1)
-                    : 'Basic'
-                  }
-                </h3>
-                <div className='flex justify-between items-center'>
-                  <div className='flex items-center gap-2'>
-                    <span className='text-sm text-gray-500'>
-                      {job.status === "completed"
-                        ? "Ready"
-                        : job.status === "failed"
-                          ? "Failed"
-                          : "Processing..."}
-                    </span>
-                    {job.status === "failed" && (
+        {jobs.length === 0 ? (
+          <EmptyState
+            icon={Video}
+            title="No videos generated yet"
+            description="Your videos are being processed. This might take a few minutes."
+            action={jobs.some(job => job.status === "failed") ? {
+              label: "Regenerate Videos",
+              onClick: () => setIsRegenerateModalOpen(true)
+            } : undefined}
+          />
+        ) : (
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8'>
+            {jobs.map((job) => (
+              <div
+                key={job.id}
+                className={`relative rounded-lg overflow-hidden ${
+                  !isPaidUser && job.template !== "basic"
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                {job.status === "processing" ? (
+                  <div className="w-full aspect-video bg-gray-100 flex items-center justify-center">
+                    <LoadingState 
+                      text="Processing video..."
+                      size="sm"
+                      className="min-h-0"
+                    />
+                  </div>
+                ) : (
+                  <video
+                    src={job.outputFile || undefined}
+                    className='w-full aspect-video object-cover'
+                    controls
+                    poster={job.listing?.photos?.[0]?.filePath}
+                  />
+                )}
+                <div className='p-4 bg-white'>
+                  <h3 className='text-lg font-semibold mb-2'>
+                    {job.template 
+                      ? job.template.charAt(0).toUpperCase() + job.template.slice(1)
+                      : 'Basic'
+                    }
+                  </h3>
+                  <div className='flex justify-between items-center'>
+                    <div className='flex items-center gap-2'>
+                      <span className='text-sm text-gray-500'>
+                        {job.status === "completed"
+                          ? "Ready"
+                          : job.status === "failed"
+                            ? "Failed"
+                            : "Processing..."}
+                      </span>
+                      {job.status === "failed" && (
+                        <button
+                          onClick={() => setIsRegenerateModalOpen(true)}
+                          className='text-sm text-blue-600 hover:text-blue-700 inline-flex items-center gap-1'
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Regenerate
+                        </button>
+                      )}
+                    </div>
+                    {job.status === "completed" && (
                       <button
-                        onClick={() => setIsRegenerateModalOpen(true)}
-                        className='text-sm text-blue-600 hover:text-blue-700'
+                        onClick={() => handleDownload(job.id)}
+                        disabled={!isPaidUser && job.template !== "basic"}
+                        className={`px-4 py-2 rounded-lg ${
+                          !isPaidUser && job.template !== "basic"
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-500 hover:bg-blue-600 text-white"
+                        }`}
                       >
-                        Regenerate
+                        Download
                       </button>
                     )}
                   </div>
-                  {job.status === "completed" && (
-                    <button
-                      onClick={() => handleDownload(job.id)}
-                      disabled={!isPaidUser && job.template !== "basic"}
-                      className={`px-4 py-2 rounded-lg ${
-                        !isPaidUser && job.template !== "basic"
-                          ? "bg-gray-300 cursor-not-allowed"
-                          : "bg-blue-500 hover:bg-blue-600 text-white"
-                      }`}
-                    >
-                      Download
-                    </button>
+                  {!isPaidUser && job.template !== "basic" && (
+                    <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
+                      <span className='text-white text-lg font-semibold'>
+                        Premium Template
+                      </span>
+                    </div>
                   )}
                 </div>
-                {!isPaidUser && job.template !== "basic" && (
-                  <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
-                    <span className='text-white text-lg font-semibold'>
-                      Premium Template
-                    </span>
-                  </div>
-                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Regenerate Modal */}
         <RegenerateModal

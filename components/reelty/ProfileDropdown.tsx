@@ -54,7 +54,7 @@ export function ProfileDropdown() {
           Dashboard
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => router.push("/settings")}
+          onClick={() => router.push("/dashboard/settings")}
           className='cursor-pointer'
         >
           Settings

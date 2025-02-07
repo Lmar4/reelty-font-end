@@ -10,6 +10,10 @@ import { Listing } from "@/types/prisma-types";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PlusCircle } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { motion } from "framer-motion";
 
 export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,11 +41,31 @@ export default function Dashboard() {
     setSelectedFiles([]);
   };
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, x: -20 },
+    show: { opacity: 1, x: 0 }
+  };
+
   return (
     <DashboardLayout>
       <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
         {/* Header Section */}
-        <div className='mb-0'>
+        <motion.div 
+          className='mb-0'
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
           <Link
             href='/dashboard'
             className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 mb-2 block'
@@ -51,15 +75,20 @@ export default function Dashboard() {
           <h1 className='text-[32px] font-semibold text-[#1c1c1c] mb-4 md:mb-8'>
             Your Listings
           </h1>
-        </div>
+        </motion.div>
 
         {/* Input Section */}
-        <div className='mb-8'>
+        <motion.div 
+          className='mb-8'
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
           <FileUpload
             buttonText='Create new listing Reels'
             onFilesSelected={handleFilesSelected}
           />
-        </div>
+        </motion.div>
 
         {/* New Listing Modal */}
         <NewListingModal
@@ -70,38 +99,46 @@ export default function Dashboard() {
 
         {/* Empty State */}
         {listings?.length === 0 && !isLoading && !isCreatingListing && (
-          <div className='mb-24'>
-            <div className='bg-[#EDEDED] rounded-lg p-4 text-left'>
-              <p className='text-[15px] text-[#1c1c1c]'>
-                Create your first Reelty!
-              </p>
-              <p className='text-[14px] text-[#1c1c1c]/60'>
-                You have not created any listing Reels yet.
-              </p>
-            </div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <EmptyState
+              icon={PlusCircle}
+              title="Create your first Reelty!"
+              description="You have not created any listing Reels yet. Get started by creating your first one."
+              action={{
+                label: "Create Listing",
+                onClick: () => document.querySelector<HTMLElement>('[data-testid="file-upload-button"]')?.click()
+              }}
+              className="mb-24"
+            />
+          </motion.div>
         )}
 
         {/* Loading State */}
         {(isLoading || isCreatingListing) && (
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-            {[...Array(isCreatingListing ? 1 : 3)].map((_, i) => (
-              <ListingCard
-                key={`loading-${i}`}
-                listing={{} as Listing}
-                isLoading={true}
-              />
-            ))}
-          </div>
+          <LoadingState 
+            text={isCreatingListing ? "Creating your listing..." : "Loading your listings..."}
+            size="lg"
+          />
         )}
 
         {/* Listings Grid */}
         {listings && listings.length > 0 && !isLoading && (
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+          <motion.div
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+          >
             {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
+              <motion.div key={listing.id} variants={item}>
+                <ListingCard listing={listing} />
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
     </DashboardLayout>
