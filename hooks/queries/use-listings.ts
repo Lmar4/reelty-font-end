@@ -51,10 +51,9 @@ async function uploadPhoto(
 ): Promise<{ filePath: string }> {
   const formData = new FormData();
   formData.append("file", input.file);
-  formData.append("listingId", input.listingId);
   formData.append("order", input.order.toString());
 
-  const response = await fetch("/api/upload", {
+  const response = await fetch(`/api/listings/${input.listingId}/photos`, {
     method: "POST",
     body: formData,
   });

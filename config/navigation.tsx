@@ -5,7 +5,6 @@ import {
   FileText,
   HelpCircle,
   Home,
-  Info,
   Layout,
   MessageSquare,
   Settings,

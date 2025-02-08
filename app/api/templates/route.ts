@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
-export async function GET(request: Request) {
+interface Template {
+  id: string;
+  isActive: boolean;
+  [key: string]: any;
+}
+
+export async function GET(
+  request: Request,
+  {
+    searchParams,
+  }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }
+) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const tier = searchParams.get("tier");
+    const resolvedParams = await searchParams;
+    const tier = resolvedParams.tier as string;
 
     if (!tier) {
       return NextResponse.json(
@@ -23,7 +34,7 @@ export async function GET(request: Request) {
       `${process.env.BACKEND_URL}/api/templates?tier=${tier}`,
       {
         headers: {
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
+          Authorization: `Bearer ${userId}`,
         },
       }
     );
@@ -34,9 +45,18 @@ export async function GET(request: Request) {
 
     const templates = await response.json();
 
+    // Ensure templates is an array
+    if (!Array.isArray(templates)) {
+      console.error("Templates response is not an array:", templates);
+      return NextResponse.json(
+        { error: "Invalid templates response from backend" },
+        { status: 500 }
+      );
+    }
+
     // Only return active templates
     const activeTemplates = templates.filter(
-      (template: any) => template.isActive
+      (template: Template) => template.isActive
     );
 
     return NextResponse.json(activeTemplates);

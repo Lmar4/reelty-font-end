@@ -5,8 +5,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
-  const { listingId } = await params;
   try {
+    const { listingId } = await params;
     const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
