@@ -83,16 +83,24 @@ export default function FileUpload({
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
 
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 10, 90));
+      }, 100);
+
       const response = await fetch(uploadUrl, {
         method: "POST",
         body: formData,
       });
+
+      clearInterval(progressInterval);
 
       if (!response.ok) {
         throw new Error(`Server error: ${response.statusText}`);
       }
 
       const data = await response.json();
+      setUploadProgress(100);
       toast.success("Files uploaded successfully");
     } catch (error) {
       toast.error(
@@ -103,7 +111,6 @@ export default function FileUpload({
       throw error; // Re-throw to prevent onFilesSelected from being called
     } finally {
       setIsUploading(false);
-      setUploadProgress(0);
     }
   };
 

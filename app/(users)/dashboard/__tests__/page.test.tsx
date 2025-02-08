@@ -32,10 +32,10 @@ vi.mock("sonner", () => ({
   },
 }));
 
+// Mock router
+const mockRouter = { push: vi.fn() };
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-  }),
+  useRouter: () => mockRouter,
 }));
 
 // Mock Google Places API
@@ -81,6 +81,7 @@ describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     queryClient.clear();
+    mockRouter.push.mockClear();
 
     // Mock useUser
     (useUser as any).mockReturnValue({ user: mockUser });
@@ -157,8 +158,19 @@ describe("DashboardPage", () => {
       });
     });
 
+    // Wait for the processing to complete
+    await waitFor(() => {
+      expect(screen.getByText("Complete!")).toBeInTheDocument();
+    });
+
+    // Wait for the router push and toast
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    expect(mockRouter.push).toHaveBeenCalledWith(
+      `/dashboard/listings/${mockListing.id}`
+    );
     expect(toast.success).toHaveBeenCalledWith(
-      expect.stringContaining("Listing created successfully")
+      "Listing created successfully! Video generation has started."
     );
   });
 

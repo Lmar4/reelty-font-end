@@ -297,47 +297,52 @@ describe("FileUpload Component", () => {
     });
 
     it("handles network errors", async () => {
-      const mockError = new Error("Network error");
-      mockFetch.mockRejectedValueOnce(mockError);
+      mockFetch.mockRejectedValueOnce(new Error("Network error"));
 
-      render(<FileUpload onFilesSelected={mockOnFilesSelected} />);
+      render(
+        <FileUpload
+          onFilesSelected={mockOnFilesSelected}
+          uploadUrl='/api/listings/123/photos'
+        />
+      );
 
       const file = new File(["test"], "test.png", { type: "image/png" });
+      const fileInput = screen.getByTestId("file-input");
 
       await act(async () => {
-        const fileInput = document.querySelector(
-          "input[type='file']"
-        ) as HTMLInputElement;
         fireEvent.change(fileInput, { target: { files: [file] } });
       });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          expect.stringContaining("Error uploading files")
+          expect.stringContaining("Error uploading files: Network error")
         );
       });
     });
 
     it("handles server errors", async () => {
-      const mockResponse = {
+      mockFetch.mockResolvedValueOnce({
         ok: false,
-        statusText: "Internal Server Error",
-        json: () => Promise.reject(new Error("Server error")),
-      };
-      mockFetch.mockResolvedValueOnce(mockResponse);
+        statusText: "Server error",
+      });
 
-      render(<FileUpload onFilesSelected={mockOnFilesSelected} />);
+      render(
+        <FileUpload
+          onFilesSelected={mockOnFilesSelected}
+          uploadUrl='/api/listings/123/photos'
+        />
+      );
 
       const file = new File(["test"], "test.png", { type: "image/png" });
-      const fileInput = document.querySelector(
-        "input[type='file']"
-      ) as HTMLInputElement;
+      const fileInput = screen.getByTestId("file-input");
 
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
 
       await waitFor(() => {
         expect(toast.error).toHaveBeenCalledWith(
-          expect.stringContaining("Server error")
+          expect.stringContaining("Error uploading files: Server error")
         );
       });
     });
@@ -345,23 +350,40 @@ describe("FileUpload Component", () => {
 
   describe("Upload Progress", () => {
     it("shows upload progress indicator", async () => {
+      // Mock a slow upload response
       const mockResponse = {
         ok: true,
-        json: () => Promise.resolve({ success: true }),
+        json: () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve({ success: true }), 100)
+          ),
       };
-      mockFetch.mockResolvedValueOnce(mockResponse);
+      mockFetch.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve(mockResponse), 100);
+          })
+      );
 
-      render(<FileUpload onFilesSelected={mockOnFilesSelected} />);
+      render(
+        <FileUpload
+          onFilesSelected={mockOnFilesSelected}
+          uploadUrl='/api/listings/123/photos'
+        />
+      );
 
       const file = new File(["test"], "test.png", { type: "image/png" });
-      const fileInput = document.querySelector(
-        "input[type='file']"
-      ) as HTMLInputElement;
+      const fileInput = screen.getByTestId("file-input");
 
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      await act(async () => {
+        fireEvent.change(fileInput, { target: { files: [file] } });
+      });
 
+      // Wait for the upload to start and show progress
       await waitFor(() => {
-        expect(screen.getByRole("progressbar")).toBeInTheDocument();
+        const progressBar = screen.getByRole("progressbar");
+        expect(progressBar).toBeInTheDocument();
+        expect(screen.getByText(/uploading/i)).toBeInTheDocument();
       });
     });
   });
