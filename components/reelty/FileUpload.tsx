@@ -239,6 +239,8 @@ export default function FileUpload({
         type='file'
         multiple
         accept={accept}
+        data-testid='file-input'
+        aria-label='File input'
         className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none'
         onChange={handleFileUpload}
         onClick={(e) => {

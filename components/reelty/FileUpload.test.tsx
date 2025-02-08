@@ -1,4 +1,5 @@
-import "@testing-library/jest-dom";
+import React from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   render,
   screen,
@@ -10,15 +11,36 @@ import userEvent from "@testing-library/user-event";
 import FileUpload from "./FileUpload";
 import { toast } from "sonner";
 
+vi.mock("@/components/ui/progress", () => ({
+  Progress: ({ value }: { value: number }) => (
+    <div
+      role='progressbar'
+      aria-label='Upload progress'
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      {value}%
+    </div>
+  ),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
+
 // Mock fetch
-global.fetch = jest.fn();
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 describe("FileUpload Component", () => {
-  const mockOnFilesSelected = jest.fn();
+  const mockOnFilesSelected = vi.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (global.fetch as jest.Mock).mockClear();
+    vi.clearAllMocks();
   });
 
   it("renders upload button with default text", () => {
@@ -178,13 +200,9 @@ describe("FileUpload Component", () => {
       );
 
       const file = new File(["test"], "test.jpg", { type: "image/jpeg" });
+      const input = screen.getByTestId("file-input");
 
-      await act(async () => {
-        const fileInput = document.querySelector(
-          "input[type='file']"
-        ) as HTMLInputElement;
-        fireEvent.change(fileInput, { target: { files: [file] } });
-      });
+      fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
         expect(mockOnFilesSelected).toHaveBeenCalled();
@@ -198,7 +216,7 @@ describe("FileUpload Component", () => {
         ok: true,
         json: () => Promise.resolve({ success: true }),
       };
-      (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(mockResponse);
 
       render(
         <FileUpload
@@ -217,7 +235,7 @@ describe("FileUpload Component", () => {
       });
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
+        expect(mockFetch).toHaveBeenCalledWith(
           "/api/listings/123/photos",
           expect.objectContaining({
             method: "POST",
@@ -280,7 +298,7 @@ describe("FileUpload Component", () => {
 
     it("handles network errors", async () => {
       const mockError = new Error("Network error");
-      (global.fetch as jest.Mock).mockRejectedValueOnce(mockError);
+      mockFetch.mockRejectedValueOnce(mockError);
 
       render(<FileUpload onFilesSelected={mockOnFilesSelected} />);
 
@@ -306,7 +324,7 @@ describe("FileUpload Component", () => {
         statusText: "Internal Server Error",
         json: () => Promise.reject(new Error("Server error")),
       };
-      (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(mockResponse);
 
       render(<FileUpload onFilesSelected={mockOnFilesSelected} />);
 
@@ -331,7 +349,7 @@ describe("FileUpload Component", () => {
         ok: true,
         json: () => Promise.resolve({ success: true }),
       };
-      (global.fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+      mockFetch.mockResolvedValueOnce(mockResponse);
 
       render(<FileUpload onFilesSelected={mockOnFilesSelected} />);
 

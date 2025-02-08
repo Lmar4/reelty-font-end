@@ -63,13 +63,17 @@ export default function DashboardPage() {
     setProcessingStatus("Creating listing...");
 
     try {
-      // Create the listing
+      // Create the listing first
       const listing = await createListing.mutateAsync({
         userId: user.id,
         address,
         coordinates,
         photoLimit: 10,
       });
+
+      if (!listing?.id) {
+        throw new Error("Failed to create listing");
+      }
 
       setProgress(20);
       setProcessingStatus("Uploading photos...");
@@ -110,7 +114,9 @@ export default function DashboardPage() {
       }, 1000);
     } catch (error) {
       console.error("Error creating listing:", error);
-      toast.error("Failed to create listing. Please try again.");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create listing"
+      );
       setIsProcessing(false);
     }
   };

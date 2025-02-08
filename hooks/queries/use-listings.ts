@@ -49,6 +49,10 @@ interface UploadPhotoInput {
 async function uploadPhoto(
   input: UploadPhotoInput
 ): Promise<{ filePath: string }> {
+  if (!input.listingId) {
+    throw new Error("Listing ID is required");
+  }
+
   const formData = new FormData();
   formData.append("file", input.file);
   formData.append("order", input.order.toString());
@@ -96,7 +100,9 @@ export function useUploadPhoto() {
     mutationFn: uploadPhoto,
     onError: (error) => {
       console.error("[UPLOAD_PHOTO_ERROR]", error);
-      toast.error("Failed to upload photo");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload photo"
+      );
     },
   });
 }
