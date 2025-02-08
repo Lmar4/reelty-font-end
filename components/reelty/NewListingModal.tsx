@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
-import { useLoadScript } from "@react-google-maps/api";
+import { Loader } from "@googlemaps/js-api-loader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import usePlacesAutocomplete, {
@@ -13,6 +13,14 @@ import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { useCreateJob } from "@/hooks/use-jobs";
 import { useCreateListing, useUploadPhoto } from "@/hooks/queries/use-listings";
+import { useRouter } from "next/navigation";
+
+// Initialize Google Maps loader
+const loader = new Loader({
+  apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+  version: "weekly",
+  libraries: ["places"],
+});
 
 interface NewListingModalProps {
   isOpen: boolean;
@@ -65,22 +73,34 @@ export default function NewListingModal({
     lat: number;
     lng: number;
   } | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("");
+  const router = useRouter();
+  const [isLoaded, setIsLoaded] = useState(false);
 
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-    libraries: ["places"],
-  });
+  // Load Google Maps
+  useEffect(() => {
+    loader
+      .load()
+      .then(() => setIsLoaded(true))
+      .catch((error) => {
+        console.error("Error loading Google Maps:", error);
+        toast.error("Error loading Google Maps");
+      });
+  }, []);
 
   const {
     ready,
     value,
-    suggestions: { status, data },
+    suggestions: { status: autocompleteStatus, data },
     setValue,
     clearSuggestions,
   } = usePlacesAutocomplete({
     debounce: 300,
     cache: 24 * 60 * 60,
+    requestOptions: {},
+    initOnMount: isLoaded, // Only initialize when Google Maps is loaded
   });
 
   // Handle initial files
@@ -152,62 +172,93 @@ export default function NewListingModal({
     }
   };
 
-  const handleGenerate = async () => {
-    if (!address) {
-      toast.error("Please enter a listing address");
-      return;
-    }
+  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setProgress(0);
 
-    if (selectedPhotos.size === 0) {
-      toast.error("Please select at least one photo");
-      return;
-    }
-
-    if (!userId) {
-      toast.error("You must be signed in to create a listing");
-      return;
-    }
-
-    setIsGenerating(true);
     try {
-      // 1. Create listing
+      // Create listing first
       const listing = await createListing.mutateAsync({
-        userId,
+        userId: userId || "",
         address,
         coordinates,
         photoLimit: 10,
       });
 
-      // 2. Upload selected photos
-      const selectedPhotoFiles = Array.from(selectedPhotos).map(
-        (index) => uploadedPhotos[parseInt(index)]
-      );
+      if (!listing?.id) {
+        throw new Error("Failed to create listing - no listing ID returned");
+      }
 
-      const uploadPromises = selectedPhotoFiles.map((file, index) =>
-        uploadPhoto.mutateAsync({
-          file,
-          listingId: listing.id,
-          order: index,
-        })
-      );
+      setProgress(20);
+      setStatus("Uploading photos...");
 
-      const uploadResults = await Promise.all(uploadPromises);
-      const uploadedFilePaths = uploadResults.map((result) => result.filePath);
+      // Upload photos with retries
+      const uploadWithRetry = async (
+        file: File,
+        retries = 3
+      ): Promise<string> => {
+        try {
+          const result = await uploadPhoto.mutateAsync({
+            file,
+            listingId: listing.id,
+            order: uploadedPhotos.length,
+          });
+          return result.filePath;
+        } catch (error) {
+          if (retries > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1s before retry
+            return uploadWithRetry(file, retries - 1);
+          }
+          throw error;
+        }
+      };
 
-      // 3. Create video generation job
+      // Upload photos in sequence with progress updates
+      const totalPhotos = initialFiles.length;
+      const uploadedPaths: string[] = [];
+
+      for (let i = 0; i < initialFiles.length; i++) {
+        const file = initialFiles[i];
+        try {
+          const filePath = await uploadWithRetry(file);
+          uploadedPaths.push(filePath);
+          setProgress(20 + Math.floor(((i + 1) / totalPhotos) * 40));
+        } catch (error) {
+          console.error(`Failed to upload photo ${i + 1}:`, error);
+          toast.error(`Failed to upload photo ${i + 1}. Please try again.`);
+          throw error;
+        }
+      }
+
+      setProgress(60);
+      setStatus("Creating video...");
+
+      // Create video generation job
       await createJob.mutateAsync({
         listingId: listing.id,
         template: "basic", // Default template for now
-        inputFiles: uploadedFilePaths,
+        inputFiles: uploadedPaths,
       });
 
-      toast.success("Generation started!");
-      onClose();
+      setProgress(100);
+      setStatus("Complete!");
+
+      toast.success("Listing created successfully!");
+
+      // Redirect after a brief delay
+      setTimeout(() => {
+        router.push(`/dashboard/listings/${listing.id}`);
+      }, 1000);
     } catch (error) {
-      console.error("Error generating listing:", error);
-      toast.error("Failed to generate listing");
+      console.error("Error creating listing:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create listing. Please try again."
+      );
     } finally {
-      setIsGenerating(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -338,7 +389,7 @@ export default function NewListingModal({
                 placeholder='Enter listing address'
                 className='w-full'
               />
-              {status === "OK" && (
+              {autocompleteStatus === "OK" && (
                 <ul className='absolute z-10 w-full bg-white border rounded-md mt-1 shadow-lg max-h-60 overflow-auto'>
                   {data.map(({ place_id, description }) => (
                     <li
@@ -416,10 +467,10 @@ export default function NewListingModal({
         <div className='bg-white pb-3 px-3 sm:px-4 sm:pb-4'>
           <button
             className='w-full bg-black text-white rounded-lg h-10 sm:h-12 text-[16px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50'
-            onClick={handleGenerate}
-            disabled={isGenerating || selectedPhotos.size === 0 || !address}
+            onClick={handleSubmit}
+            disabled={isSubmitting || selectedPhotos.size === 0 || !address}
           >
-            {isGenerating ? (
+            {isSubmitting ? (
               <>
                 <svg
                   className='animate-spin h-5 w-5 text-white'
@@ -441,7 +492,7 @@ export default function NewListingModal({
                     d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
                   ></path>
                 </svg>
-                Generating...
+                {status}
               </>
             ) : (
               <>
@@ -459,7 +510,7 @@ export default function NewListingModal({
                   <path d='M5 17l1 2.5L8.5 21l-2.5 1L5 24l-1-2.5L1.5 21l2.5-1L5 17z' />
                   <path d='M18 17l1 2.5L21.5 21l-2.5 1L18 24l-1-2.5L14.5 21l2.5-1L18 17z' />
                 </svg>
-                Generate Reels
+                Create Listing
               </>
             )}
           </button>

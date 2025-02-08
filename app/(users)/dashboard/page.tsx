@@ -18,6 +18,7 @@ import { useCreateJob } from "@/hooks/use-jobs";
 import { useTemplates } from "@/hooks/queries/use-templates";
 import { Progress } from "@/components/ui/progress";
 import { LoadingState } from "@/components/ui/loading-state";
+import { DashboardUpload } from "@/components/reelty/DashboardUpload";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -138,15 +139,15 @@ export default function DashboardPage() {
         </div>
 
         {/* Input Section */}
-        <div className='mb-8'>
+        {/* <div className='mb-8'>
           <FileUpload
             buttonText='Create new listing Reels'
             onFilesSelected={handleFilesSelected}
             uploadUrl=''
             maxFiles={10}
           />
-        </div>
-
+        </div> */}
+        <DashboardUpload />
         {/* Processing State */}
         {isProcessing && (
           <div className='mb-8'>

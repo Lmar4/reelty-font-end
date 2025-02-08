@@ -218,7 +218,10 @@ export default function Home() {
           <div className='max-w-[800px] mx-auto px-4'>
             <FileUpload
               onFilesSelected={handleFilesSelected}
-              uploadUrl='' // Disable direct upload
+              uploadUrl='' // Keep empty for new listings
+              maxFiles={10}
+              maxSize={15}
+              accept='image/*'
             />
             <p className='text-[14px] text-[#6B7280] mt-3 md:mt-8 text-center'>
               Try for free. No credit card required.
