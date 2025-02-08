@@ -46,8 +46,9 @@ export default function AddressInput({ onAddressSelect }: AddressInputProps) {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           disabled={!ready}
-          placeholder='Enter property address'
+          placeholder='Search for address...'
           className='w-full'
+          data-testid='address-input'
         />
         {status === "OK" && (
           <ul className='absolute z-10 w-full bg-white border rounded-md mt-1 shadow-lg max-h-60 overflow-auto'>
@@ -56,6 +57,14 @@ export default function AddressInput({ onAddressSelect }: AddressInputProps) {
                 key={place_id}
                 onClick={() => handleSelect(description)}
                 className='px-4 py-2 hover:bg-gray-100 cursor-pointer'
+                role='option'
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    handleSelect(description);
+                  }
+                }}
+                data-testid={`address-suggestion-${place_id}`}
               >
                 {description}
               </li>

@@ -1,6 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+interface BackendResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -56,8 +62,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const listing = await response.json();
-    return NextResponse.json(listing);
+    const backendResponse = (await response.json()) as BackendResponse<any>;
+
+    if (!backendResponse.success || !backendResponse.data) {
+      console.error("Invalid backend response:", backendResponse);
+      return new NextResponse(
+        `Invalid response from backend: ${
+          backendResponse.error || "No data returned"
+        }`,
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(backendResponse.data);
   } catch (error) {
     console.error("[LISTINGS_POST]", error);
     return new NextResponse(
@@ -95,8 +112,19 @@ export async function GET(request: Request) {
       });
     }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    const backendResponse = (await response.json()) as BackendResponse<any[]>;
+
+    if (!backendResponse.success || !backendResponse.data) {
+      console.error("Invalid backend response:", backendResponse);
+      return new NextResponse(
+        `Invalid response from backend: ${
+          backendResponse.error || "No data returned"
+        }`,
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(backendResponse.data);
   } catch (error) {
     console.error("[LISTINGS_GET]", error);
     return new NextResponse("Internal error", { status: 500 });

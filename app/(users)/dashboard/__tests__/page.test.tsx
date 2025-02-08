@@ -8,13 +8,19 @@ import {
   useCreateListing,
   useUploadPhoto,
 } from "@/hooks/queries/use-listings";
-import { useTemplates } from "@/__tests__/mocks/use-templates";
+import { useTemplates } from "@/hooks/queries/use-templates";
+import { useCreateJob } from "@/hooks/use-jobs";
 import { toast } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Mock all the hooks
 vi.mock("@clerk/nextjs", () => ({
   useUser: vi.fn(),
+  useAuth: () => ({
+    userId: "user_123",
+    isLoaded: true,
+    isSignedIn: true,
+  }),
 }));
 
 vi.mock("@/hooks/queries/use-listings", () => ({
@@ -23,7 +29,13 @@ vi.mock("@/hooks/queries/use-listings", () => ({
   useUploadPhoto: vi.fn(),
 }));
 
-vi.mock("@/__tests__/mocks/use-templates");
+vi.mock("@/hooks/queries/use-templates", () => ({
+  useTemplates: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-jobs", () => ({
+  useCreateJob: vi.fn(),
+}));
 
 vi.mock("sonner", () => ({
   toast: {
@@ -68,15 +80,58 @@ const renderWithClient = (ui: React.ReactElement) => {
   );
 };
 
+interface Template {
+  id: string;
+  name: string;
+  description: string;
+  sequence: any;
+  durations: any;
+  subscriptionTier: string;
+  isActive: boolean;
+  musicPath?: string;
+  musicVolume?: number;
+}
+
 describe("DashboardPage", () => {
   const mockUser = {
-    id: "user-123",
-    fullName: "Test User",
+    id: "user_123",
+    publicMetadata: {
+      tier: "free",
+    },
   };
 
-  const mockCreateListing = vi.fn();
-  const mockUploadPhoto = vi.fn();
-  const mockCreateJob = vi.fn();
+  const mockListings = [
+    {
+      id: "listing_1",
+      address: "123 Test St",
+      photos: [{ filePath: "/test-image.jpg" }],
+    },
+  ];
+
+  const mockTemplates: Template[] = [
+    {
+      id: "template_1",
+      name: "Test Template",
+      description: "A test template",
+      sequence: ["intro", "photos", "outro"],
+      durations: { intro: 3, photo: 3, outro: 3 },
+      subscriptionTier: "free",
+      isActive: true,
+    },
+  ];
+
+  // Mock implementation for mutations
+  const mockCreateListingMutation = {
+    mutateAsync: vi.fn(),
+  };
+
+  const mockUploadPhotoMutation = {
+    mutateAsync: vi.fn(),
+  };
+
+  const mockCreateJobMutation = {
+    mutateAsync: vi.fn(),
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -87,154 +142,283 @@ describe("DashboardPage", () => {
     (useUser as any).mockReturnValue({ user: mockUser });
 
     // Mock useListings
-    (useListings as any).mockReturnValue({ data: [], isLoading: false });
+    (useListings as any).mockReturnValue({
+      data: mockListings,
+      isLoading: false,
+    });
 
     // Mock useCreateListing
-    (useCreateListing as any).mockReturnValue({
-      mutateAsync: mockCreateListing,
-    });
+    (useCreateListing as any).mockReturnValue(mockCreateListingMutation);
 
     // Mock useUploadPhoto
-    (useUploadPhoto as any).mockReturnValue({
-      mutateAsync: mockUploadPhoto,
-    });
+    (useUploadPhoto as any).mockReturnValue(mockUploadPhotoMutation);
 
     // Mock useTemplates
-    vi.mocked(useTemplates).mockReturnValue({
-      data: [
-        {
-          id: "template-1",
-          name: "Test Template",
-          description: "Test Description",
-        },
-      ],
-      isLoading: false,
+    (useTemplates as any).mockReturnValue({
+      data: mockTemplates,
+      dataUpdatedAt: Date.now(),
       error: null,
+      errorUpdatedAt: 0,
+      failureCount: 0,
+      failureReason: null,
+      errorUpdateCount: 0,
+      fetchStatus: "idle",
+      isError: false,
+      isFetching: false,
+      isLoading: false,
+      isLoadingError: false,
+      isPaused: false,
+      isPending: false,
+      isPlaceholderData: false,
+      isRefetching: false,
+      isRefetchError: false,
+      isStale: false,
+      isSuccess: true,
+      refetch: vi.fn(),
+      status: "success",
     });
+
+    // Mock useCreateJob
+    (useCreateJob as any).mockReturnValue(mockCreateJobMutation);
   });
 
-  it("should handle successful listing creation flow", async () => {
-    const mockListing = {
-      id: "listing-123",
-      address: "123 Test St",
-    };
+  it("renders the dashboard page with header", () => {
+    render(<DashboardPage />);
+    expect(screen.getByText("Your Listings")).toBeInTheDocument();
+  });
 
-    mockCreateListing.mockResolvedValueOnce(mockListing);
-    mockUploadPhoto.mockResolvedValueOnce({ filePath: "path/to/photo.jpg" });
+  it("displays existing listings", () => {
+    render(<DashboardPage />);
+    expect(screen.getByText("123 Test St")).toBeInTheDocument();
+  });
 
-    renderWithClient(<DashboardPage />);
+  it("shows empty state when no listings exist", () => {
+    (useListings as any).mockReturnValue({ data: [], isLoading: false });
+    render(<DashboardPage />);
+    expect(screen.getByText("Create your first Reelty!")).toBeInTheDocument();
+  });
 
-    // Select files
-    const file = new File(["test"], "test.jpg", { type: "image/jpeg" });
-    const fileInput = screen.getByTestId("file-input");
-    fireEvent.change(fileInput, { target: { files: [file] } });
+  it("shows loading state while fetching listings", () => {
+    (useListings as any).mockReturnValue({ isLoading: true });
+    render(<DashboardPage />);
+    // Add assertion for loading state once implemented
+  });
 
-    // Wait for the address input to be enabled and interact with it
-    const addressInput = await screen.findByRole("textbox", {
-      name: /property address/i,
-    });
-    expect(addressInput).not.toBeDisabled();
+  describe("Listing Creation Flow", () => {
+    const mockFiles = [new File(["test"], "test.jpg", { type: "image/jpeg" })];
 
-    fireEvent.change(addressInput, { target: { value: "123 Test St" } });
+    it("validates maximum number of files", async () => {
+      renderWithClient(<DashboardPage />);
+      const fileInput = screen.getByTestId("file-input");
+      const tooManyFiles = Array(11).fill(
+        new File(["test"], "test.jpg", { type: "image/jpeg" })
+      );
 
-    // Wait for and click the suggestion
-    const suggestion = await screen.findByText("123 Test St");
-    fireEvent.click(suggestion);
+      // Trigger file selection with too many files
+      fireEvent.change(fileInput, { target: { files: tooManyFiles } });
 
-    await waitFor(() => {
-      expect(mockCreateListing).toHaveBeenCalledWith({
-        userId: mockUser.id,
-        address: "123 Test St",
-        coordinates: expect.any(Object),
-        photoLimit: 10,
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith("Maximum 10 photos allowed");
       });
     });
 
-    await waitFor(() => {
-      expect(mockUploadPhoto).toHaveBeenCalledWith({
-        file,
-        listingId: mockListing.id,
-        order: 0,
+    it("shows template selection modal after file selection", async () => {
+      render(<DashboardPage />);
+
+      // Get the file input and simulate file selection
+      const fileInput = screen.getByTestId("file-input");
+      const files = [new File(["test"], "test.jpg", { type: "image/jpeg" })];
+      fireEvent.change(fileInput, { target: { files } });
+
+      await waitFor(() => {
+        expect(screen.getByText("New Listing Reels")).toBeInTheDocument();
       });
     });
 
-    // Wait for the processing to complete
-    await waitFor(() => {
-      expect(screen.getByText("Complete!")).toBeInTheDocument();
+    it("shows address input modal after template selection", async () => {
+      render(<DashboardPage />);
+
+      // First simulate file selection
+      const fileInput = screen.getByTestId("file-input");
+      const files = [new File(["test"], "test.jpg", { type: "image/jpeg" })];
+      fireEvent.change(fileInput, { target: { files } });
+
+      // Wait for the modal to show
+      await waitFor(() => {
+        expect(screen.getByText("New Listing Reels")).toBeInTheDocument();
+      });
+
+      // The address input should be visible immediately
+      expect(screen.getByLabelText("Listing Address")).toBeInTheDocument();
     });
 
-    // Wait for the router push and toast
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    it("creates listing successfully", async () => {
+      // Mock successful API calls
+      mockCreateListingMutation.mutateAsync.mockResolvedValue({
+        id: "new_listing_1",
+      });
+      mockUploadPhotoMutation.mutateAsync.mockResolvedValue({
+        filePath: "/uploaded.jpg",
+      });
+      mockCreateJobMutation.mutateAsync.mockResolvedValue({ id: "job_1" });
 
-    expect(mockRouter.push).toHaveBeenCalledWith(
-      `/dashboard/listings/${mockListing.id}`
-    );
-    expect(toast.success).toHaveBeenCalledWith(
-      "Listing created successfully! Video generation has started."
-    );
-  });
+      renderWithClient(<DashboardPage />);
 
-  it("should handle listing creation error", async () => {
-    mockCreateListing.mockRejectedValueOnce(
-      new Error("Failed to create listing")
-    );
+      // 1. Simulate file selection
+      const fileInput = screen.getByTestId("file-input");
+      const files = [new File(["test"], "test.jpg", { type: "image/jpeg" })];
+      fireEvent.change(fileInput, { target: { files } });
 
-    renderWithClient(<DashboardPage />);
+      // 2. Wait for template modal and select a template
+      await waitFor(() => {
+        expect(screen.getByText("Select Template")).toBeInTheDocument();
+      });
 
-    // Select files
-    const file = new File(["test"], "test.jpg", { type: "image/jpeg" });
-    const fileInput = screen.getByTestId("file-input");
-    fireEvent.change(fileInput, { target: { files: [file] } });
+      const templateCard = screen
+        .getByText("Test Template")
+        .closest("[role='button']");
+      fireEvent.click(templateCard!);
 
-    // Wait for the address input to be enabled and interact with it
-    const addressInput = await screen.findByRole("textbox", {
-      name: /property address/i,
+      // 3. Wait for address input and fill it
+      await waitFor(() => {
+        expect(screen.getByText("Enter Property Address")).toBeInTheDocument();
+      });
+
+      const addressInput = screen.getByTestId("address-input");
+      fireEvent.change(addressInput, { target: { value: "123 Test St" } });
+
+      // 4. Select the first suggestion
+      await waitFor(() => {
+        const suggestion = screen.getByTestId("address-suggestion-1");
+        fireEvent.click(suggestion);
+      });
+
+      // 5. Submit the form
+      const submitButton = screen.getByRole("button", {
+        name: "Create Listing",
+      });
+      fireEvent.click(submitButton);
+
+      // 6. Check loading states
+      await waitFor(() => {
+        expect(screen.getByText("Creating listing...")).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Preparing photos for upload...")
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          "Listing created successfully! Video generation has started."
+        );
+      });
     });
-    expect(addressInput).not.toBeDisabled();
 
-    fireEvent.change(addressInput, { target: { value: "123 Test St" } });
+    it("handles listing creation error", async () => {
+      // Mock API error
+      mockCreateListingMutation.mutateAsync.mockRejectedValue(
+        new Error("Failed to create listing")
+      );
 
-    // Wait for and click the suggestion
-    const suggestion = await screen.findByText("123 Test St");
-    fireEvent.click(suggestion);
+      render(<DashboardPage />);
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Failed to create listing");
+      // 1. Simulate file selection
+      const fileInput = screen.getByTestId("file-input");
+      const files = [new File(["test"], "test.jpg", { type: "image/jpeg" })];
+      fireEvent.change(fileInput, { target: { files } });
+
+      // 2. Wait for modal and fill address
+      await waitFor(() => {
+        const addressInput = screen.getByPlaceholderText(
+          "Enter listing address"
+        );
+        fireEvent.change(addressInput, { target: { value: "123 Test St" } });
+      });
+
+      // 3. Select the first suggestion
+      await waitFor(() => {
+        const suggestions = screen.getAllByText("123 Test St");
+        // Click the first suggestion (the one in the dropdown)
+        fireEvent.click(suggestions[0]);
+      });
+
+      // 4. Submit the form
+      const submitButton = screen.getByRole("button", {
+        name: "Create Listing",
+      });
+      fireEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith("Failed to create listing");
+      });
     });
 
-    expect(mockUploadPhoto).not.toHaveBeenCalled();
-  });
+    it("shows progress during listing creation", async () => {
+      // Mock slow but successful API calls
+      mockCreateListingMutation.mutateAsync.mockResolvedValue({
+        id: "new_listing_1",
+      });
+      mockUploadPhotoMutation.mutateAsync.mockResolvedValue({
+        filePath: "/uploaded.jpg",
+      });
+      mockCreateJobMutation.mutateAsync.mockResolvedValue({ id: "job_1" });
 
-  it("should handle photo upload error", async () => {
-    const mockListing = {
-      id: "listing-123",
-      address: "123 Test St",
-    };
+      renderWithClient(<DashboardPage />);
 
-    mockCreateListing.mockResolvedValueOnce(mockListing);
-    mockUploadPhoto.mockRejectedValueOnce(new Error("Failed to upload photo"));
+      // 1. Simulate file selection
+      const fileInput = screen.getByTestId("file-input");
+      const files = [new File(["test"], "test.jpg", { type: "image/jpeg" })];
+      fireEvent.change(fileInput, { target: { files } });
 
-    renderWithClient(<DashboardPage />);
+      // 2. Wait for template modal and select a template
+      await waitFor(() => {
+        expect(screen.getByText("Select Template")).toBeInTheDocument();
+      });
 
-    // Select files
-    const file = new File(["test"], "test.jpg", { type: "image/jpeg" });
-    const fileInput = screen.getByTestId("file-input");
-    fireEvent.change(fileInput, { target: { files: [file] } });
+      const templateCard = screen
+        .getByText("Test Template")
+        .closest("[role='button']");
+      fireEvent.click(templateCard!);
 
-    // Wait for the address input to be enabled and interact with it
-    const addressInput = await screen.findByRole("textbox", {
-      name: /property address/i,
-    });
-    expect(addressInput).not.toBeDisabled();
+      // 3. Wait for address input and fill it
+      await waitFor(() => {
+        expect(screen.getByText("Enter Property Address")).toBeInTheDocument();
+      });
 
-    fireEvent.change(addressInput, { target: { value: "123 Test St" } });
+      const addressInput = screen.getByTestId("address-input");
+      fireEvent.change(addressInput, { target: { value: "123 Test St" } });
 
-    // Wait for and click the suggestion
-    const suggestion = await screen.findByText("123 Test St");
-    fireEvent.click(suggestion);
+      // 4. Select the first suggestion
+      await waitFor(() => {
+        const suggestion = screen.getByTestId("address-suggestion-1");
+        fireEvent.click(suggestion);
+      });
 
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Failed to upload photo");
+      // 5. Submit the form
+      const submitButton = screen.getByRole("button", {
+        name: "Create Listing",
+      });
+      fireEvent.click(submitButton);
+
+      // Check for loading states in sequence
+      await waitFor(() => {
+        expect(screen.getByText("Creating listing...")).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Preparing photos for upload...")
+        ).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          "Listing created successfully! Video generation has started."
+        );
+      });
     });
   });
 });

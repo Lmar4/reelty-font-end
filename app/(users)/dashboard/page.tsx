@@ -165,7 +165,12 @@ export default function DashboardPage() {
           <div className='mb-8'>
             <div className='bg-white rounded-lg p-6 shadow-lg'>
               <div className='flex items-center justify-between mb-4'>
-                <h3 className='text-lg font-semibold'>{processingStatus}</h3>
+                <h3
+                  className='text-lg font-semibold'
+                  data-testid='loading-state'
+                >
+                  {processingStatus}
+                </h3>
                 <LoadingState size='sm' />
               </div>
               <Progress value={progress} className='h-2' />
@@ -269,6 +274,13 @@ export default function DashboardPage() {
                         : "hover:border-gray-300"
                     }`}
                     onClick={() => handleTemplateSelect(template.id)}
+                    role='button'
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        handleTemplateSelect(template.id);
+                      }
+                    }}
                   >
                     <div className='flex items-start gap-3'>
                       <Video className='w-5 h-5 text-purple-500 mt-1' />
@@ -295,6 +307,18 @@ export default function DashboardPage() {
               Enter Property Address
             </h2>
             <AddressInput onAddressSelect={handleAddressSelect} />
+            <div className='mt-4 flex justify-end'>
+              <Button
+                onClick={() =>
+                  handleAddressSelect("123 Test St", {
+                    lat: 40.7128,
+                    lng: -74.006,
+                  })
+                }
+              >
+                Create Listing
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -7,6 +7,21 @@ interface Template {
   [key: string]: any;
 }
 
+interface BackendResponse {
+  success: boolean;
+  data?: Template[];
+  error?: string;
+}
+
+const DEFAULT_TEMPLATE = {
+  id: "default",
+  name: "Default Template",
+  description: "Default video template",
+  sequence: ["intro", "photos", "outro"],
+  durations: { intro: 3, photo: 3, outro: 3 },
+  isActive: true,
+};
+
 export async function GET(request: Request) {
   try {
     const { userId } = await auth();
@@ -14,7 +29,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Extract search parameters from request URL
     const searchParams = new URL(request.url).searchParams;
     const tier = searchParams.get("tier");
 
@@ -38,64 +52,41 @@ export async function GET(request: Request) {
 
       if (!response.ok) {
         console.error("Backend templates error:", await response.text());
-        // Return default template if backend fails
         return NextResponse.json([
-          {
-            id: "default",
-            name: "Default Template",
-            description: "Default video template",
-            sequence: ["intro", "photos", "outro"],
-            durations: { intro: 3, photo: 3, outro: 3 },
-            subscriptionTier: tier,
-            isActive: true,
-          },
+          { ...DEFAULT_TEMPLATE, subscriptionTier: tier },
         ]);
       }
 
-      const templates = await response.json();
+      const backendResponse = (await response.json()) as BackendResponse;
 
-      if (!Array.isArray(templates)) {
-        console.error("Templates response is not an array:", templates);
-        return NextResponse.json(
-          { error: "Invalid templates response from backend" },
-          { status: 500 }
+      // Check if the response is successful and contains data
+      if (!backendResponse.success || !backendResponse.data) {
+        console.warn(
+          "Invalid backend response or no templates found:",
+          backendResponse
         );
+        return NextResponse.json([
+          { ...DEFAULT_TEMPLATE, subscriptionTier: tier },
+        ]);
       }
 
-      // Filter and return active templates
-      const activeTemplates = templates.filter(
+      // Filter active templates (although backend should already do this)
+      const activeTemplates = backendResponse.data.filter(
         (template: Template) => template.isActive
       );
 
       // If no active templates, return default template
       if (activeTemplates.length === 0) {
         return NextResponse.json([
-          {
-            id: "default",
-            name: "Default Template",
-            description: "Default video template",
-            sequence: ["intro", "photos", "outro"],
-            durations: { intro: 3, photo: 3, outro: 3 },
-            subscriptionTier: tier,
-            isActive: true,
-          },
+          { ...DEFAULT_TEMPLATE, subscriptionTier: tier },
         ]);
       }
 
       return NextResponse.json(activeTemplates);
     } catch (error) {
       console.error("Error fetching templates:", error);
-      // Return default template on error
       return NextResponse.json([
-        {
-          id: "default",
-          name: "Default Template",
-          description: "Default video template",
-          sequence: ["intro", "photos", "outro"],
-          durations: { intro: 3, photo: 3, outro: 3 },
-          subscriptionTier: tier,
-          isActive: true,
-        },
+        { ...DEFAULT_TEMPLATE, subscriptionTier: tier },
       ]);
     }
   } catch (error) {
