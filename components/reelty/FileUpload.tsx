@@ -62,8 +62,9 @@ export default function FileUpload({
   };
 
   const uploadFiles = async (files: File[]) => {
-    // If no uploadUrl is provided, skip upload
+    // If no uploadUrl is provided, just call onFilesSelected
     if (!uploadUrl?.trim()) {
+      onFilesSelected(files);
       return;
     }
 
@@ -71,13 +72,12 @@ export default function FileUpload({
     setUploadProgress(0);
 
     try {
-      // Validate URL format
-      if (uploadUrl.includes("undefined")) {
-        throw new Error("Invalid listing ID");
-      }
+      // Extract listingId from URL
+      const listingId = uploadUrl.split("/").pop();
 
-      if (uploadUrl.includes("//")) {
-        throw new Error("Invalid URL format");
+      // Validate listing ID
+      if (!listingId || listingId === "undefined") {
+        throw new Error("Invalid listing ID");
       }
 
       const formData = new FormData();
@@ -96,19 +96,21 @@ export default function FileUpload({
       clearInterval(progressInterval);
 
       if (!response.ok) {
-        throw new Error(`Server error: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(errorText || `Server error: ${response.statusText}`);
       }
 
       const data = await response.json();
       setUploadProgress(100);
       toast.success("Files uploaded successfully");
+      onFilesSelected(files);
     } catch (error) {
       toast.error(
         `Error uploading files: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
-      throw error; // Re-throw to prevent onFilesSelected from being called
+      throw error;
     } finally {
       setIsUploading(false);
     }
@@ -119,10 +121,7 @@ export default function FileUpload({
     if (!validateFiles(files)) return;
 
     try {
-      if (uploadUrl?.trim()) {
-        await uploadFiles(files);
-      }
-      onFilesSelected(files);
+      await uploadFiles(files);
     } catch (error) {
       // If upload fails, don't call onFilesSelected
       console.error("Upload failed:", error);
@@ -147,10 +146,7 @@ export default function FileUpload({
     if (!validateFiles(files)) return;
 
     try {
-      if (uploadUrl?.trim()) {
-        await uploadFiles(files);
-      }
-      onFilesSelected(files);
+      await uploadFiles(files);
     } catch (error) {
       // If upload fails, don't call onFilesSelected
       console.error("Upload failed:", error);
