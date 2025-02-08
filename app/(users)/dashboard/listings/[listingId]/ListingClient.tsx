@@ -105,32 +105,11 @@ export function ListingClient({
 
   const handleRegenerate = () => setIsRegenerateModalOpen(true);
   const handleUpgradeClick = () => setIsPricingModalOpen(true);
-  const handleFilesSelected = async (files: File[]) => {
-    try {
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch(`/api/listings/${listingId}/photos`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to upload files");
-      }
-
-      // Refresh listing data to get new photos
-      queryClient.invalidateQueries({
-        queryKey: ["listing", listingId],
-      });
-
-      showToast("Files uploaded successfully", "success");
-    } catch (error) {
-      console.error("[UPLOAD_ERROR]", error);
-      showToast("Failed to upload files", "error");
-    }
+  const handleFilesSelected = async (_files: File[]) => {
+    // Refresh listing data to get new photos
+    queryClient.invalidateQueries({
+      queryKey: ["listing", listingId],
+    });
   };
 
   if (isLoading || !listing) {
@@ -170,6 +149,7 @@ export function ListingClient({
             onFilesSelected={handleFilesSelected}
             maxFiles={10}
             maxSize={15}
+            uploadUrl={`/api/listings/${listingId}/photos`}
           />
         </div>
 
