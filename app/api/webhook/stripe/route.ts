@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
         // Update user's subscription in our backend
         const response = await fetch(
-          `${process.env.REELTY_BACKEND_URL}/api/subscription/update`,
+          `${process.env.BACKEND_URL}/api/subscription/update`,
           {
             method: "POST",
             headers: {
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
         ) {
           // Fetch user details
           const userResponse = await fetch(
-            `${process.env.REELTY_BACKEND_URL}/api/users/${userId}`,
+            `${process.env.BACKEND_URL}/api/users/${userId}`,
             {
               headers: {
                 Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
@@ -168,20 +168,17 @@ export async function POST(request: Request) {
         const userId = subscription.metadata.userId;
 
         // Update user's subscription status in our backend
-        await fetch(
-          `${process.env.REELTY_BACKEND_URL}/api/subscription/cancel`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-            },
-            body: JSON.stringify({
-              userId,
-              stripeSubscriptionId: subscription.id,
-            }),
-          }
-        );
+        await fetch(`${process.env.BACKEND_URL}/api/subscription/cancel`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            userId,
+            stripeSubscriptionId: subscription.id,
+          }),
+        });
         break;
       }
 
@@ -199,7 +196,7 @@ export async function POST(request: Request) {
 
         // Fetch user details
         const userResponse = await fetch(
-          `${process.env.REELTY_BACKEND_URL}/api/users/${userId}`,
+          `${process.env.BACKEND_URL}/api/users/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
@@ -264,7 +261,7 @@ export async function POST(request: Request) {
 
           // Fetch user details
           const response = await fetch(
-            `${process.env.REELTY_BACKEND_URL}/api/users/${userId}`,
+            `${process.env.BACKEND_URL}/api/users/${userId}`,
             {
               headers: {
                 Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
@@ -282,7 +279,7 @@ export async function POST(request: Request) {
           await sendCreditPurchaseEmail(user.email, user.name, credits, amount);
 
           // Add credits to user's account
-          await fetch(`${process.env.REELTY_BACKEND_URL}/api/credits/add`, {
+          await fetch(`${process.env.BACKEND_URL}/api/credits/add`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

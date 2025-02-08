@@ -5,11 +5,11 @@ import { LowBalanceEmail } from "@/emails/LowBalanceEmail";
 import { SubscriptionChangeEmail } from "@/emails/SubscriptionChangeEmail";
 import { PaymentFailureEmail } from "@/emails/PaymentFailureEmail";
 
-if (!process.env.PLUNK_API_KEY) {
-  throw new Error("Missing PLUNK_API_KEY environment variable");
+if (!process.env.PLUNK_PUBLIC_API_KEY) {
+  throw new Error("Missing PLUNK_PUBLIC_API_KEY environment variable");
 }
 
-export const plunk = new Plunk(process.env.PLUNK_API_KEY);
+export const plunk = new Plunk(process.env.PLUNK_PUBLIC_API_KEY);
 
 // Email sending utility functions
 export const sendWelcomeEmail = async (email: string, name: string) => {
