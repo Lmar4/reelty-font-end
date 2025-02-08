@@ -1,11 +1,10 @@
 "use client";
 
+import { Card } from "@/components/ui/card";
 import { useListings } from "@/hooks/queries/use-listings";
 import { useJobs } from "@/hooks/use-jobs";
 import { useUser } from "@clerk/nextjs";
-import { Card } from "@/components/ui/card";
-import { LoadingState } from "@/components/ui/loading-state";
-import { Building, Film, Calendar } from "lucide-react";
+import { Building, Calendar, Film } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {

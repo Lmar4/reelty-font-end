@@ -133,12 +133,6 @@ export async function POST(request: Request) {
           const currentProduct = currentPrice.product as Stripe.Product;
           const previousProduct = previousPrice.product as Stripe.Product;
 
-          // Calculate prorated amounts if applicable
-          const proratedChanges = await stripe.invoices.retrieveUpcoming({
-            customer: subscription.customer as string,
-            subscription: subscription.id,
-          });
-
           const effectiveDate = new Date().toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
