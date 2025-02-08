@@ -1,0 +1,98 @@
+"use client";
+
+import { Card } from "@/components/ui/card";
+import { useListings } from "@/hooks/queries/use-listings";
+import { useJobs } from "@/hooks/use-jobs";
+import { useUser } from "@clerk/nextjs";
+import { Building, Calendar, Film } from "lucide-react";
+
+export default function InfoPage() {
+  const { user } = useUser();
+  const { data: listings, isLoading: isListingsLoading } = useListings(
+    user?.id || ""
+  );
+  const { data: jobs, isLoading: isJobsLoading } = useJobs();
+
+  // Calculate statistics
+  const totalListings = listings?.length || 0;
+  const completedJobs =
+    jobs?.filter((job) => job.status === "completed").length || 0;
+  const daysAsMember = user?.createdAt
+    ? Math.floor(
+        (new Date().getTime() - new Date(user.createdAt).getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : 0;
+
+  return (
+    <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+      {/* Header Section */}
+      <div className='mb-8'>
+        <h1 className='text-[32px] font-semibold text-[#1c1c1c]'>
+          Account Info
+        </h1>
+        <p className='text-[#1c1c1c]/60'>View your account statistics</p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+        <Card className='p-6'>
+          <div className='flex items-center gap-4'>
+            <div className='bg-primary/10 p-3 rounded-lg'>
+              <Building className='w-6 h-6 text-primary' />
+            </div>
+            {isListingsLoading ? (
+              <div className='w-full'>
+                <div className='h-8 w-16 bg-gray-200 rounded animate-pulse mb-1'></div>
+                <div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+              </div>
+            ) : (
+              <div>
+                <p className='text-2xl font-semibold'>{totalListings}</p>
+                <p className='text-sm text-gray-500'>Total Listings</p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card className='p-6'>
+          <div className='flex items-center gap-4'>
+            <div className='bg-primary/10 p-3 rounded-lg'>
+              <Film className='w-6 h-6 text-primary' />
+            </div>
+            {isJobsLoading ? (
+              <div className='w-full'>
+                <div className='h-8 w-16 bg-gray-200 rounded animate-pulse mb-1'></div>
+                <div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+              </div>
+            ) : (
+              <div>
+                <p className='text-2xl font-semibold'>{completedJobs}</p>
+                <p className='text-sm text-gray-500'>Generated Videos</p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card className='p-6'>
+          <div className='flex items-center gap-4'>
+            <div className='bg-primary/10 p-3 rounded-lg'>
+              <Calendar className='w-6 h-6 text-primary' />
+            </div>
+            {!user ? (
+              <div className='w-full'>
+                <div className='h-8 w-16 bg-gray-200 rounded animate-pulse mb-1'></div>
+                <div className='h-4 w-24 bg-gray-200 rounded animate-pulse'></div>
+              </div>
+            ) : (
+              <div>
+                <p className='text-2xl font-semibold'>{daysAsMember}</p>
+                <p className='text-sm text-gray-500'>Days as Member</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
