@@ -7,18 +7,16 @@ interface Template {
   [key: string]: any;
 }
 
-export async function GET(
-  request: Request,
-  { searchParams }: { searchParams: Promise<URLSearchParams> }
-) {
+export async function GET(request: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await searchParams;
-    const tier = resolvedParams.get("tier");
+    // Extract search parameters from request URL
+    const searchParams = new URL(request.url).searchParams;
+    const tier = searchParams.get("tier");
 
     if (!tier) {
       return NextResponse.json(
@@ -27,6 +25,7 @@ export async function GET(
       );
     }
 
+    // Fetch templates from backend
     const response = await fetch(
       `${process.env.BACKEND_URL}/api/templates?tier=${tier}`,
       {
@@ -50,6 +49,7 @@ export async function GET(
       );
     }
 
+    // Filter and return active templates
     const activeTemplates = templates.filter(
       (template: Template) => template.isActive
     );
