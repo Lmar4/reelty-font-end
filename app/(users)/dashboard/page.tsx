@@ -136,6 +136,8 @@ export default function DashboardPage() {
           <FileUpload
             buttonText='Create new listing Reels'
             onFilesSelected={handleFilesSelected}
+            uploadUrl=''
+            maxFiles={10}
           />
         </div>
 

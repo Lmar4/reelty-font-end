@@ -216,7 +216,10 @@ export default function Home() {
 
           {/* Input Section */}
           <div className='max-w-[800px] mx-auto px-4'>
-            <FileUpload onFilesSelected={handleFilesSelected} />
+            <FileUpload
+              onFilesSelected={handleFilesSelected}
+              uploadUrl='' // Disable direct upload
+            />
             <p className='text-[14px] text-[#6B7280] mt-3 md:mt-8 text-center'>
               Try for free. No credit card required.
             </p>

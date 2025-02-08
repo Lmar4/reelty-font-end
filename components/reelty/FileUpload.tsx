@@ -19,7 +19,7 @@ export default function FileUpload({
   accept = "image/*",
   maxFiles = 60,
   maxSize = 15, // 15MB default
-  uploadUrl = "/api/upload",
+  uploadUrl,
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -62,12 +62,17 @@ export default function FileUpload({
   };
 
   const uploadFiles = async (files: File[]) => {
+    // If no uploadUrl is provided, skip upload
+    if (!uploadUrl?.trim()) {
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(0);
 
     try {
       // Validate URL format
-      if (!uploadUrl || uploadUrl.includes("undefined")) {
+      if (uploadUrl.includes("undefined")) {
         throw new Error("Invalid listing ID");
       }
 
@@ -89,13 +94,13 @@ export default function FileUpload({
 
       const data = await response.json();
       toast.success("Files uploaded successfully");
-      onFilesSelected(files);
     } catch (error) {
       toast.error(
         `Error uploading files: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+      throw error; // Re-throw to prevent onFilesSelected from being called
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -105,8 +110,16 @@ export default function FileUpload({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (!validateFiles(files)) return;
-    onFilesSelected(files);
-    await uploadFiles(files);
+
+    try {
+      if (uploadUrl?.trim()) {
+        await uploadFiles(files);
+      }
+      onFilesSelected(files);
+    } catch (error) {
+      // If upload fails, don't call onFilesSelected
+      console.error("Upload failed:", error);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -125,8 +138,16 @@ export default function FileUpload({
 
     const files = Array.from(e.dataTransfer.files);
     if (!validateFiles(files)) return;
-    onFilesSelected(files);
-    await uploadFiles(files);
+
+    try {
+      if (uploadUrl?.trim()) {
+        await uploadFiles(files);
+      }
+      onFilesSelected(files);
+    } catch (error) {
+      // If upload fails, don't call onFilesSelected
+      console.error("Upload failed:", error);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

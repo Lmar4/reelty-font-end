@@ -25,6 +25,8 @@ export function DashboardUpload() {
       <FileUpload
         buttonText='Create new listing Reels'
         onFilesSelected={handleFilesSelected}
+        uploadUrl=''
+        maxFiles={10}
       />
 
       <NewListingModal
