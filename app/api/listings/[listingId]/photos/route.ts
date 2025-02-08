@@ -6,12 +6,12 @@ export async function POST(
   { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
-    const { listingId } = await params;
     const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
+    const { listingId } = await params;
     const formData = await request.formData();
     const files = formData.getAll("files");
 

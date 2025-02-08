@@ -48,9 +48,14 @@ export function AdditionalPhotosModal({
     try {
       // Upload the additional photos
       const formData = new FormData();
+
+      // Ensure each file is properly appended with the correct field name
       selectedPhotos.forEach((file, index) => {
-        formData.append(`files`, file);
-        formData.append(`orders`, index.toString());
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+          throw new Error(`File ${file.name} is not an image`);
+        }
+        formData.append("files", file);
       });
 
       const response = await fetch(`/api/listings/${listingId}/photos`, {
@@ -59,24 +64,21 @@ export function AdditionalPhotosModal({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to upload photos");
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to upload photos");
       }
 
-      const { filePaths } = await response.json();
+      const data = await response.json();
 
-      // Create a new job with pro template
-      await createJob.mutateAsync({
-        listingId,
-        template: "pro",
-        inputFiles: filePaths,
-      });
-
-      toast.success("Additional photos uploaded and processing started!");
+      toast.success("Photos uploaded successfully");
+      setSelectedPhotos([]); // Clear selected photos
       onSuccess?.();
       onClose();
     } catch (error) {
-      console.error("[ADDITIONAL_PHOTOS_ERROR]", error);
-      toast.error("Failed to process additional photos");
+      console.error("[PHOTOS_UPLOAD_ERROR]", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload photos"
+      );
     } finally {
       setIsUploading(false);
     }
