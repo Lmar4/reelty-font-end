@@ -13,16 +13,6 @@ import { toast } from "sonner";
 // Mock fetch
 global.fetch = jest.fn();
 
-// Extend Jest matchers
-declare global {
-  namespace jest {
-    interface Matchers<R> {
-      toBeInTheDocument(): R;
-      toHaveClass(className: string): R;
-    }
-  }
-}
-
 describe("FileUpload Component", () => {
   const mockOnFilesSelected = jest.fn();
 
