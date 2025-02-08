@@ -19,6 +19,10 @@ import { useTemplates } from "@/hooks/queries/use-templates";
 import { Progress } from "@/components/ui/progress";
 import { LoadingState } from "@/components/ui/loading-state";
 import { DashboardUpload } from "@/components/reelty/DashboardUpload";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Video } from "lucide-react";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -27,18 +31,24 @@ export default function DashboardPage() {
     user?.id || ""
   );
 
-  // State for the address modal and processing
+  // State for modals and processing
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [processingStatus, setProcessingStatus] = useState("");
+
+  // Get templates based on user's tier (free by default)
+  const { data: templates } = useTemplates(
+    (user?.publicMetadata?.tier as string) || "free"
+  );
 
   // Mutations
   const createListing = useCreateListing();
   const uploadPhoto = useUploadPhoto();
   const createJob = useCreateJob();
-  const { data: templates } = useTemplates("free"); // We'll use the first available template
 
   const handleFilesSelected = async (files: File[]) => {
     if (files.length > 10) {
@@ -46,6 +56,12 @@ export default function DashboardPage() {
       return;
     }
     setSelectedFiles(files);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    setIsTemplateModalOpen(false);
     setIsAddressModalOpen(true);
   };
 
@@ -55,6 +71,11 @@ export default function DashboardPage() {
   ) => {
     if (!user?.id) {
       toast.error("Please sign in to create a listing");
+      return;
+    }
+
+    if (!selectedTemplate) {
+      toast.error("Please select a template first");
       return;
     }
 
@@ -94,14 +115,12 @@ export default function DashboardPage() {
       setProgress(60);
       setProcessingStatus("Creating video job...");
 
-      // Create video generation job using the first available template
-      if (templates && templates.length > 0) {
-        await createJob.mutateAsync({
-          listingId: listing.id,
-          template: templates[0].id,
-          inputFiles: uploadedFilePaths,
-        });
-      }
+      // Create video generation job with selected template
+      await createJob.mutateAsync({
+        listingId: listing.id,
+        template: selectedTemplate,
+        inputFiles: uploadedFilePaths,
+      });
 
       setProgress(100);
       setProcessingStatus("Complete!");
@@ -139,15 +158,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Input Section */}
-        {/* <div className='mb-8'>
-          <FileUpload
-            buttonText='Create new listing Reels'
-            onFilesSelected={handleFilesSelected}
-            uploadUrl=''
-            maxFiles={10}
-          />
-        </div> */}
         <DashboardUpload />
+
         {/* Processing State */}
         {isProcessing && (
           <div className='mb-8'>
@@ -240,6 +252,40 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Template Selection Modal */}
+      <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+        <DialogContent className='sm:max-w-[600px]'>
+          <div className='py-6'>
+            <h2 className='text-xl font-semibold mb-4'>Select Template</h2>
+            <div className='space-y-4'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                {templates?.map((template) => (
+                  <Card
+                    key={template.id}
+                    className={`p-4 cursor-pointer transition-all ${
+                      selectedTemplate === template.id
+                        ? "border-purple-500 ring-2 ring-purple-500"
+                        : "hover:border-gray-300"
+                    }`}
+                    onClick={() => handleTemplateSelect(template.id)}
+                  >
+                    <div className='flex items-start gap-3'>
+                      <Video className='w-5 h-5 text-purple-500 mt-1' />
+                      <div>
+                        <h3 className='font-semibold'>{template.name}</h3>
+                        <p className='text-sm text-gray-500'>
+                          {template.description}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Address Modal */}
       <Dialog open={isAddressModalOpen} onOpenChange={setIsAddressModalOpen}>
