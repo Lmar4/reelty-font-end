@@ -15,7 +15,7 @@ export async function GET(
 
     // Fetch video details from backend
     const response = await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/listings/${listingId}/video`,
+      `${process.env.BACKEND_URL}/api/listings/${listingId}/video`,
       {
         headers: {
           Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,

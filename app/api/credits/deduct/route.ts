@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     // Call backend to deduct credits
     const response = await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/credits/deduct`,
+      `${process.env.BACKEND_URL}/api/credits/deduct`,
       {
         method: "POST",
         headers: {

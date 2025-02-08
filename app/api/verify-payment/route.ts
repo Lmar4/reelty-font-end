@@ -27,21 +27,18 @@ export async function POST(request: Request) {
     }
 
     // Update user's subscription status in your database
-    await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/users/${userId}/subscription`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          planId: session.metadata?.planId,
-          stripeSubscriptionId: session.subscription as string,
-          status: "active",
-        }),
-      }
-    );
+    await fetch(`${process.env.BACKEND_URL}/api/users/${userId}/subscription`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        planId: session.metadata?.planId,
+        stripeSubscriptionId: session.subscription as string,
+        status: "active",
+      }),
+    });
 
     // Send subscription confirmation email
     const user = await currentUser();

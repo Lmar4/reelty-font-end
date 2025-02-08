@@ -10,7 +10,7 @@ export async function POST(request: Request) {
 
     // Call backend to check credits
     const response = await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/credits/check`,
+      `${process.env.BACKEND_URL}/api/credits/check`,
       {
         method: "POST",
         headers: {

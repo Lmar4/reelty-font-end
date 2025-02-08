@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
     // Fetch credit packages from backend
     const response = await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/credits/packages`,
+      `${process.env.BACKEND_URL}/api/credits/packages`,
       {
         headers: {
           Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,

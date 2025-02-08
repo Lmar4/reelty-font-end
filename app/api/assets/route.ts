@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
     // Fetch assets from backend
     const response = await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/assets?type=${type}&tier=${tier}`,
+      `${process.env.BACKEND_URL}/api/assets?type=${type}&tier=${tier}`,
       {
         headers: {
           Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,

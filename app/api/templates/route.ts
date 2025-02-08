@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
     // Fetch templates from backend
     const response = await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/templates?tier=${tier}`,
+      `${process.env.BACKEND_URL}/api/templates?tier=${tier}`,
       {
         headers: {
           Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,

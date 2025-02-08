@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
     // Call backend to get credit history
     const response = await fetch(
-      `${process.env.REELTY_BACKEND_URL}/api/credits/history/${userId}`,
+      `${process.env.BACKEND_URL}/api/credits/history/${userId}`,
       {
         headers: {
           Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
