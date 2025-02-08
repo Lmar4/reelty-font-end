@@ -7,27 +7,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useCreateJob } from "@/hooks/use-jobs";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
 
 interface AdditionalPhotosModalProps {
-  listingId: string;
+  listingId?: string;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (listingId: string) => void;
 }
 
 export function AdditionalPhotosModal({
-  listingId,
+  listingId: providedListingId,
   isOpen,
   onClose,
   onSuccess,
 }: AdditionalPhotosModalProps) {
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const createJob = useCreateJob();
 
   const handlePhotosSelected = (files: File[]) => {
     // Only allow selecting up to 10 additional photos
@@ -46,6 +45,9 @@ export function AdditionalPhotosModal({
 
     setIsUploading(true);
     try {
+      // Generate a new UUID if no listingId is provided
+      const listingId = providedListingId || uuidv4();
+
       // Upload the additional photos
       const formData = new FormData();
 
@@ -68,11 +70,13 @@ export function AdditionalPhotosModal({
         throw new Error(errorText || "Failed to upload photos");
       }
 
-      const data = await response.json();
+      const { photos, jobId } = await response.json();
 
-      toast.success("Photos uploaded successfully");
+      toast.success(
+        `${photos.length} photos uploaded successfully! Job ${jobId} will start processing soon.`
+      );
       setSelectedPhotos([]); // Clear selected photos
-      onSuccess?.();
+      onSuccess?.(listingId);
       onClose();
     } catch (error) {
       console.error("[PHOTOS_UPLOAD_ERROR]", error);
