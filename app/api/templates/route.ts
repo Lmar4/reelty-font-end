@@ -9,9 +9,7 @@ interface Template {
 
 export async function GET(
   request: Request,
-  {
-    searchParams,
-  }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }
+  { searchParams }: { searchParams: Promise<URLSearchParams> }
 ) {
   try {
     const { userId } = await auth();
@@ -20,7 +18,7 @@ export async function GET(
     }
 
     const resolvedParams = await searchParams;
-    const tier = resolvedParams.tier as string;
+    const tier = resolvedParams.get("tier");
 
     if (!tier) {
       return NextResponse.json(
@@ -29,7 +27,6 @@ export async function GET(
       );
     }
 
-    // Fetch templates from backend
     const response = await fetch(
       `${process.env.BACKEND_URL}/api/templates?tier=${tier}`,
       {
@@ -45,7 +42,6 @@ export async function GET(
 
     const templates = await response.json();
 
-    // Ensure templates is an array
     if (!Array.isArray(templates)) {
       console.error("Templates response is not an array:", templates);
       return NextResponse.json(
@@ -54,7 +50,6 @@ export async function GET(
       );
     }
 
-    // Only return active templates
     const activeTemplates = templates.filter(
       (template: Template) => template.isActive
     );
