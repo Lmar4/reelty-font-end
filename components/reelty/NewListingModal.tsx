@@ -174,13 +174,46 @@ export default function NewListingModal({
 
   const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+
+    if (!address || !coordinates) {
+      toast.error("Please enter a valid address");
+      return;
+    }
+
+    if (selectedPhotos.size === 0) {
+      toast.error("Please select at least one photo");
+      return;
+    }
+
+    // If user is not logged in, store data and redirect to login
+    if (!userId) {
+      // Store the current state in localStorage
+      const selectedPhotoFiles = Array.from(selectedPhotos).map(
+        (index) => uploadedPhotos[parseInt(index)]
+      );
+
+      const tempListingData = {
+        address,
+        coordinates,
+        selectedPhotos: Array.from(selectedPhotos),
+        timestamp: Date.now(), // Add timestamp for cleanup purposes
+      };
+
+      localStorage.setItem("tempListingData", JSON.stringify(tempListingData));
+
+      // Redirect to login
+      router.push("/login");
+      return;
+    }
+
     setIsSubmitting(true);
     setProgress(0);
+    setStatus("Creating listing...");
 
     try {
       // Create listing first
       const listing = await createListing.mutateAsync({
-        userId: userId || "",
+        userId,
         address,
         coordinates,
         photoLimit: 10,
@@ -191,37 +224,48 @@ export default function NewListingModal({
       }
 
       setProgress(20);
-      setStatus("Uploading photos...");
+      setStatus("Preparing photos for upload...");
+
+      // Filter only selected photos
+      const selectedPhotoFiles = Array.from(selectedPhotos).map(
+        (index) => uploadedPhotos[parseInt(index)]
+      );
 
       // Upload photos with retries
       const uploadWithRetry = async (
         file: File,
+        order: number,
         retries = 3
       ): Promise<string> => {
         try {
           const result = await uploadPhoto.mutateAsync({
             file,
             listingId: listing.id,
-            order: uploadedPhotos.length,
+            order,
           });
           return result.filePath;
         } catch (error) {
+          console.error(
+            `Upload attempt failed (${retries} retries left):`,
+            error
+          );
           if (retries > 0) {
-            await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1s before retry
-            return uploadWithRetry(file, retries - 1);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            return uploadWithRetry(file, order, retries - 1);
           }
           throw error;
         }
       };
 
-      // Upload photos in sequence with progress updates
-      const totalPhotos = initialFiles.length;
+      setStatus("Uploading photos...");
+      const totalPhotos = selectedPhotoFiles.length;
       const uploadedPaths: string[] = [];
 
-      for (let i = 0; i < initialFiles.length; i++) {
-        const file = initialFiles[i];
+      for (let i = 0; i < selectedPhotoFiles.length; i++) {
+        const file = selectedPhotoFiles[i];
         try {
-          const filePath = await uploadWithRetry(file);
+          setStatus(`Uploading photo ${i + 1} of ${totalPhotos}...`);
+          const filePath = await uploadWithRetry(file, i);
           uploadedPaths.push(filePath);
           setProgress(20 + Math.floor(((i + 1) / totalPhotos) * 40));
         } catch (error) {
@@ -237,7 +281,7 @@ export default function NewListingModal({
       // Create video generation job
       await createJob.mutateAsync({
         listingId: listing.id,
-        template: "basic", // Default template for now
+        template: "basic",
         inputFiles: uploadedPaths,
       });
 
@@ -245,13 +289,17 @@ export default function NewListingModal({
       setStatus("Complete!");
 
       toast.success("Listing created successfully!");
+      onClose();
+
+      // Clear any stored temp data
+      localStorage.removeItem("tempListingData");
 
       // Redirect after a brief delay
       setTimeout(() => {
         router.push(`/dashboard/listings/${listing.id}`);
       }, 1000);
     } catch (error) {
-      console.error("Error creating listing:", error);
+      console.error("[LISTING_CREATION_ERROR]", error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -259,8 +307,36 @@ export default function NewListingModal({
       );
     } finally {
       setIsSubmitting(false);
+      setProgress(0);
+      setStatus("");
     }
   };
+
+  // Add effect to restore data after login
+  useEffect(() => {
+    if (userId) {
+      const tempData = localStorage.getItem("tempListingData");
+      if (tempData) {
+        try {
+          const {
+            address: savedAddress,
+            coordinates: savedCoordinates,
+            selectedPhotos: savedPhotos,
+          } = JSON.parse(tempData);
+
+          // Restore the saved data
+          setAddress(savedAddress);
+          setCoordinates(savedCoordinates);
+          setSelectedPhotos(new Set(savedPhotos));
+
+          // Don't remove the data yet - wait until successful creation
+        } catch (error) {
+          console.error("Error restoring temp listing data:", error);
+          localStorage.removeItem("tempListingData");
+        }
+      }
+    }
+  }, [userId]);
 
   // Memoize the grid to prevent unnecessary re-renders
   const photoGrid = useMemo(() => {

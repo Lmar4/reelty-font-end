@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 
 // Define route matchers
 const isPublicPath = createRouteMatcher([
-  "/",
   "/login",
   "/sign-up",
   "/reset-password",
@@ -17,19 +16,29 @@ export default clerkMiddleware(async (auth, req) => {
   const isPublic = isPublicPath(req);
   const isAdmin = isAdminRoute(req);
   const isWebhookPath = req.url.includes("/api/webhooks");
+  const isWebhookStripe = req.url.includes("/api/webhook");
+  const isHomePage = req.nextUrl.pathname === "/";
+
+  // Handle homepage redirect for authenticated users
+  if (isHomePage && userId) {
+    const dashboardUrl = new URL("/dashboard", req.url);
+    return NextResponse.redirect(dashboardUrl);
+  }
 
   // Allow public paths and webhook paths without authentication
-  if (isPublic || isWebhookPath) {
+  if (isPublic || isWebhookPath || isHomePage || isWebhookStripe) {
     return NextResponse.next();
+  }
+
+  // Require authentication for all other routes
+  if (!userId) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("returnTo", req.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   // Handle admin routes
   if (isAdmin) {
-    if (!userId) {
-      const loginUrl = new URL("/login", req.url);
-      return NextResponse.redirect(loginUrl);
-    }
-
     try {
       const response = await fetch(`${process.env.BACKEND_URL}/api/users/me`, {
         headers: {
@@ -48,26 +57,16 @@ export default clerkMiddleware(async (auth, req) => {
         return NextResponse.redirect(homeUrl);
       }
     } catch (error) {
-      console.error("[ADMIN_MIDDLEWARE_ERROR]", error);
+      console.error("[ADMIN_AUTH_ERROR]", error);
       const homeUrl = new URL("/", req.url);
       return NextResponse.redirect(homeUrl);
     }
   }
 
-  // Protect all other routes
-  if (!userId) {
-    const loginUrl = new URL("/login", req.url);
-    return NextResponse.redirect(loginUrl);
-  }
-
   return NextResponse.next();
 });
 
+// Specify which routes the middleware should run on
 export const config = {
-  matcher: [
-    // Skip Next.js internals and all static files
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-    // Always run for API routes
-    "/api/(.*)",
-  ],
+  matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 };

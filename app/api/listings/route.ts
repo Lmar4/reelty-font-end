@@ -9,25 +9,63 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
+
+    // Validate required fields
+    if (!body.address || !body.coordinates || !body.photoLimit) {
+      return new NextResponse(
+        "Missing required fields: address, coordinates, or photoLimit",
+        { status: 400 }
+      );
+    }
+
+    // Validate coordinates
+    if (
+      typeof body.coordinates.lat !== "number" ||
+      typeof body.coordinates.lng !== "number"
+    ) {
+      return new NextResponse(
+        "Invalid coordinates format. Expected numbers for lat and lng",
+        { status: 400 }
+      );
+    }
+
+    // Log the request for debugging
+    console.log("Creating listing with body:", JSON.stringify(body, null, 2));
+
     const response = await fetch(`${process.env.BACKEND_URL}/api/listings`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${userId}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        coordinates: {
+          lat: Number(body.coordinates.lat),
+          lng: Number(body.coordinates.lng),
+        },
+      }),
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      return new NextResponse(error, { status: response.status });
+      const errorText = await response.text();
+      console.error("Backend error:", errorText);
+      return new NextResponse(
+        `Backend error: ${errorText || response.statusText}`,
+        { status: response.status }
+      );
     }
 
     const listing = await response.json();
     return NextResponse.json(listing);
   } catch (error) {
     console.error("[LISTINGS_POST]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      `Internal error: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+      { status: 500 }
+    );
   }
 }
 

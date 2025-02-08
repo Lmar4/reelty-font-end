@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import NewListingModal from "@/components/reelty/NewListingModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Footer from "@/components/reelty/Footer";
 
 export default function Home() {
@@ -16,36 +16,31 @@ export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const handleFilesSelected = (files: File[]) => {
-    if (isSignedIn) {
-      setSelectedFiles(files);
-      setIsModalOpen(true);
-    } else {
-      // Store files in localStorage before redirecting
-      const sessionId = Math.random().toString(36).substring(7);
-      localStorage.setItem("pendingListingSession", sessionId);
+    // Store files in localStorage before redirecting
+    const sessionId = Math.random().toString(36).substring(7);
+    localStorage.setItem("pendingListingSession", sessionId);
 
-      // Store file data as base64
-      Promise.all(
-        files.map(async (file) => ({
-          name: file.name,
-          type: file.type,
-          data: await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(file);
-          }),
-        }))
-      ).then((fileData) => {
-        localStorage.setItem(
-          `pendingFiles_${sessionId}`,
-          JSON.stringify({
-            files: fileData,
-            timestamp: Date.now(),
-          })
-        );
-        router.push("/login?returnTo=/dashboard");
-      });
-    }
+    // Store file data as base64
+    Promise.all(
+      files.map(async (file) => ({
+        name: file.name,
+        type: file.type,
+        data: await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        }),
+      }))
+    ).then((fileData) => {
+      localStorage.setItem(
+        `pendingFiles_${sessionId}`,
+        JSON.stringify({
+          files: fileData,
+          timestamp: Date.now(),
+        })
+      );
+      router.push("/login?returnTo=/dashboard");
+    });
   };
 
   const handleModalClose = () => {
@@ -217,6 +212,7 @@ export default function Home() {
           {/* Input Section */}
           <div className='max-w-[800px] mx-auto px-4'>
             <FileUpload
+              buttonText='Create Listing Reels'
               onFilesSelected={handleFilesSelected}
               uploadUrl='' // Keep empty for new listings
               maxFiles={10}

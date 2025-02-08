@@ -32,12 +32,30 @@ async function createListing(input: CreateListingInput): Promise<Listing> {
   const response = await fetch("/api/listings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      coordinates: input.coordinates
+        ? {
+            lat: Number(input.coordinates.lat),
+            lng: Number(input.coordinates.lng),
+          }
+        : null,
+    }),
   });
+
   if (!response.ok) {
-    throw new Error("Failed to create listing");
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to create listing: ${errorText || response.statusText}`
+    );
   }
-  return response.json();
+
+  const data = await response.json();
+  if (!data.id) {
+    throw new Error("Invalid response: missing listing ID");
+  }
+
+  return data;
 }
 
 interface UploadPhotoInput {
@@ -89,8 +107,14 @@ export function useCreateListing() {
 
   return useMutation({
     mutationFn: createListing,
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
+      toast.success("Listing created successfully!");
+      return data;
+    },
+    onError: (error: Error) => {
+      console.error("[CREATE_LISTING_ERROR]", error);
+      toast.error(error.message || "Failed to create listing");
     },
   });
 }

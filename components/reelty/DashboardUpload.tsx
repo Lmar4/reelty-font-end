@@ -1,14 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import FileUpload from "./FileUpload";
 import NewListingModal from "./NewListingModal";
 import { toast } from "sonner";
+import { useAuth } from "@clerk/nextjs";
 
 export function DashboardUpload() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isCreatingListing, setIsCreatingListing] = useState(false);
+  const { userId } = useAuth();
+
+  // Check for stored listing data and pending files on mount
+  useEffect(() => {
+    if (userId) {
+      // Check for temp listing data first
+      const tempData = localStorage.getItem("tempListingData");
+      if (tempData) {
+        setIsModalOpen(true);
+        return;
+      }
+
+      // Check for pending files from homepage
+      const pendingSession = localStorage.getItem("pendingListingSession");
+      if (pendingSession) {
+        const pendingFiles = localStorage.getItem(
+          `pendingFiles_${pendingSession}`
+        );
+        if (pendingFiles) {
+          try {
+            const { files, timestamp } = JSON.parse(pendingFiles);
+
+            // Convert base64 back to File objects
+            Promise.all(
+              files.map(async (fileData: any) => {
+                const response = await fetch(fileData.data);
+                const blob = await response.blob();
+                return new File([blob], fileData.name, { type: fileData.type });
+              })
+            ).then((convertedFiles) => {
+              setSelectedFiles(convertedFiles);
+              setIsModalOpen(true);
+
+              // Clean up localStorage
+              localStorage.removeItem(`pendingFiles_${pendingSession}`);
+              localStorage.removeItem("pendingListingSession");
+            });
+          } catch (error) {
+            console.error("Error restoring pending files:", error);
+            // Clean up on error
+            localStorage.removeItem(`pendingFiles_${pendingSession}`);
+            localStorage.removeItem("pendingListingSession");
+          }
+        }
+      }
+    }
+  }, [userId]);
 
   const handleFilesSelected = (files: File[]) => {
     // Validate files first
@@ -48,6 +96,13 @@ export function DashboardUpload() {
     setIsModalOpen(false);
     setSelectedFiles([]);
     setIsCreatingListing(false);
+    // Clear all temp data when modal is closed
+    localStorage.removeItem("tempListingData");
+    localStorage.removeItem("pendingListingSession");
+    const pendingSession = localStorage.getItem("pendingListingSession");
+    if (pendingSession) {
+      localStorage.removeItem(`pendingFiles_${pendingSession}`);
+    }
   };
 
   return (
