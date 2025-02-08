@@ -26,9 +26,8 @@ export default clerkMiddleware(async (auth, req) => {
   // Handle admin routes
   if (isAdmin) {
     if (!userId) {
-      const signInUrl = new URL("/sign-in", req.url);
-      signInUrl.searchParams.set("redirect_url", req.url);
-      return NextResponse.redirect(signInUrl);
+      const loginUrl = new URL("/login", req.url);
+      return NextResponse.redirect(loginUrl);
     }
 
     try {
@@ -57,9 +56,8 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Protect all other routes
   if (!userId) {
-    const signInUrl = new URL("/sign-in", req.url);
-    signInUrl.searchParams.set("redirect_url", req.url);
-    return NextResponse.redirect(signInUrl);
+    const loginUrl = new URL("/login", req.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
