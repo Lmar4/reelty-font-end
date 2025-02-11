@@ -24,12 +24,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang='en'>
-      <body className={`${geist.variable}`}>
+      <body className={`${geist.variable} min-h-screen flex flex-col`}>
         <ClerkProvider>
           <QueryProvider>
             <AuthProvider>
               <Providers>
-                {children}
+                <main className='flex-grow flex flex-col'>{children}</main>
                 <Toaster />
               </Providers>
             </AuthProvider>
