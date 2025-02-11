@@ -1,48 +1,47 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { PrismaClient } from "@prisma/client";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-const prisma = new PrismaClient();
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
+  try {
+    const response = await makeBackendRequest<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        name: string;
+        description: string;
+        thumbnailUrl: string | null;
+        subscriptionTiers: Array<{
+          name: string;
+        }>;
+      }>;
+    }>("/api/templates", {
+      method: "GET",
+      sessionToken: request.auth.sessionToken,
+    });
 
-type TemplateWithTiers = {
-  id: string;
-  name: string;
-  description: string;
-  thumbnailUrl: string | null;
-  tiers: string[];
-  order: number;
-  subscriptionTiers: Array<{
-    name: string;
-  }>;
-};
+    if (!response.data) {
+      return NextResponse.json([]);
+    }
 
-export async function GET() {
-  const session = await auth();
+    // Map templates to include the correct ID format
+    const templates = response.data.map((template) => ({
+      id: template.name.toLowerCase().replace(/\s+/g, "_"),
+      name: template.name,
+      description: template.description,
+      thumbnailUrl: template.thumbnailUrl,
+      subscriptionTiers: template.subscriptionTiers,
+    }));
 
-  if (!session?.userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return NextResponse.json(templates);
+  } catch (error) {
+    console.error("[VIDEO_TEMPLATES_GET]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch templates",
+      { status: 500 }
+    );
   }
-
-  // Fetch templates from database
-  const dbTemplates = await prisma.template.findMany({
-    include: {
-      subscriptionTiers: true,
-    },
-    orderBy: {
-      order: "asc",
-    },
-  });
-
-  // Map database templates to video templates
-  const templates = dbTemplates.map((template: TemplateWithTiers) => ({
-    id: template.name.toLowerCase().replace(/\s+/g, "_"),
-    name: template.name,
-    description: template.description,
-    thumbnailUrl: template.thumbnailUrl,
-    subscriptionTiers: template.subscriptionTiers.map((tier) => ({
-      name: tier.name,
-    })),
-  }));
-
-  return NextResponse.json(templates);
-}
+});
