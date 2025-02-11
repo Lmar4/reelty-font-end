@@ -26,7 +26,7 @@ export default function CreditAnalyticsSection({
   const { data: analytics } = useQuery({
     queryKey: ["creditAnalytics"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/stats/credits");
+      const response = await fetch("/api/admin/analytics/credits");
       if (!response.ok) {
         throw new Error("Failed to fetch credit analytics");
       }

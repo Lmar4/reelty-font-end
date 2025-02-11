@@ -1,0 +1,109 @@
+---
+description: Enforces API authentication patterns and token handling best practices
+globs: app/api/**/*.ts app/api/**/*.tsx lib/auth/**/*.ts middleware.ts
+---
+ Description:
+Enforces API authentication patterns and token handling best practices
+
+This rule helps with:
+@api/routes - Route implementations with authentication
+@api/handlers - Request handlers with auth checks
+@api/middleware - Authentication middleware
+@lib/auth - Authentication utilities
+
+Key tasks:
+- Token handling and validation
+- Authentication flow implementation
+- Authorization header formatting
+- Session management
+- Error handling for auth failures
+- Security best practices
+
+Best Practices:
+1. Token Management:
+   - Always use getToken() from auth() instead of raw userId
+   - Include proper Authorization headers with Bearer token
+   - Validate token existence before making requests
+
+2. Authentication Flow:
+   ```typescript
+   const { userId, getToken } = await auth();
+   
+   if (!userId) {
+     return new NextResponse("Unauthorized - No user ID found", { status: 401 });
+   }
+   
+   const token = await getToken();
+   if (!token) {
+     return new NextResponse("Unauthorized - No token available", { status: 401 });
+   }
+   ```
+
+3. Request Headers:
+   ```typescript
+   const headers = {
+     Authorization: `Bearer ${token}`,
+     "Content-Type": "application/json"
+   };
+   ```
+
+4. Error Handling:
+   ```typescript
+   try {
+     // Auth logic here
+   } catch (error) {
+     console.error("[AUTH_ERROR]", error);
+     return new NextResponse(
+       error instanceof Error ? error.message : "Authentication failed",
+       { status: 401 }
+     );
+   }
+   ```
+
+Common Issues to Avoid:
+- ❌ Using userId directly in Authorization header
+- ❌ Missing token validation checks
+- ❌ Improper error handling for auth failures
+- ❌ Inconsistent header formatting
+
+Recommended Implementation:
+```typescript
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+
+export async function handler(request: Request) {
+  try {
+    // 1. Get auth data
+    const { userId, getToken } = await auth();
+    
+    // 2. Validate user
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+    
+    // 3. Get and validate token
+    const token = await getToken();
+    if (!token) {
+      return new NextResponse("No valid session", { status: 401 });
+    }
+    
+    // 4. Make authenticated request
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    });
+    
+    // 5. Handle response
+    if (!response.ok) {
+      throw new Error("Authentication failed");
+    }
+    
+    return NextResponse.json(await response.json());
+  } catch (error) {
+    console.error("[AUTH_ERROR]", error);
+    return new NextResponse("Authentication failed", { status: 401 });
+  }
+}
+```

@@ -3,9 +3,19 @@ import { auth } from "@clerk/nextjs/server";
 
 export async function GET(request: Request) {
   try {
-    const { userId } = await auth();
+    const { userId, getToken } = await auth();
+
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return new NextResponse("Unauthorized - No user ID found", {
+        status: 401,
+      });
+    }
+
+    const token = await getToken();
+    if (!token) {
+      return new NextResponse("Unauthorized - No token available", {
+        status: 401,
+      });
     }
 
     // Get query parameters
@@ -29,19 +39,32 @@ export async function GET(request: Request) {
       `${process.env.BACKEND_URL}/api/admin/users?${queryParams.toString()}`,
       {
         headers: {
-          Authorization: `Bearer ${userId}`,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       }
     );
 
     if (!response.ok) {
-      throw new Error("Failed to fetch users");
+      const errorText = await response.text();
+      console.error("[USERS_GET] Backend error:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+      });
+      return new NextResponse(
+        errorText || "Failed to fetch users from backend",
+        { status: response.status }
+      );
     }
 
     const users = await response.json();
     return NextResponse.json(users);
   } catch (error) {
     console.error("[USERS_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Internal server error",
+      { status: 500 }
+    );
   }
 }

@@ -11,6 +11,97 @@ if (!process.env.PLUNK_PUBLIC_API_KEY) {
 
 export const plunk = new Plunk(process.env.PLUNK_PUBLIC_API_KEY);
 
+// Types for agency-related emails
+export interface SendInviteEmailParams {
+  to: string;
+  firstName: string;
+  lastName: string;
+  agencyName: string;
+  inviteLink: string;
+  initialCredits: number;
+}
+
+export interface SendWelcomeEmailParams {
+  to: string;
+  firstName: string;
+  lastName: string;
+  agencyName: string;
+  loginLink: string;
+}
+
+export interface SendCreditUpdateEmailParams {
+  to: string;
+  firstName: string;
+  lastName: string;
+  agencyName: string;
+  creditsAdded: number;
+  totalCredits: number;
+  reason?: string;
+}
+
+// Agency-related email functions
+export const sendAgencyInviteEmail = async ({
+  to,
+  firstName,
+  lastName,
+  agencyName,
+  inviteLink,
+  initialCredits,
+}: SendInviteEmailParams) => {
+  try {
+    await plunk.emails.send({
+      to,
+      subject: "Agency Invitation",
+      body: `Hi ${firstName},\n\nYou've been invited to join ${agencyName} with ${initialCredits} initial credits.\nClick here to join: ${inviteLink}`,
+    });
+  } catch (error) {
+    console.error("[SEND_INVITE_EMAIL]", error);
+    throw new Error("Failed to send invite email");
+  }
+};
+
+export const sendAgencyWelcomeEmail = async ({
+  to,
+  firstName,
+  lastName,
+  agencyName,
+  loginLink,
+}: SendWelcomeEmailParams) => {
+  try {
+    await plunk.emails.send({
+      to,
+      subject: "Welcome to Your Agency Account",
+      body: `Hi ${firstName},\n\nWelcome to ${agencyName}!\nClick here to login: ${loginLink}`,
+    });
+  } catch (error) {
+    console.error("[SEND_WELCOME_EMAIL]", error);
+    throw new Error("Failed to send welcome email");
+  }
+};
+
+export const sendCreditUpdateEmail = async ({
+  to,
+  firstName,
+  lastName,
+  agencyName,
+  creditsAdded,
+  totalCredits,
+  reason,
+}: SendCreditUpdateEmailParams) => {
+  try {
+    await plunk.emails.send({
+      to,
+      subject: "Credit Update Notification",
+      body: `Hi ${firstName},\n\nYour credits have been updated at ${agencyName}.\nCredits added: ${creditsAdded}\nTotal credits: ${totalCredits}\nReason: ${
+        reason || "manual update"
+      }`,
+    });
+  } catch (error) {
+    console.error("[SEND_CREDIT_UPDATE_EMAIL]", error);
+    throw new Error("Failed to send credit update email");
+  }
+};
+
 // Email sending utility functions
 export const sendWelcomeEmail = async (email: string, name: string) => {
   await plunk.emails.send({

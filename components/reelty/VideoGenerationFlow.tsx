@@ -14,10 +14,16 @@ import { toast } from "sonner";
 import AddressInput from "./AddressInput";
 import FileUpload from "./FileUpload";
 import PhotoManager from "./PhotoManager";
+import {
+  SubscriptionTierId,
+  SubscriptionTierInfo,
+  TIER_ORDER,
+  getTierDisplayName,
+} from "@/types";
 
 interface VideoGenerationFlowProps {
   onComplete: () => void;
-  userTier: "free" | "pro" | "enterprise";
+  userTier: SubscriptionTierId;
 }
 
 const STEPS = {
@@ -147,12 +153,12 @@ export default function VideoGenerationFlow({
       // Create video generation job with template name
       console.log("Creating video generation job...", {
         listingId: listing.id,
-        template: template.name.toLowerCase().replace(/\s+/g, "_"),
+        template: template.name.toLowerCase().replace(/\s+/g, ""),
         inputFiles: uploadedFilePaths,
       });
       const job = await createJob.mutateAsync({
         listingId: listing.id,
-        template: template.name.toLowerCase().replace(/\s+/g, "_"),
+        template: template.name.toLowerCase().replace(/\s+/g, ""),
         inputFiles: uploadedFilePaths,
       });
       console.log("Video generation job created:", job);
@@ -228,8 +234,23 @@ export default function VideoGenerationFlow({
                 {templates?.map((template) => {
                   const isAvailable =
                     template.subscriptionTiers?.some(
-                      (tier) => tier.name.toLowerCase() === userTier
+                      (tier) => tier.id === userTier
                     ) ?? false;
+
+                  // Find the minimum required tier for this template
+                  const requiredTier =
+                    template.subscriptionTiers?.reduce<SubscriptionTierInfo | null>(
+                      (min, tier) => {
+                        if (!min)
+                          return tier as unknown as SubscriptionTierInfo;
+                        return TIER_ORDER[tier.id as SubscriptionTierId] <
+                          TIER_ORDER[min.id]
+                          ? (tier as unknown as SubscriptionTierInfo)
+                          : min;
+                      },
+                      null
+                    );
+
                   return (
                     <Card
                       key={template.id}
@@ -253,9 +274,9 @@ export default function VideoGenerationFlow({
                         <div>
                           <div className='flex items-center gap-2'>
                             <h3 className='font-semibold'>{template.name}</h3>
-                            {!isAvailable && (
+                            {!isAvailable && requiredTier && (
                               <span className='text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full'>
-                                Pro Plan
+                                {getTierDisplayName(requiredTier.id)} Plan
                               </span>
                             )}
                           </div>

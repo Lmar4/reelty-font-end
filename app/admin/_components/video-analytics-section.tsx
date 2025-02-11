@@ -26,7 +26,7 @@ export default function VideoAnalyticsSection({
   const { data: analytics } = useQuery({
     queryKey: ["videoAnalytics"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/stats/videos");
+      const response = await fetch("/api/admin/analytics/videos");
       if (!response.ok) {
         throw new Error("Failed to fetch video analytics");
       }
@@ -41,24 +41,36 @@ export default function VideoAnalyticsSection({
       <h2 className='text-2xl font-bold'>Video Analytics</h2>
 
       {/* Key Metrics */}
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
-            Total Videos Generated
+            Total Videos
           </h3>
-          <p className='text-2xl font-bold'>{analytics.totalVideos}</p>
+          <p className='text-2xl font-bold'>
+            {analytics.processingStats.total}
+          </p>
         </Card>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
-            Average Generation Time
+            Successful
           </h3>
-          <p className='text-2xl font-bold'>{analytics.avgGenerationTime}s</p>
+          <p className='text-2xl font-bold'>
+            {analytics.processingStats.success}
+          </p>
+        </Card>
+        <Card className='p-4'>
+          <h3 className='text-sm font-medium text-muted-foreground'>Failed</h3>
+          <p className='text-2xl font-bold'>
+            {analytics.processingStats.failed}
+          </p>
         </Card>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
-            Success Rate
+            In Progress
           </h3>
-          <p className='text-2xl font-bold'>{analytics.successRate}%</p>
+          <p className='text-2xl font-bold'>
+            {analytics.processingStats.inProgress}
+          </p>
         </Card>
       </div>
 
@@ -67,7 +79,7 @@ export default function VideoAnalyticsSection({
         <h3 className='text-lg font-semibold mb-4'>Daily Video Generation</h3>
         <div className='h-[300px]'>
           <ResponsiveContainer width='100%' height='100%'>
-            <AreaChart data={analytics.dailyVideos}>
+            <AreaChart data={analytics.dailyJobs}>
               <CartesianGrid strokeDasharray='3 3' />
               <XAxis dataKey='date' />
               <YAxis />
@@ -75,47 +87,44 @@ export default function VideoAnalyticsSection({
               <Legend />
               <Area
                 type='monotone'
-                dataKey='count'
+                dataKey='total'
                 stroke='#4ade80'
                 fill='#4ade80'
-                name='Videos'
+                name='Total'
+              />
+              <Area
+                type='monotone'
+                dataKey='success'
+                stroke='#60a5fa'
+                fill='#60a5fa'
+                name='Success'
+              />
+              <Area
+                type='monotone'
+                dataKey='failed'
+                stroke='#f87171'
+                fill='#f87171'
+                name='Failed'
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
-      {/* Generation Time Distribution */}
+      {/* Time Distribution */}
       <Card className='p-6'>
         <h3 className='text-lg font-semibold mb-4'>
-          Generation Time Distribution
+          Video Generation Time Distribution
         </h3>
         <div className='h-[300px]'>
           <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={analytics.generationTimeDistribution}>
+            <BarChart data={analytics.timeDistribution}>
               <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='range' />
+              <XAxis dataKey='hour' tickFormatter={(hour) => `${hour}:00`} />
               <YAxis />
-              <Tooltip />
+              <Tooltip labelFormatter={(hour) => `${hour}:00`} />
               <Legend />
               <Bar dataKey='count' fill='#60a5fa' name='Videos' />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      {/* Error Distribution */}
-      <Card className='p-6'>
-        <h3 className='text-lg font-semibold mb-4'>Error Distribution</h3>
-        <div className='h-[300px]'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={analytics.errorDistribution}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='error' />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey='count' fill='#f87171' name='Errors' />
             </BarChart>
           </ResponsiveContainer>
         </div>

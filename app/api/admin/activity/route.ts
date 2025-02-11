@@ -1,27 +1,51 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
-import { Activity } from "@/types/prisma-types";
+import { currentUser } from "@clerk/nextjs/server";
 
-export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
-  try {
-    const activities = await makeBackendRequest<Activity[]>(
-      "/api/admin/activity",
-      {
-        method: "GET",
-        sessionToken: request.auth.sessionToken,
-      }
-    );
+// Admin tier ID constant
+const ADMIN_TIER_ID = "550e8400-e29b-41d4-a716-446655440003";
 
-    return NextResponse.json(activities);
-  } catch (error) {
-    console.error("[ACTIVITY_GET_ERROR]", error);
-    return new NextResponse(
-      error instanceof Error ? error.message : "Failed to fetch activity",
-      { status: 500 }
-    );
+// Mock data generator for recent activity
+const generateMockActivity = (index: number) => {
+  const types = [
+    "login",
+    "video_generation",
+    "subscription_change",
+    "listing_created",
+  ];
+  const descriptions = [
+    "User logged in",
+    "Generated new property video",
+    "Upgraded to premium plan",
+    "Created new property listing",
+  ];
+
+  return {
+    id: `act_${index}`,
+    type: types[index % types.length],
+    description: descriptions[index % descriptions.length],
+    userId: `user_${Math.floor(Math.random() * 1000)}`,
+    timestamp: new Date(Date.now() - index * 3600000).toISOString(), // Each activity 1 hour apart
+  };
+};
+
+export async function GET() {
+  const user = await currentUser();
+
+  // Check if user is admin
+  if (!user || user.publicMetadata.currentTierId !== ADMIN_TIER_ID) {
+    return new NextResponse("Unauthorized", { status: 401 });
   }
-});
+
+  try {
+    // For now, return mock data
+    // In production, this should be connected to a real activity tracking system
+    const mockData = Array.from({ length: 10 }, (_, i) =>
+      generateMockActivity(i)
+    );
+
+    return NextResponse.json(mockData);
+  } catch (error) {
+    console.error("[RECENT_ACTIVITY]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}

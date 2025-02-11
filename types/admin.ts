@@ -6,7 +6,15 @@ export interface AdminUser {
   name: string;
   subscriptionTier: SubscriptionTierId;
   credits: number;
-  status: "active" | "suspended" | "inactive";
+  status:
+    | "active"
+    | "canceled"
+    | "incomplete"
+    | "incomplete_expired"
+    | "past_due"
+    | "trialing"
+    | "unpaid"
+    | "inactive";
   lastActive: string;
   createdAt: string;
 }

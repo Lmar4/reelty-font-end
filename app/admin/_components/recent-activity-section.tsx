@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -22,7 +21,13 @@ interface Activity {
 }
 
 async function getRecentActivity(): Promise<Activity[]> {
-  const response = await fetch("/api/admin/activity");
+  const response = await fetch("/api/admin/activity", {
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  });
+
   if (!response.ok) {
     throw new Error("Failed to fetch recent activity");
   }

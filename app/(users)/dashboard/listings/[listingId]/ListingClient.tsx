@@ -1,19 +1,18 @@
 "use client";
 
 import { useToast } from "@/components/common/Toast";
-import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
 import PricingModal from "@/components/modals/PricingModal";
+import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useListing } from "@/hooks/queries/use-listings";
-import { useTemplates } from "@/hooks/queries/use-templates";
 import { useUser } from "@/hooks/queries/use-user";
-import { useRegenerateJob } from "@/hooks/use-jobs";
 import { Listing, Photo, VideoJob } from "@/types/prisma-types";
 import { getBaseS3Url } from "@/utils/s3-url";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 interface VideoTemplate {
   id: string;
@@ -49,10 +48,145 @@ async function fetchVideoDownloadUrl(jobId: string): Promise<string> {
 
 interface ListingClientProps {
   listingId: string;
-  searchParams: { [key: string]: string | string[] | undefined };
   initialListing: Listing;
   initialJobs: VideoJob[];
+  searchParams: { [key: string]: string | string[] | undefined };
 }
+
+// Add JobStatusMessage component
+const JobStatusMessage = ({ job }: { job?: VideoJob }) => {
+  if (!job) return null;
+
+  // Only show error state if the job is actually in error state and has an error message
+  const isError = job.status === "error" && job.error;
+
+  const statusConfig = {
+    pending: {
+      message: "Your video is queued for generation...",
+      icon: (
+        <svg
+          className='animate-spin -ml-1 mr-3 h-5 w-5'
+          xmlns='http://www.w3.org/2000/svg'
+          fill='none'
+          viewBox='0 0 24 24'
+        >
+          <circle
+            className='opacity-25'
+            cx='12'
+            cy='12'
+            r='10'
+            stroke='currentColor'
+            strokeWidth='4'
+          ></circle>
+          <path
+            className='opacity-75'
+            fill='currentColor'
+            d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+          ></path>
+        </svg>
+      ),
+    },
+    processing: {
+      message: "Generating your video...",
+      icon: (
+        <svg
+          className='animate-spin -ml-1 mr-3 h-5 w-5'
+          xmlns='http://www.w3.org/2000/svg'
+          fill='none'
+          viewBox='0 0 24 24'
+        >
+          <circle
+            className='opacity-25'
+            cx='12'
+            cy='12'
+            r='10'
+            stroke='currentColor'
+            strokeWidth='4'
+          ></circle>
+          <path
+            className='opacity-75'
+            fill='currentColor'
+            d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+          ></path>
+        </svg>
+      ),
+    },
+    completed: {
+      message: "Your video is ready to download!",
+      icon: (
+        <svg
+          className='-ml-1 mr-3 h-5 w-5 text-green-500'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+        >
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            strokeWidth={2}
+            d='M5 13l4 4L19 7'
+          />
+        </svg>
+      ),
+    },
+    error: {
+      message:
+        job.error ||
+        "There was an error generating your video. Please try again.",
+      icon: (
+        <svg
+          className='-ml-1 mr-3 h-5 w-5 text-red-500'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+        >
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            strokeWidth={2}
+            d='M6 18L18 6M6 6l12 12'
+          />
+        </svg>
+      ),
+    },
+  };
+
+  // Only show message if job is not completed or if there's an error
+  if (job.status === "completed" && !isError) return null;
+
+  const config =
+    statusConfig[job.status as keyof typeof statusConfig] ||
+    statusConfig.pending;
+
+  return (
+    <div className='flex items-center justify-center bg-gray-50 rounded-lg p-4 mb-6'>
+      <div className='flex items-center text-gray-700'>
+        {config.icon}
+        <span className='text-[15px]'>
+          {config.message}
+          {job.status === "processing" && job.progress && (
+            <span className='ml-2 text-[13px] text-gray-500'>
+              ({Math.round(job.progress)}%)
+            </span>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Add TemplateSkeleton component
+const TemplateSkeleton = () => (
+  <div className='bg-white rounded-lg overflow-hidden shadow-sm animate-pulse'>
+    <div className='relative aspect-[9/16] bg-gray-200' />
+    <div className='p-3 md:p-4 bg-[#ebebeb]'>
+      <div className='flex items-center justify-between mb-3 md:mb-4'>
+        <div className='h-4 bg-gray-200 rounded w-24' />
+      </div>
+      <div className='h-8 bg-gray-200 rounded' />
+    </div>
+  </div>
+);
 
 export function ListingClient({
   listingId,
@@ -62,32 +196,49 @@ export function ListingClient({
 }: ListingClientProps) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // State
   const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [downloadJobId, setDownloadJobId] = useState<string>("");
-  const [activeJob] = initialJobs;
-  const [processingProgress, setProcessingProgress] = useState<number>(0);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  // Queries
+  // All queries
   const { data: currentUser, isLoading: isCurrentUserLoading } = useUser("me");
+
   const { data: userData, isLoading: isUserLoading } = useUser(
     currentUser?.id || "me"
   );
+
   const { data: listing, isLoading: isListingLoading } = useListing(listingId, {
     initialData: initialListing,
   });
 
-  const { data: videoJobs } = useQuery({
+  // Update job polling query with error handling
+  const { data: videoJobs = initialJobs, isLoading: isJobsLoading } = useQuery({
     queryKey: ["listingJobs", listingId],
     queryFn: () => fetchListingJobs(listingId),
     enabled: !!listingId,
     initialData: initialJobs,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const latestJob = data?.[0];
+      return latestJob?.status === "processing" ||
+        latestJob?.status === "pending"
+        ? 5000
+        : false;
+    },
+    retry: 3,
   });
 
-  // Add templates query
-  const { data: templates = [] } = useQuery<VideoTemplate[]>({
+  // Get the latest active job and check if regenerating
+  const activeJob = videoJobs[0];
+  const isRegenerating =
+    activeJob?.status === "processing" || activeJob?.status === "pending";
+
+  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery<
+    VideoTemplate[]
+  >({
     queryKey: ["videoTemplates"],
     queryFn: async () => {
       const response = await fetch(`/api/video-templates`);
@@ -104,34 +255,36 @@ export function ListingClient({
     enabled: false,
   });
 
-  // Effects
-  useEffect(() => {
-    if (activeJob && activeJob.status === "processing") {
-      const pollInterval = setInterval(async () => {
-        try {
-          const response = await fetch(`/api/jobs/${activeJob.id}`);
-          const updatedJob = await response.json();
+  // Loading state
+  if (isCurrentUserLoading || isUserLoading) {
+    return (
+      <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+        <LoadingState text='Loading user data...' size='lg' />
+      </div>
+    );
+  }
 
-          if (updatedJob.progress) {
-            setProcessingProgress(updatedJob.progress);
-          }
+  // Error state
+  if (!currentUser || !userData) {
+    return (
+      <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+        <div className='text-center'>
+          <p className='text-red-500 mb-4'>Failed to load user data</p>
+          <button
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ["user"] });
+              router.push(`/login?returnTo=/dashboard/listings/${listingId}`);
+            }}
+            className='bg-black text-white px-4 py-2 rounded-lg hover:bg-black/90'
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-          if (updatedJob.status !== "processing") {
-            clearInterval(pollInterval);
-            queryClient.invalidateQueries({
-              queryKey: ["listingJobs", listingId],
-            });
-          }
-        } catch (error) {
-          console.error("Failed to fetch job status:", error);
-        }
-      }, 5000); // Poll every 5 seconds
-
-      return () => clearInterval(pollInterval);
-    }
-  }, [activeJob, listingId, queryClient]);
-
-  // Handlers
+  // Handle download
   const handleDownload = async (jobId: string, templateId: string) => {
     const template = templates.find((t) => t.id === templateId);
     const userTier = userData?.currentTier?.name?.toLowerCase() || "free";
@@ -150,7 +303,7 @@ export function ListingClient({
       if (downloadUrl) {
         window.open(downloadUrl, "_blank");
       }
-    } catch (_error) {
+    } catch {
       showToast("Failed to download video", "error");
     }
   };
@@ -169,6 +322,77 @@ export function ListingClient({
   }
 
   const photos = (listing && listing.photos) || [];
+
+  // Update templates grid to show loading state during regeneration
+  const renderTemplateCard = (template: VideoTemplate) => {
+    const userTier = userData?.currentTier?.name?.toLowerCase() || "free";
+    const isTemplateAvailable = template.subscriptionTiers?.some(
+      (tier) => tier.name.toLowerCase() === userTier
+    );
+
+    return (
+      <div
+        key={template.id}
+        className='bg-white rounded-lg overflow-hidden shadow-sm'
+      >
+        <div className='relative aspect-[9/16] overflow-hidden'>
+          <Image
+            src={
+              template.thumbnailUrl || `/images/templates/${template.id}.jpg`
+            }
+            alt={template.name}
+            fill
+            className='object-cover'
+          />
+          {/* Reelty Watermark */}
+          <div className='absolute bottom-[20%] left-1/2 -translate-x-1/2 flex items-center'>
+            <Image
+              src='/images/logo-cutout.svg'
+              alt='Reelty'
+              width={120}
+              height={40}
+              className='opacity-40 brightness-0 invert'
+            />
+          </div>
+          {(!isTemplateAvailable || isRegenerating) && (
+            <div className='absolute inset-0 bg-black/50 flex items-center justify-center'>
+              {isRegenerating && (
+                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className='p-3 md:p-4 bg-[#ebebeb]'>
+          <div className='flex items-center justify-between mb-3 md:mb-4'>
+            <h3 className='text-[13px] md:text-[15px] font-bold text-[#1c1c1c]'>
+              {template.name}
+            </h3>
+            {!isTemplateAvailable && (
+              <span className='text-[11px] md:text-[13px] font-medium bg-black text-white px-2 py-0.5 rounded'>
+                Pro
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() =>
+              isTemplateAvailable &&
+              handleDownload(activeJob?.id || "", template.id)
+            }
+            className={`w-full rounded-lg py-2 md:py-2.5 text-[13px] md:text-[14px] font-medium transition-colors ${
+              !isTemplateAvailable || isRegenerating || !activeJob?.outputFile
+                ? "bg-[#d1d1d1] text-[#1c1c1c]/40 cursor-not-allowed"
+                : "bg-black text-white hover:bg-black/90"
+            }`}
+            disabled={
+              !isTemplateAvailable || isRegenerating || !activeJob?.outputFile
+            }
+          >
+            {isRegenerating ? "Regenerating..." : "Download HD"}
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
@@ -231,74 +455,21 @@ export function ListingClient({
         </p>
       </div>
 
+      {/* Job Status Message */}
+      <JobStatusMessage job={activeJob} />
+
       {/* Templates Grid */}
       <div className='-mx-2 md:mx-0'>
         <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 px-2 md:px-0'>
-          {templates.map((template) => {
-            const userTier =
-              userData?.currentTier?.name?.toLowerCase() || "free";
-            const isTemplateAvailable = template.subscriptionTiers?.some(
-              (tier) => tier.name.toLowerCase() === userTier
-            );
-
-            return (
-              <div
-                key={template.id}
-                className='bg-white rounded-lg overflow-hidden shadow-sm'
-              >
-                <div className='relative aspect-[9/16] overflow-hidden'>
-                  <Image
-                    src={
-                      template.thumbnailUrl ||
-                      `/images/templates/${template.id}.jpg`
-                    }
-                    alt={template.name}
-                    fill
-                    className='object-cover'
-                  />
-                  {/* Reelty Watermark */}
-                  <div className='absolute bottom-[20%] left-1/2 -translate-x-1/2 flex items-center'>
-                    <Image
-                      src='/images/logo-cutout.svg'
-                      alt='Reelty'
-                      width={120}
-                      height={40}
-                      className='opacity-40 brightness-0 invert'
-                    />
-                  </div>
-                  {!isTemplateAvailable && (
-                    <div className='absolute inset-0 bg-black/50' />
-                  )}
-                </div>
-                <div className='p-3 md:p-4 bg-[#ebebeb]'>
-                  <div className='flex items-center justify-between mb-3 md:mb-4'>
-                    <h3 className='text-[13px] md:text-[15px] font-bold text-[#1c1c1c]'>
-                      {template.name}
-                    </h3>
-                    {!isTemplateAvailable && (
-                      <span className='text-[11px] md:text-[13px] font-medium bg-black text-white px-2 py-0.5 rounded'>
-                        Pro
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() =>
-                      isTemplateAvailable &&
-                      handleDownload(activeJob?.id || "", template.id)
-                    }
-                    className={`w-full rounded-lg py-2 md:py-2.5 text-[13px] md:text-[14px] font-medium transition-colors ${
-                      !isTemplateAvailable
-                        ? "bg-[#d1d1d1] text-[#1c1c1c]/40 cursor-not-allowed"
-                        : "bg-black text-white hover:bg-black/90"
-                    }`}
-                    disabled={!isTemplateAvailable || !activeJob?.outputFile}
-                  >
-                    Download HD
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {isTemplatesLoading ? (
+            <>
+              <TemplateSkeleton />
+              <TemplateSkeleton />
+              <TemplateSkeleton />
+            </>
+          ) : (
+            templates.map(renderTemplateCard)
+          )}
         </div>
       </div>
 

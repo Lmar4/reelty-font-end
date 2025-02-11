@@ -26,12 +26,12 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [creditAdjustment, setCreditAdjustment] = useState("");
-  const [newStatus, setNewStatus] = useState<AdminUser["status"] | "">(
-    user?.status || ""
+  const [newStatus, setNewStatus] = useState<AdminUser["status"]>(
+    user?.status || "inactive"
   );
 
-  const handleStatusChange = (value: string) => {
-    setNewStatus(value as AdminUser["status"] | "");
+  const handleStatusChange = (value: AdminUser["status"]) => {
+    setNewStatus(value);
   };
 
   const handleSave = async () => {
@@ -45,7 +45,10 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
         const response = await fetch(`/api/admin/users/${user.id}/credits`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adjustment: parseInt(creditAdjustment, 10) }),
+          body: JSON.stringify({
+            amount: parseInt(creditAdjustment, 10),
+            reason: "Manual adjustment by admin",
+          }),
         });
 
         if (!response.ok) {
@@ -93,28 +96,35 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
         <div className='grid gap-4 py-4'>
           <div className='grid gap-2'>
             <label className='text-sm font-medium'>Adjust Credits</label>
-            <div className='flex items-center gap-2'>
+            <div className='flex flex-col justify-start items-center gap-2'>
               <Input
                 type='number'
                 value={creditAdjustment}
                 onChange={(e) => setCreditAdjustment(e.target.value)}
                 placeholder='Enter amount (+ or -)'
               />
-              <div className='text-sm text-muted-foreground'>
+              <div className='text-sm text-muted-foreground w-full'>
                 Current: {user.credits}
               </div>
             </div>
           </div>
 
           <div className='grid gap-2'>
-            <label className='text-sm font-medium'>Account Status</label>
-            <Select value={newStatus} onValueChange={handleStatusChange}>
+            <label className='text-sm font-medium'>Status</label>
+            <Select value={user.status} onValueChange={handleStatusChange}>
               <SelectTrigger>
                 <SelectValue placeholder='Select status' />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value='active'>Active</SelectItem>
-                <SelectItem value='suspended'>Suspended</SelectItem>
+                <SelectItem value='canceled'>Canceled</SelectItem>
+                <SelectItem value='incomplete'>Incomplete</SelectItem>
+                <SelectItem value='incomplete_expired'>
+                  Incomplete Expired
+                </SelectItem>
+                <SelectItem value='past_due'>Past Due</SelectItem>
+                <SelectItem value='trialing'>Trialing</SelectItem>
+                <SelectItem value='unpaid'>Unpaid</SelectItem>
                 <SelectItem value='inactive'>Inactive</SelectItem>
               </SelectContent>
             </Select>

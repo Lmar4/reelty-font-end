@@ -25,7 +25,7 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <body className={`${geist.variable} min-h-screen flex flex-col`}>
-        <ClerkProvider>
+        <ClerkProvider afterSignOutUrl='/'>
           <QueryProvider>
             <AuthProvider>
               <Providers>

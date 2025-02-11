@@ -5,29 +5,24 @@ import {
   makeBackendRequest,
 } from "@/utils/withAuth";
 
-export const POST = withAuth(async function POST(
+export const DELETE = withAuth(async function DELETE(
   request: AuthenticatedRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: { agencyId: string; userId: string } }
 ) {
   try {
-    const { status } = await request.json();
-    const { userId } = await params;
+    const { agencyId, userId } = params;
 
     const result = await makeBackendRequest(
-      `/api/admin/users/${userId}/status`,
+      `/api/admin/agencies/${agencyId}/users/${userId}`,
       {
-        method: "POST",
+        method: "DELETE",
         sessionToken: request.auth.sessionToken,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: { status },
       }
     );
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("[STATUS_UPDATE]", error);
+    console.error("[AGENCY_USER_DELETE]", error);
     return new NextResponse(
       error instanceof Error ? error.message : "Internal error",
       { status: 500 }

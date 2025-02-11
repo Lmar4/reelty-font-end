@@ -12,7 +12,7 @@ export const metadata = {
 
 export default function UsersPage() {
   return (
-    <div className='container mx-auto py-6 space-y-6'>
+    <div className='container mx-auto py-6 space-y-6 pt-16'>
       <PageHeader
         heading='User Management'
         subheading='View and manage all registered users'

@@ -34,7 +34,7 @@ export default function RevenueAnalyticsSection({
   const { data: analytics } = useQuery({
     queryKey: ["revenueAnalytics"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/stats/revenue");
+      const response = await fetch("/api/admin/analytics/revenue");
       if (!response.ok) {
         throw new Error("Failed to fetch revenue analytics");
       }
@@ -44,52 +44,69 @@ export default function RevenueAnalyticsSection({
     refetchInterval: 60000, // Refresh every minute
   });
 
+  // Calculate trends from daily revenue
+  const calculateTrend = () => {
+    if (analytics.dailyRevenue.length < 2) return { isUp: true, percentage: 0 };
+
+    const today =
+      analytics.dailyRevenue[analytics.dailyRevenue.length - 1].amount;
+    const yesterday =
+      analytics.dailyRevenue[analytics.dailyRevenue.length - 2].amount;
+
+    const percentageChange =
+      yesterday === 0 ? 100 : ((today - yesterday) / yesterday) * 100;
+
+    return {
+      isUp: percentageChange >= 0,
+      percentage: Math.abs(Math.round(percentageChange)),
+    };
+  };
+
+  const trend = calculateTrend();
+
   return (
     <div className='space-y-6'>
       <h2 className='text-2xl font-bold'>Revenue Analytics</h2>
 
       {/* Key Metrics */}
-      <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
-            Monthly Recurring Revenue
+            Total Revenue
           </h3>
           <div className='flex items-center gap-2'>
             <p className='text-2xl font-bold'>
-              {formatCurrency(analytics.currentMRR)}
+              {formatCurrency(analytics.totalRevenue)}
             </p>
-            {analytics.revenueGrowth > 0 ? (
-              <TrendingUp className='h-4 w-4 text-green-500' />
-            ) : (
-              <TrendingDown className='h-4 w-4 text-red-500' />
-            )}
+            <div
+              className={`flex items-center ${
+                trend.isUp ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {trend.isUp ? (
+                <TrendingUp className='h-4 w-4' />
+              ) : (
+                <TrendingDown className='h-4 w-4' />
+              )}
+              <span className='text-sm ml-1'>{trend.percentage}%</span>
+            </div>
           </div>
         </Card>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
-            Annual Recurring Revenue
+            Active Subscriptions
           </h3>
           <p className='text-2xl font-bold'>
-            {formatCurrency(analytics.currentARR)}
+            {analytics.subscriptionStats.active}
           </p>
         </Card>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
-            Churn Rate
+            Total Subscribers
           </h3>
           <p className='text-2xl font-bold'>
-            {(analytics.churnRate * 100).toFixed(1)}%
+            {analytics.subscriptionStats.total}
           </p>
-        </Card>
-        <Card className='p-4'>
-          <h3 className='text-sm font-medium text-muted-foreground'>
-            Upgrades vs Downgrades
-          </h3>
-          <div className='flex items-center gap-2'>
-            <span className='text-green-500'>+{analytics.upgrades}</span>
-            <span>/</span>
-            <span className='text-red-500'>-{analytics.downgrades}</span>
-          </div>
         </Card>
       </div>
 
@@ -106,7 +123,7 @@ export default function RevenueAnalyticsSection({
               <Legend />
               <Area
                 type='monotone'
-                dataKey='revenue'
+                dataKey='amount'
                 stroke='#4ade80'
                 fill='#4ade80'
                 name='Revenue'
@@ -126,59 +143,32 @@ export default function RevenueAnalyticsSection({
             <BarChart data={analytics.revenueByTier}>
               <CartesianGrid strokeDasharray='3 3' />
               <XAxis dataKey='tier' />
-              <YAxis yAxisId='left' orientation='left' stroke='#4ade80' />
-              <YAxis yAxisId='right' orientation='right' stroke='#60a5fa' />
-              <Tooltip
-                formatter={(value, name) => {
-                  if (name === "revenue")
-                    return formatCurrency(value as number);
-                  return value;
-                }}
-              />
+              <YAxis />
+              <Tooltip formatter={(value) => formatCurrency(value as number)} />
               <Legend />
-              <Bar
-                yAxisId='left'
-                dataKey='revenue'
-                fill='#4ade80'
-                name='Revenue'
-              />
-              <Bar
-                yAxisId='right'
-                dataKey='users'
-                fill='#60a5fa'
-                name='Users'
-              />
+              <Bar dataKey='amount' fill='#4ade80' name='Revenue' />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
-      {/* Subscription Changes */}
+      {/* Daily Revenue */}
       <Card className='p-6'>
-        <h3 className='text-lg font-semibold mb-4'>Subscription Changes</h3>
+        <h3 className='text-lg font-semibold mb-4'>Daily Revenue</h3>
         <div className='h-[300px]'>
           <ResponsiveContainer width='100%' height='100%'>
-            <AreaChart data={analytics.monthlyRevenue}>
+            <AreaChart data={analytics.dailyRevenue}>
               <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='month' />
+              <XAxis dataKey='date' />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(value) => formatCurrency(value as number)} />
               <Legend />
               <Area
                 type='monotone'
-                dataKey='newSubscriptions'
-                stackId='1'
+                dataKey='amount'
                 stroke='#4ade80'
                 fill='#4ade80'
-                name='New Subscriptions'
-              />
-              <Area
-                type='monotone'
-                dataKey='churned'
-                stackId='1'
-                stroke='#f87171'
-                fill='#f87171'
-                name='Churned'
+                name='Revenue'
               />
             </AreaChart>
           </ResponsiveContainer>

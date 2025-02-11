@@ -18,8 +18,8 @@ export function UserFilters() {
   const searchParams = useSearchParams();
 
   const [filters, setFilters] = useState({
-    tier: searchParams.get("tier") || "",
-    status: searchParams.get("status") || "",
+    tier: searchParams.get("tier") || "all",
+    status: searchParams.get("status") || "all",
     minCredits: searchParams.get("minCredits") || "",
     maxCredits: searchParams.get("maxCredits") || "",
     search: searchParams.get("search") || "",
@@ -29,7 +29,7 @@ export function UserFilters() {
     setFilters((prev) => ({ ...prev, [key]: value }));
 
     const params = new URLSearchParams(searchParams);
-    if (value) {
+    if (value && value !== "all") {
       params.set(key, value);
     } else {
       params.delete(key);
@@ -51,7 +51,7 @@ export function UserFilters() {
             <SelectValue placeholder='Subscription Tier' />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value=''>All Tiers</SelectItem>
+            <SelectItem value='all'>All Tiers</SelectItem>
             {Object.entries(SUBSCRIPTION_TIERS).map(([key, tier]) => (
               <SelectItem key={key} value={tier.id}>
                 {tier.name}
@@ -68,7 +68,7 @@ export function UserFilters() {
             <SelectValue placeholder='Account Status' />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value=''>All Statuses</SelectItem>
+            <SelectItem value='all'>All Statuses</SelectItem>
             <SelectItem value='active'>Active</SelectItem>
             <SelectItem value='suspended'>Suspended</SelectItem>
             <SelectItem value='inactive'>Inactive</SelectItem>
@@ -104,8 +104,8 @@ export function UserFilters() {
         variant='outline'
         onClick={() => {
           setFilters({
-            tier: "",
-            status: "",
+            tier: "all",
+            status: "all",
             minCredits: "",
             maxCredits: "",
             search: "",

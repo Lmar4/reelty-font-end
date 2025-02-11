@@ -33,24 +33,45 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { getTierNameById } from "@/constants/subscription-tiers";
+import {
+  getTierNameById,
+  SubscriptionTier,
+} from "@/constants/subscription-tiers";
 import type { AdminUser } from "@/types/admin";
+import Loading from "../loading";
+
+interface UsersResponse {
+  success: boolean;
+  data: AdminUser[];
+}
 
 export function UserList() {
   const searchParams = useSearchParams();
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const { data: users = [], isLoading } = useQuery({
+  const {
+    data: response,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-users", searchParams.toString()],
     queryFn: async () => {
       const response = await fetch(
         `/api/admin/users?${searchParams.toString()}`
       );
-      if (!response.ok) throw new Error("Failed to fetch users");
-      return response.json() as Promise<AdminUser[]>;
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || "Failed to fetch users");
+      }
+      const data = await response.json();
+      console.log("API Response:", data);
+      return data as UsersResponse;
     },
   });
+
+  const users = response?.data ?? [];
+  console.log("Users data:", users);
 
   const columns: ColumnDef<AdminUser>[] = [
     {
@@ -73,6 +94,32 @@ export function UserList() {
     {
       accessorKey: "credits",
       header: "Credits",
+      cell: ({ row }) => {
+        const credits = row.original.credits;
+        return (
+          <div className='flex items-center gap-2'>
+            <span
+              className={`font-medium ${
+                credits > 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {credits}
+            </span>
+            <Badge
+              variant={
+                credits > 10
+                  ? "default"
+                  : credits > 0
+                  ? "secondary"
+                  : "destructive"
+              }
+              className='text-xs'
+            >
+              {credits > 10 ? "Good" : credits > 0 ? "Low" : "Empty"}
+            </Badge>
+          </div>
+        );
+      },
     },
     {
       accessorKey: "status",
@@ -84,12 +131,17 @@ export function UserList() {
             variant={
               status === "active"
                 ? "default"
-                : status === "suspended"
+                : status === "past_due" || status === "unpaid"
                 ? "destructive"
+                : status === "trialing"
+                ? "default"
                 : "secondary"
             }
           >
-            {status}
+            {status === "incomplete_expired"
+              ? "Expired"
+              : status.charAt(0).toUpperCase() +
+                status.slice(1).replace("_", " ")}
           </Badge>
         );
       },
@@ -131,7 +183,26 @@ export function UserList() {
   });
 
   if (isLoading) {
-    return <div>Loading users...</div>;
+    return <Loading />;
+  }
+
+  if (error) {
+    return (
+      <div className='rounded-md bg-destructive/15 p-4'>
+        <div className='flex'>
+          <div className='ml-3'>
+            <h3 className='text-sm font-medium text-destructive'>Error</h3>
+            <div className='mt-2 text-sm text-destructive/80'>
+              <p>
+                {error instanceof Error
+                  ? error.message
+                  : "Failed to load users"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
