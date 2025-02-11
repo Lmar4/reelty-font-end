@@ -19,14 +19,14 @@ export const subscriptionTierSchema = z.object({
 });
 
 export const subscriptionStatusSchema = z.enum([
-  "active",
-  "canceled",
-  "incomplete",
-  "incomplete_expired",
-  "past_due",
-  "trialing",
-  "unpaid",
-  "inactive",
+  "ACTIVE",
+  "CANCELED",
+  "INCOMPLETE",
+  "INCOMPLETE_EXPIRED",
+  "PAST_DUE",
+  "TRIALING",
+  "UNPAID",
+  "INACTIVE",
 ]);
 
 export const tierChangeSchema = z.object({

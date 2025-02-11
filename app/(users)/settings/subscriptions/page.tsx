@@ -116,7 +116,7 @@ export default function SubscriptionsSettings() {
           <p className='text-blue-600'>
             {currentTier?.name || "No active subscription"}
           </p>
-          {userData?.subscriptionStatus === "active" && (
+          {userData?.subscriptionStatus === "ACTIVE" && (
             <>
               <p className='text-sm text-blue-600 mt-2'>
                 Next billing date: {formatNextBillingDate()}

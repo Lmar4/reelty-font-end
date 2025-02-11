@@ -10,7 +10,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: userData, isLoading } = useUserData();
-  const isPaidMember = userData?.subscriptionStatus === "active";
+  const isPaidMember = userData?.subscriptionStatus === "ACTIVE";
 
   return (
     <div className='min-h-screen bg-white'>

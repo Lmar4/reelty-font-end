@@ -11,7 +11,7 @@ export const userSchema = z.object({
   stripeSubscriptionId: z.string().nullable(),
   stripePriceId: z.string().nullable(),
   stripeProductId: z.string().nullable(),
-  subscriptionStatus: subscriptionStatusSchema.nullable().default("inactive"),
+  subscriptionStatus: subscriptionStatusSchema.nullable().default("INACTIVE"),
   subscriptionPeriodEnd: z.date().nullable(),
   currentTierId: z
     .string()
