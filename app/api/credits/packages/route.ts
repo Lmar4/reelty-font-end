@@ -1,34 +1,37 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-export async function GET(request: Request) {
+interface CreditPackage {
+  id: string;
+  name: string;
+  description: string;
+  credits: number;
+  price: number;
+  stripePriceId: string;
+}
+
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Fetch credit packages from backend
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/credits/packages`,
+    const packages = await makeBackendRequest<CreditPackage[]>(
+      "/api/credits/packages",
       {
-        headers: {
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-        },
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch credit packages from backend");
-    }
-
-    const packages = await response.json();
     return NextResponse.json(packages);
   } catch (error) {
-    console.error("Error fetching credit packages:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch credit packages" },
+    console.error("[CREDIT_PACKAGES_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch credit packages",
       { status: 500 }
     );
   }
-}
+});

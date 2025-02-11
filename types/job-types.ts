@@ -1,38 +1,47 @@
+import type { User, Listing } from "./prisma-types";
+
+export type JobStatus = "pending" | "processing" | "completed" | "failed";
+
 export interface VideoJob {
   id: string;
   userId: string;
   listingId: string;
-  status: string;
-  template?: string | null;
-  inputFiles?: any | null;
-  outputFile?: string | null;
-  error?: string | null;
+  status: JobStatus;
+  progress: number;
+  template: string | null;
+  inputFiles: string[] | null;
+  outputFile: string | null;
+  error: string | null;
   createdAt: Date;
   updatedAt: Date;
+
+  // Relations
+  user?: User;
+  listing?: Listing;
 }
 
 export interface CreateVideoJobInput {
   listingId: string;
   template?: string;
-  inputFiles?: any;
+  inputFiles?: string[];
 }
 
 export interface UpdateVideoJobInput {
-  id: string;
-  status?: string;
+  status?: JobStatus;
+  progress?: number;
   template?: string;
-  inputFiles?: any;
+  inputFiles?: string[];
   outputFile?: string;
-  error?: string;
+  error?: string | null;
 }
 
 export interface GetVideoJobsParams {
   userId?: string;
   listingId?: string;
-  status?: string;
+  status?: JobStatus;
 }
 
 export interface RegenerateVideoInput {
-  listingId: string;
   template?: string;
+  inputFiles?: string[];
 }

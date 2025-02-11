@@ -1,34 +1,27 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
+import { CreditLog } from "@/types/prisma-types";
 
-export async function GET(request: Request) {
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Call backend to get credit history
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/credits/history/${userId}`,
+    const data = await makeBackendRequest<CreditLog[]>(
+      `/api/credits/history/${request.auth.userId}`,
       {
-        headers: {
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-        },
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch credit history");
-    }
-
-    const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
     console.error("[CREDIT_HISTORY_ERROR]", error);
-    return NextResponse.json(
-      { error: "Failed to fetch credit history" },
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch credit history",
       { status: 500 }
     );
   }
-}
+});

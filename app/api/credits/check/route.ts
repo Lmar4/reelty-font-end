@@ -1,37 +1,29 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-export async function POST(request: Request) {
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const data = await makeBackendRequest("/api/credits/check", {
+      method: "POST",
+      sessionToken: request.auth.sessionToken,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: { userId: request.auth.userId },
+    });
 
-    // Call backend to check credits
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/credits/check`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-        },
-        body: JSON.stringify({ userId }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to check credits");
-    }
-
-    const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
     console.error("[CREDIT_CHECK_ERROR]", error);
-    return NextResponse.json(
-      { error: "Failed to check credits" },
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to check credits",
       { status: 500 }
     );
   }
-}
+});

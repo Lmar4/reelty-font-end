@@ -1,0 +1,18 @@
+---
+description: Enforces TypeScript type safety, documentation, and best practices
+globs: **/*.ts, **/*.tsx
+---
+This rule helps with:
+@types - Maintains type definitions and interfaces
+@components - Ensures proper component typing
+@api - Type-safe API implementations
+@lib - Utility function type safety
+@hooks - React hook type definitions
+
+Key tasks:
+- Writing type-safe components
+- Creating robust interfaces
+- Documenting types with JSDoc
+- Managing type imports/exports
+- Handling generic types
+- Type-safe API routes

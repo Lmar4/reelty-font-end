@@ -1,39 +1,31 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-export async function GET(
-  request: Request,
+export const GET = withAuth(async function GET(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { listingId } = await params;
 
-    // Fetch video details from backend
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${listingId}/video`,
+    const videoDetails = await makeBackendRequest(
+      `/api/listings/${listingId}/video`,
       {
-        headers: {
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-        },
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch video details from backend");
-    }
-
-    const videoDetails = await response.json();
     return NextResponse.json(videoDetails);
   } catch (error) {
-    console.error("Error fetching video details:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch video details" },
+    console.error("[VIDEO_FETCH_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch video details",
       { status: 500 }
     );
   }
-}
+});

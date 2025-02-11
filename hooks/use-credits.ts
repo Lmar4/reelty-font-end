@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 
 interface CreditCheck {
@@ -25,11 +26,12 @@ interface UseCreditsOptions {
   enabled?: boolean;
 }
 
-async function checkCredits(userId: string): Promise<number> {
+async function checkCredits(userId: string, token: string): Promise<number> {
   const response = await fetch("/api/credits/check", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ userId }),
   });
@@ -46,15 +48,18 @@ async function deductCredits({
   userId,
   amount,
   reason,
+  token,
 }: {
   userId: string;
   amount: number;
   reason?: string;
+  token: string;
 }): Promise<void> {
   const response = await fetch("/api/credits/deduct", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ userId, amount, reason }),
   });
@@ -65,8 +70,15 @@ async function deductCredits({
   }
 }
 
-async function fetchCreditHistory(userId: string): Promise<CreditLog[]> {
-  const response = await fetch(`/api/credits/history/${userId}`);
+async function fetchCreditHistory(
+  userId: string,
+  token: string
+): Promise<CreditLog[]> {
+  const response = await fetch(`/api/credits/history/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
   if (!response.ok) {
     throw new Error("Failed to fetch credit history");
@@ -78,21 +90,37 @@ async function fetchCreditHistory(userId: string): Promise<CreditLog[]> {
 
 export function useCredits(userId: string, options: UseCreditsOptions = {}) {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
 
   const creditsQuery = useQuery({
     queryKey: ["credits", userId],
-    queryFn: () => checkCredits(userId),
+    queryFn: async () => {
+      const token = await getToken();
+      return checkCredits(userId, token!);
+    },
     enabled: !!userId && options.enabled !== false,
   });
 
   const historyQuery = useQuery({
     queryKey: ["creditHistory", userId],
-    queryFn: () => fetchCreditHistory(userId),
+    queryFn: async () => {
+      const token = await getToken();
+      return fetchCreditHistory(userId, token!);
+    },
     enabled: !!userId && options.enabled !== false,
   });
 
   const deductMutation = useMutation({
-    mutationFn: deductCredits,
+    mutationFn: async ({
+      amount,
+      reason,
+    }: {
+      amount: number;
+      reason?: string;
+    }) => {
+      const token = await getToken();
+      return deductCredits({ userId, amount, reason, token: token! });
+    },
     onSuccess: () => {
       // Invalidate credits query to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ["credits", userId] });
@@ -112,8 +140,13 @@ export function useCredits(userId: string, options: UseCreditsOptions = {}) {
 }
 
 export function useCreditCheck() {
+  const { userId, getToken } = useAuth();
+
   return useMutation({
-    mutationFn: checkCredits,
+    mutationFn: async () => {
+      const token = await getToken();
+      return checkCredits(userId!, token!);
+    },
     onError: (error) => {
       console.error("[CREDIT_CHECK_ERROR]", error);
       toast.error("Failed to check credits");
@@ -122,8 +155,19 @@ export function useCreditCheck() {
 }
 
 export function useCreditDeduction() {
+  const { userId, getToken } = useAuth();
+
   return useMutation({
-    mutationFn: deductCredits,
+    mutationFn: async ({
+      amount,
+      reason,
+    }: {
+      amount: number;
+      reason?: string;
+    }) => {
+      const token = await getToken();
+      return deductCredits({ userId: userId!, amount, reason, token: token! });
+    },
     onError: (error) => {
       console.error("[CREDIT_DEDUCTION_ERROR]", error);
       toast.error("Failed to deduct credits");

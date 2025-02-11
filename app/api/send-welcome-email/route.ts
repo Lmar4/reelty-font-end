@@ -1,18 +1,16 @@
-import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { render } from "@react-email/render";
 import WelcomeEmail from "@/emails/WelcomeEmail";
+import { AuthenticatedRequest, withAuth } from "@/utils/withAuth";
+import { currentUser } from "@clerk/nextjs/server";
+import { render } from "@react-email/render";
+import { NextResponse } from "next/server";
 
-export async function POST() {
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const user = await currentUser();
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return new NextResponse("User not found", { status: 404 });
     }
 
     const emailHtml = render(
@@ -38,10 +36,10 @@ export async function POST() {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error sending welcome email:", error);
-    return NextResponse.json(
-      { error: "Error sending welcome email" },
+    console.error("[WELCOME_EMAIL_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to send welcome email",
       { status: 500 }
     );
   }
-}
+});

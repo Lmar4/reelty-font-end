@@ -49,12 +49,6 @@ export function DashboardHeader() {
             </nav>
           </div>
           <div className='flex items-center space-x-4'>
-            <Link
-              href='/dashboard/listings/'
-              className='hidden md:inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary'
-            >
-              Create Listing
-            </Link>
             <ProfileDropdown />
           </div>
         </div>

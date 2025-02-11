@@ -1,13 +1,16 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist } from "next/font/google";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "@/providers/query-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/components/providers/Providers";
 
-const inter = Inter({ subsets: ["latin"] });
+const geist = Geist({
+  variable: "--font-geist",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "Reelty - Real Estate Video Generator",
@@ -21,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang='en'>
-      <body className={inter.className}>
+      <body className={`${geist.variable}`}>
         <ClerkProvider>
           <QueryProvider>
             <AuthProvider>

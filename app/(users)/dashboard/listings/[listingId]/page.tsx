@@ -1,7 +1,7 @@
-import { ListingClient } from "./ListingClient";
+import { Listing, VideoJob } from "@/types/prisma-types";
 import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
-import { Listing, VideoJob } from "@/types/prisma-types";
+import { ListingClient } from "./ListingClient";
 
 // Utility function to handle API responses
 async function handleApiResponse<T>(
@@ -12,6 +12,7 @@ async function handleApiResponse<T>(
     if (response.status === 404) {
       notFound();
     }
+    const errorText = await response.text();
     throw new Error(errorMessage);
   }
   return response.json();
@@ -19,40 +20,75 @@ async function handleApiResponse<T>(
 
 // Utility function to get auth headers
 async function getAuthHeaders() {
-  const { userId } = await auth();
+  const session = await auth();
+  const { userId } = session;
+
   if (!userId) {
     throw new Error("Unauthorized");
   }
+
+  const token = await session.getToken();
+  if (!token) {
+    throw new Error("No valid session token");
+  }
+
   return {
-    Authorization: `Bearer ${userId}`,
+    Authorization: `Bearer ${token}`,
   };
 }
 
 async function getListing(listingId: string): Promise<Listing> {
   const headers = await getAuthHeaders();
-  const response = await fetch(
-    `${process.env.BACKEND_URL}/api/listings/${listingId}`,
-    {
-      headers,
-      next: { revalidate: 60 }, // Cache for 1 minute
-    }
-  );
-  return handleApiResponse<Listing>(response, "Failed to fetch listing");
+  const url = `${process.env.BACKEND_URL}/api/listings/${listingId}`;
+
+  // Add cache options for better performance
+  const options = {
+    headers,
+    next: {
+      revalidate: 60, // Cache for 1 minute
+      tags: [`listing-${listingId}`], // Add cache tag for targeted revalidation
+    },
+  };
+
+  const response = await fetch(url, options);
+
+  const result = await handleApiResponse<{
+    success: boolean;
+    data: Listing & {
+      photos: Array<{
+        id: string;
+        filePath: string;
+        processedFilePath: string | null;
+        order: number;
+      }>;
+    };
+  }>(response, "Failed to fetch listing");
+
+  // Sort photos by order
+  if (result.data.photos) {
+    result.data.photos.sort((a, b) => a.order - b.order);
+  }
+
+  return result.data;
 }
 
 async function getListingJobs(listingId: string): Promise<VideoJob[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(
-    `${process.env.BACKEND_URL}/api/jobs?listingId=${listingId}`,
-    {
-      headers,
-      next: { revalidate: 30 }, // Cache for 30 seconds
-    }
-  );
-  return handleApiResponse<VideoJob[]>(
-    response,
-    "Failed to fetch listing jobs"
-  );
+  const url = `${process.env.BACKEND_URL}/api/jobs?listingId=${listingId}`;
+  const response = await fetch(url, {
+    headers,
+    next: {
+      revalidate: 30, // Cache for 30 seconds
+      tags: [`jobs-${listingId}`], // Add cache tag for targeted revalidation
+    },
+  });
+
+  const result = await handleApiResponse<{
+    success: boolean;
+    data: VideoJob[];
+  }>(response, "Failed to fetch listing jobs");
+
+  return result.data;
 }
 
 export default async function ListingPage({
@@ -66,25 +102,32 @@ export default async function ListingPage({
   const resolvedSearchParams = await searchParams;
 
   try {
+    // Fetch listing and jobs in parallel for better performance
     const [listing, jobs] = await Promise.all([
-      getListing(listingId),
-      getListingJobs(listingId),
+      getListing(listingId).catch((error) => {
+        console.error("Error fetching listing:", error);
+        throw error;
+      }),
+      getListingJobs(listingId).catch((error) => {
+        console.error("Error fetching jobs:", error);
+        throw error;
+      }),
     ]);
 
     return (
-      <ListingClient
-        listingId={listingId}
-        searchParams={resolvedSearchParams}
-        initialListing={listing}
-        initialJobs={jobs}
-      />
+      <div>
+        <ListingClient
+          listingId={listingId}
+          searchParams={resolvedSearchParams}
+          initialListing={listing}
+          initialJobs={jobs}
+        />
+      </div>
     );
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
-      // Handle unauthorized error appropriately
       throw error;
     }
-    // Let Next.js error boundary handle other errors
     throw error;
   }
 }

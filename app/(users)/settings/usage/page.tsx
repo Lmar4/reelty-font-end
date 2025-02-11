@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
 import { format } from "date-fns";
 import { Building, Film, Calendar } from "lucide-react";
+import { VideoJob } from "@/types/user-types";
 
 export default function UsageSettings() {
   const { user } = useUser();
@@ -25,8 +26,9 @@ export default function UsageSettings() {
   const totalListings = listings?.length || 0;
   const totalJobs = jobs?.length || 0;
   const completedJobs =
-    jobs?.filter((job) => job.status === "completed").length || 0;
-  const failedJobs = jobs?.filter((job) => job.status === "failed").length || 0;
+    jobs?.filter((job: VideoJob) => job.status === "completed").length || 0;
+  const failedJobs =
+    jobs?.filter((job: VideoJob) => job.status === "failed").length || 0;
   const daysAsMember = user?.createdAt
     ? Math.floor(
         (new Date().getTime() - new Date(user.createdAt).getTime()) /
@@ -122,7 +124,8 @@ export default function UsageSettings() {
             </div>
             <div>
               <p className='text-2xl font-semibold'>
-                {jobs?.filter((job) => job.status === "processing").length || 0}
+                {jobs?.filter((job: VideoJob) => job.status === "processing")
+                  .length || 0}
               </p>
               <p className='text-sm text-gray-500'>Processing</p>
             </div>

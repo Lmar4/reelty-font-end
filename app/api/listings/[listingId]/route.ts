@@ -1,109 +1,81 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
+import { Listing } from "@/types/prisma-types";
 
-export async function GET(
-  request: Request,
+export const GET = withAuth(async function GET(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
-  const { listingId } = await params;
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { listingId } = await params;
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${listingId}`,
+    const listing = await makeBackendRequest<Listing>(
+      `/api/listings/${listingId}`,
       {
-        headers: {
-          Authorization: `Bearer ${userId}`,
-        },
-        next: { revalidate: 60 }, // Cache for 1 minute
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
 
-    if (!response.ok) {
-      return new NextResponse("Failed to fetch listing", {
-        status: response.status,
-      });
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(listing);
   } catch (error) {
     console.error("[LISTING_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch listing",
+      { status: 500 }
+    );
   }
-}
+});
 
-export async function PATCH(
-  request: Request,
+export const PATCH = withAuth(async function PATCH(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
-  const { listingId } = await params;
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
+    const { listingId } = await params;
     const body = await request.json();
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${listingId}`,
+
+    const listing = await makeBackendRequest<Listing>(
+      `/api/listings/${listingId}`,
       {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userId}`,
-        },
+        sessionToken: request.auth.sessionToken,
         body: JSON.stringify(body),
       }
     );
 
-    if (!response.ok) {
-      return new NextResponse("Failed to update listing", {
-        status: response.status,
-      });
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(listing);
   } catch (error) {
     console.error("[LISTING_PATCH]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to update listing",
+      { status: 500 }
+    );
   }
-}
+});
 
-export async function DELETE(
-  request: Request,
+export const DELETE = withAuth(async function DELETE(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
-  const { listingId } = await params;
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const { listingId } = await params;
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${listingId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${userId}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      return new NextResponse("Failed to delete listing", {
-        status: response.status,
-      });
-    }
+    await makeBackendRequest(`/api/listings/${listingId}`, {
+      method: "DELETE",
+      sessionToken: request.auth.sessionToken,
+    });
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[LISTING_DELETE]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to delete listing",
+      { status: 500 }
+    );
   }
-}
+});

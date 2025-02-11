@@ -1,65 +1,58 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
+import { VideoJob } from "@/types/prisma-types";
 
-export async function GET(request: Request) {
+async function handleGet(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const listingId = searchParams.get("listingId");
     const status = searchParams.get("status");
 
-    const response = await fetch(`${process.env.BACKEND_URL}/api/jobs`, {
-      headers: {
-        Authorization: `Bearer ${userId}`,
-        ...(listingId && { "X-Listing-Id": listingId }),
-        ...(status && { "X-Status": status }),
-      },
+    let endpoint = "/api/jobs";
+    if (listingId) endpoint += `?listingId=${listingId}`;
+    if (status) endpoint += `${listingId ? "&" : "?"}status=${status}`;
+
+    const jobs = await makeBackendRequest<VideoJob[]>(endpoint, {
+      method: "GET",
+      sessionToken: request.auth.sessionToken,
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch jobs");
-    }
-
-    const jobs = await response.json();
     return NextResponse.json(jobs);
   } catch (error) {
     console.error("[JOBS_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch jobs",
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const body = await request.json();
-    const response = await fetch(`${process.env.BACKEND_URL}/api/jobs`, {
+
+    const job = await makeBackendRequest<VideoJob>("/api/jobs", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${userId}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+      sessionToken: request.auth.sessionToken,
+      body: {
         ...body,
-        userId,
-      }),
+        userId: request.auth.userId,
+      },
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to create job");
-    }
-
-    const job = await response.json();
     return NextResponse.json(job);
   } catch (error) {
     console.error("[JOBS_POST]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to create job",
+      { status: 500 }
+    );
   }
 }
+
+export const GET = withAuth(handleGet);
+export const POST = withAuth(handlePost);

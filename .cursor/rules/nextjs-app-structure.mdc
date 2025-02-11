@@ -1,0 +1,24 @@
+---
+description: Enforces Next.js 15 app router structure, server components, and project organization
+globs: app/**/*.tsx, app/**/*.ts
+---
+This rule helps with:
+@app/components - Ensures proper component organization and structure
+@app/routes - Guides route file placement and naming
+@app/api - Enforces API route conventions
+@app/layout - Maintains consistent layout structure
+@app/page - Follows page component patterns
+@lib - Organizes utility functions and shared code
+@hooks - Structures custom React hooks properly
+@types - Maintains TypeScript type definitions
+middleware.ts - project middleware
+
+Key tasks:
+- Creating new pages and routes
+- Implementing server components
+- Managing API endpoints
+- Organizing shared components
+- Handling data fetching
+- Implementing layouts
+- Setting up middleware
+- Managing app-wide state

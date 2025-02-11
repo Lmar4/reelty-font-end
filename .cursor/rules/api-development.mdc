@@ -1,0 +1,17 @@
+---
+description: Enforces API route patterns and best practices
+globs: app/api/**/*.ts
+---
+This rule helps with:
+@api/routes - Route implementations
+@api/handlers - Request handlers
+@api/validation - Request validation
+@lib/api - API utilities
+
+Key tasks:
+- Creating API endpoints
+- Error handling
+- Request validation
+- Response formatting
+- Authentication
+- Performance optimization

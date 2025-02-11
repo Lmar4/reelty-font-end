@@ -1,27 +1,27 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
+import { User } from "@/types/prisma-types";
 
-export async function GET() {
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const user = await makeBackendRequest<User>(
+      `/api/users/${request.auth.userId}`,
+      {
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
+      }
+    );
 
-    const response = await fetch(`${process.env.BACKEND_URL}/api/users/me`, {
-      headers: {
-        Authorization: `Bearer ${userId}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch user data");
-    }
-
-    const userData = await response.json();
-    return NextResponse.json(userData);
+    return NextResponse.json(user);
   } catch (error) {
-    console.error("[USER_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[USER_ME_GET]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch user data",
+      { status: 500 }
+    );
   }
-}
+});

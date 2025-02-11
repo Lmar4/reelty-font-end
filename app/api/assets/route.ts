@@ -1,49 +1,40 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
+import { Asset } from "@/types/prisma-types";
 
-export async function GET(request: Request) {
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
     const tier = searchParams.get("tier");
 
     if (!type || !tier) {
-      return NextResponse.json(
-        { error: "Asset type and subscription tier are required" },
-        { status: 400 }
-      );
+      return new NextResponse("Asset type and subscription tier are required", {
+        status: 400,
+      });
     }
 
-    // Fetch assets from backend
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/assets?type=${type}&tier=${tier}`,
+    const assets = await makeBackendRequest<Asset[]>(
+      `/api/assets?type=${type}&tier=${tier}`,
       {
-        headers: {
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-        },
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch assets from backend");
-    }
-
-    const assets = await response.json();
-
     // Only return active assets
-    const activeAssets = assets.filter((asset: any) => asset.isActive);
+    const activeAssets = assets.filter((asset) => asset.isActive);
 
     return NextResponse.json(activeAssets);
   } catch (error) {
-    console.error("Error fetching assets:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch assets" },
+    console.error("[ASSETS_GET]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch assets",
       { status: 500 }
     );
   }
-}
+});

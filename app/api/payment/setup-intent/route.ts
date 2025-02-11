@@ -1,24 +1,18 @@
+import { AuthenticatedRequest, withAuth } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export async function POST(request: Request) {
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { customerId } = await request.json();
     if (!customerId) {
-      return NextResponse.json(
-        { error: "Customer ID is required" },
-        { status: 400 }
-      );
+      return new NextResponse("Customer ID is required", { status: 400 });
     }
 
     const setupIntent = await stripe.setupIntents.create({
@@ -27,15 +21,13 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      data: {
-        clientSecret: setupIntent.client_secret,
-      },
+      clientSecret: setupIntent.client_secret,
     });
   } catch (error) {
-    console.error("Error creating setup intent:", error);
-    return NextResponse.json(
-      { error: "Failed to create setup intent" },
+    console.error("[SETUP_INTENT_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to create setup intent",
       { status: 500 }
     );
   }
-}
+});

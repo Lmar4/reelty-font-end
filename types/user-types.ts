@@ -1,24 +1,58 @@
-export interface User {
-  id: string; // Clerk ID
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  stripeCustomerId: string | null;
-  stripeSubscriptionId: string | null;
-  stripePriceId: string | null;
-  stripeProductId: string | null;
-  subscriptionStatus: string | null;
-  subscriptionPeriodEnd: Date | null;
-  currentTierId: string | null;
-  lastLoginAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
+import type { User as PrismaUser } from "./prisma-types";
+
+export type SubscriptionStatus =
+  | "active"
+  | "inactive"
+  | "past_due"
+  | "canceled"
+  | "trialing";
+
+export interface User extends Omit<PrismaUser, "subscriptionStatus"> {
+  subscriptionStatus: SubscriptionStatus | null;
 }
 
 export interface UpdateUserInput {
   firstName?: string;
   lastName?: string;
   email?: string;
+}
+
+export interface UserSubscriptionInfo {
+  status: SubscriptionStatus;
+  priceId: string | null;
+  productId: string | null;
+  periodEnd: Date | null;
+}
+
+export interface UserCreditInfo {
+  total: number;
+  used: number;
+  remaining: number;
+  history: {
+    amount: number;
+    reason: string;
+    date: Date;
+  }[];
+}
+
+export interface UserActivityLog {
+  type:
+    | "listing_created"
+    | "video_generated"
+    | "subscription_changed"
+    | "credit_added"
+    | "credit_used";
+  description: string;
+  metadata: Record<string, any>;
+  timestamp: Date;
+}
+
+export interface UserStats {
+  totalListings: number;
+  totalVideos: number;
+  activeVideos: number;
+  creditsUsed: number;
+  daysActive: number;
 }
 
 export interface VideoJob {
@@ -54,4 +88,5 @@ export interface GetVideoJobsParams {
 export interface RegenerateVideoInput {
   template?: string;
   inputFiles?: string[];
+  isRegeneration?: boolean;
 }

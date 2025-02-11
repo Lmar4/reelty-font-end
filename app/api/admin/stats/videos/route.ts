@@ -1,31 +1,25 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-export async function GET() {
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const data = await makeBackendRequest("/api/admin/analytics/videos", {
+      method: "GET",
+      sessionToken: request.auth.sessionToken,
+    });
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/admin/analytics/videos`,
-      {
-        headers: {
-          Authorization: `Bearer ${userId}`,
-        },
-        next: { revalidate: 300 }, // Cache for 5 minutes
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch video analytics");
-    }
-
-    const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[VIDEO_ANALYTICS]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[VIDEO_ANALYTICS_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch video analytics",
+      { status: 500 }
+    );
   }
-}
+});

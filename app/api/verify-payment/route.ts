@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 import Stripe from "stripe";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@clerk/nextjs/server";
 import { render } from "@react-email/render";
 import SubscriptionEmail from "@/emails/SubscriptionEmail";
 import { plans, type Plan } from "@/components/onboarding/PlanSelection";
@@ -9,29 +14,23 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export async function POST(request: Request) {
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { sessionId } = await request.json();
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status !== "paid") {
-      return NextResponse.json(
-        { error: "Payment not completed" },
-        { status: 400 }
-      );
+      return new NextResponse("Payment not completed", { status: 400 });
     }
 
     // Update user's subscription status in your database
-    await fetch(`${process.env.BACKEND_URL}/api/users/${userId}/subscription`, {
+    await makeBackendRequest(`/api/users/${request.auth.userId}/subscription`, {
       method: "POST",
+      sessionToken: request.auth.sessionToken,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
       },
       body: JSON.stringify({
         planId: session.metadata?.planId,
@@ -43,12 +42,12 @@ export async function POST(request: Request) {
     // Send subscription confirmation email
     const user = await currentUser();
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return new NextResponse("User not found", { status: 404 });
     }
 
     const plan = plans.find((p: Plan) => p.id === session.metadata?.planId);
     if (!plan) {
-      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+      return new NextResponse("Plan not found", { status: 404 });
     }
 
     const emailHtml = render(
@@ -76,10 +75,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error verifying payment:", error);
-    return NextResponse.json(
-      { error: "Error verifying payment" },
+    console.error("[PAYMENT_VERIFICATION_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to verify payment",
       { status: 500 }
     );
   }
-}
+});

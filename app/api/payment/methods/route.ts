@@ -1,56 +1,44 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import Stripe from "stripe";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-01-27.acacia",
-});
+interface PaymentMethod {
+  id: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  isDefault: boolean;
+}
 
-export async function GET(request: Request) {
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get("customerId");
 
     if (!customerId) {
-      return NextResponse.json(
-        { error: "Customer ID is required" },
-        { status: 400 }
-      );
+      return new NextResponse("Customer ID is required", { status: 400 });
     }
 
-    const paymentMethods = await stripe.paymentMethods.list({
-      customer: customerId,
-      type: "card",
-    });
+    const paymentMethods = await makeBackendRequest<PaymentMethod[]>(
+      `/api/payment/methods?customerId=${customerId}`,
+      {
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
+      }
+    );
 
-    const customer = await stripe.customers.retrieve(customerId);
-    const defaultPaymentMethodId =
-      customer.deleted !== true
-        ? (customer as Stripe.Customer).invoice_settings?.default_payment_method
-        : null;
-
-    const formattedPaymentMethods = paymentMethods.data.map((method) => ({
-      id: method.id,
-      brand: method.card?.brand || "unknown",
-      last4: method.card?.last4 || "****",
-      expMonth: method.card?.exp_month || 0,
-      expYear: method.card?.exp_year || 0,
-      isDefault: method.id === defaultPaymentMethodId,
-    }));
-
-    return NextResponse.json({
-      data: formattedPaymentMethods,
-    });
+    return NextResponse.json({ data: paymentMethods });
   } catch (error) {
-    console.error("Error fetching payment methods:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch payment methods" },
+    console.error("[PAYMENT_METHODS_GET]", error);
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch payment methods",
       { status: 500 }
     );
   }
-}
+});

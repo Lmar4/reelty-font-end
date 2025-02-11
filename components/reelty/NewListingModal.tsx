@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import Image from "next/image";
-import { Loader } from "@googlemaps/js-api-loader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCreateListing, useUploadPhoto } from "@/hooks/queries/use-listings";
+import { useCreateJob } from "@/hooks/use-jobs";
+import { useAuth } from "@clerk/nextjs";
+import { Loader } from "@googlemaps/js-api-loader";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import usePlacesAutocomplete, {
   getGeocode,
   getLatLng,
 } from "use-places-autocomplete";
-import { toast } from "sonner";
-import { useAuth } from "@clerk/nextjs";
-import { useCreateJob } from "@/hooks/use-jobs";
-import { useCreateListing, useUploadPhoto } from "@/hooks/queries/use-listings";
-import { useRouter } from "next/navigation";
+import PhotoManager from "./PhotoManager";
 
 // Initialize Google Maps loader
 const loader = new Loader({
@@ -78,6 +78,7 @@ export default function NewListingModal({
   const [status, setStatus] = useState("");
   const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [inputValue, setInputValue] = useState("");
 
   // Load Google Maps
   useEffect(() => {
@@ -92,15 +93,14 @@ export default function NewListingModal({
 
   const {
     ready,
-    value,
     suggestions: { status: autocompleteStatus, data },
-    setValue,
+    setValue: setPlacesValue,
     clearSuggestions,
   } = usePlacesAutocomplete({
     debounce: 300,
     cache: 24 * 60 * 60,
     requestOptions: {},
-    initOnMount: isLoaded, // Only initialize when Google Maps is loaded
+    initOnMount: isLoaded,
   });
 
   // Handle initial files
@@ -157,8 +157,15 @@ export default function NewListingModal({
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+    setPlacesValue(value);
+  };
+
   const handleSelect = async (description: string) => {
-    setValue(description, false);
+    setInputValue(description);
+    setPlacesValue(description, false);
     clearSuggestions();
     setAddress(description);
 
@@ -172,59 +179,56 @@ export default function NewListingModal({
     }
   };
 
-  const handleSubmit = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  // Handle photo reordering
+  const handlePhotoReorder = (reorderedPhotos: File[]) => {
+    setUploadedPhotos(reorderedPhotos);
+    // Update selected photos to maintain the same selections in new order
+    const newSelectedPhotos = new Set<string>();
+    reorderedPhotos.forEach((_, index) => {
+      if (selectedPhotos.has(String(index))) {
+        newSelectedPhotos.add(String(index));
+      }
+    });
+    setSelectedPhotos(newSelectedPhotos);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!address || !coordinates) {
-      toast.error("Please enter a valid address");
-      return;
-    }
-
-    if (selectedPhotos.size === 0) {
-      toast.error("Please select at least one photo");
-      return;
-    }
-
-    // If user is not logged in, store data and redirect to login
-    if (!userId) {
-      // Store the current state in localStorage
-      const selectedPhotoFiles = Array.from(selectedPhotos).map(
-        (index) => uploadedPhotos[parseInt(index)]
-      );
-
-      const tempListingData = {
-        address,
-        coordinates,
-        selectedPhotos: Array.from(selectedPhotos),
-        timestamp: Date.now(), // Add timestamp for cleanup purposes
-      };
-
-      localStorage.setItem("tempListingData", JSON.stringify(tempListingData));
-
-      // Redirect to login
-      router.push("/login");
-      return;
-    }
-
-    setIsSubmitting(true);
-    setProgress(0);
-    setStatus("Creating listing...");
-
     try {
+      if (!userId) {
+        toast.error("Please sign in to create a listing");
+        return;
+      }
+
+      setIsSubmitting(true);
+      setProgress(0);
+      setStatus("Creating listing...");
+
+      if (!address || !coordinates) {
+        toast.error("Please enter a valid address");
+        return;
+      }
+
+      if (selectedPhotos.size === 0) {
+        toast.error("Please select at least one photo");
+        return;
+      }
+
       // Create listing first
       const listing = await createListing.mutateAsync({
-        userId,
+        userId: userId as string,
         address,
         coordinates,
-        photoLimit: 10,
+        photoLimit: selectedPhotos.size,
       });
 
       if (!listing?.id) {
         throw new Error("Failed to create listing - no listing ID returned");
       }
 
-      setProgress(20);
-      setStatus("Preparing photos for upload...");
+      setProgress(30);
+      setStatus("Uploading photos...");
 
       // Filter only selected photos
       const selectedPhotoFiles = Array.from(selectedPhotos).map(
@@ -245,10 +249,6 @@ export default function NewListingModal({
           });
           return result.filePath;
         } catch (error) {
-          console.error(
-            `Upload attempt failed (${retries} retries left):`,
-            error
-          );
           if (retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             return uploadWithRetry(file, order, retries - 1);
@@ -267,7 +267,7 @@ export default function NewListingModal({
           setStatus(`Uploading photo ${i + 1} of ${totalPhotos}...`);
           const filePath = await uploadWithRetry(file, i);
           uploadedPaths.push(filePath);
-          setProgress(20 + Math.floor(((i + 1) / totalPhotos) * 40));
+          setProgress(30 + Math.floor(((i + 1) / totalPhotos) * 40));
         } catch (error) {
           console.error(`Failed to upload photo ${i + 1}:`, error);
           toast.error(`Failed to upload photo ${i + 1}. Please try again.`);
@@ -278,11 +278,11 @@ export default function NewListingModal({
       setProgress(60);
       setStatus("Creating video...");
 
-      // Create video generation job
+      // Create video generation job with default template
       await createJob.mutateAsync({
         listingId: listing.id,
-        template: "basic",
         inputFiles: uploadedPaths,
+        template: "default",
       });
 
       setProgress(100);
@@ -291,19 +291,14 @@ export default function NewListingModal({
       toast.success("Listing created successfully!");
       onClose();
 
-      // Clear any stored temp data
-      localStorage.removeItem("tempListingData");
-
       // Redirect after a brief delay
       setTimeout(() => {
         router.push(`/dashboard/listings/${listing.id}`);
       }, 1000);
     } catch (error) {
-      console.error("[LISTING_CREATION_ERROR]", error);
+      console.error("[SUBMISSION_ERROR]", error);
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create listing. Please try again."
+        error instanceof Error ? error.message : "Failed to create listing"
       );
     } finally {
       setIsSubmitting(false);
@@ -311,101 +306,6 @@ export default function NewListingModal({
       setStatus("");
     }
   };
-
-  // Add effect to restore data after login
-  useEffect(() => {
-    if (userId) {
-      const tempData = localStorage.getItem("tempListingData");
-      if (tempData) {
-        try {
-          const {
-            address: savedAddress,
-            coordinates: savedCoordinates,
-            selectedPhotos: savedPhotos,
-          } = JSON.parse(tempData);
-
-          // Restore the saved data
-          setAddress(savedAddress);
-          setCoordinates(savedCoordinates);
-          setSelectedPhotos(new Set(savedPhotos));
-
-          // Don't remove the data yet - wait until successful creation
-        } catch (error) {
-          console.error("Error restoring temp listing data:", error);
-          localStorage.removeItem("tempListingData");
-        }
-      }
-    }
-  }, [userId]);
-
-  // Memoize the grid to prevent unnecessary re-renders
-  const photoGrid = useMemo(() => {
-    return uploadedPhotos
-      .map((photo, index) => {
-        const isSelected = selectedPhotos.has(String(index));
-        if (!compressedUrls[index]) return null; // Skip if compressed URL not ready
-
-        return (
-          <button
-            key={compressedUrls[index].id}
-            className='relative aspect-[4/3] rounded-lg overflow-hidden cursor-pointer group bg-gray-100 focus:outline-none'
-            onClick={() => handlePhotoSelect(index)}
-            type='button'
-          >
-            <div className='absolute inset-0'>
-              <Image
-                src={compressedUrls[index].url}
-                alt={`Photo ${index + 1}`}
-                fill
-                sizes='(max-width: 640px) 120px, (max-width: 1024px) 160px, 200px'
-                className='object-cover'
-                priority={index < 4}
-                loading={index >= 4 ? "lazy" : undefined}
-                quality={30}
-              />
-              {/* Dark overlay for unselected images */}
-              <div
-                className={`absolute inset-0 transition-opacity duration-200 ${
-                  isSelected ? "opacity-0" : "bg-black/40"
-                }`}
-              />
-            </div>
-            {isSelected && (
-              <div className='absolute inset-0 flex items-center justify-center'>
-                <div className='w-7 h-7 bg-white/90 backdrop-blur-xl rounded-full flex items-center justify-center'>
-                  <svg
-                    width='16'
-                    height='16'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='black'
-                    strokeWidth='3.5'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                  >
-                    <polyline points='20 6 9 17 4 12' />
-                  </svg>
-                </div>
-              </div>
-            )}
-          </button>
-        );
-      })
-      .filter(Boolean);
-  }, [uploadedPhotos, selectedPhotos, compressedUrls]);
-
-  const handlePhotoSelect = useCallback((index: number) => {
-    const indexStr = String(index);
-    setSelectedPhotos((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(indexStr)) {
-        newSet.delete(indexStr);
-      } else if (newSet.size < 10) {
-        newSet.add(indexStr);
-      }
-      return newSet;
-    });
-  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -459,8 +359,8 @@ export default function NewListingModal({
             <div className='relative'>
               <Input
                 id='address'
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
+                value={inputValue}
+                onChange={handleInputChange}
                 disabled={!ready || !isLoaded}
                 placeholder='Enter listing address'
                 className='w-full'
@@ -502,40 +402,45 @@ export default function NewListingModal({
               </div>
             </div>
 
-            <div className='grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3'>
-              {photoGrid}
-              {uploadedPhotos.length < 60 && (
-                <label className='relative aspect-[4/3] rounded-lg overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-gray-400 transition-colors'>
-                  <div className='flex flex-col items-center gap-2'>
-                    <svg
-                      width='24'
-                      height='24'
-                      viewBox='0 0 24 24'
-                      fill='none'
-                      stroke='#666'
-                      strokeWidth='2'
-                    >
-                      <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' />
-                      <polyline points='17 8 12 3 7 8' />
-                      <line x1='12' y1='3' x2='12' y2='15' />
-                    </svg>
-                    <span className='text-[15px] text-gray-600'>
-                      Upload More
-                    </span>
-                  </div>
-                  <input
-                    type='file'
-                    multiple
-                    accept='image/*'
-                    className='hidden'
-                    onChange={handleAdditionalFiles}
-                    onClick={(e) => {
-                      (e.target as HTMLInputElement).value = "";
-                    }}
-                  />
-                </label>
-              )}
-            </div>
+            {uploadedPhotos.length > 0 && (
+              <PhotoManager
+                photos={uploadedPhotos}
+                onPhotosReorder={handlePhotoReorder}
+                onAddPhotos={handleAdditionalFiles}
+                maxPhotos={60}
+              />
+            )}
+            {uploadedPhotos.length === 0 && (
+              <label className='relative w-full aspect-[4/3] rounded-lg overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-gray-400 transition-colors'>
+                <div className='flex flex-col items-center gap-2'>
+                  <svg
+                    width='20'
+                    height='20'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='#666'
+                    strokeWidth='2'
+                  >
+                    <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' />
+                    <polyline points='17 8 12 3 7 8' />
+                    <line x1='12' y1='3' x2='12' y2='15' />
+                  </svg>
+                  <span className='text-[13px] text-gray-600'>
+                    Upload Photos
+                  </span>
+                </div>
+                <input
+                  type='file'
+                  multiple
+                  accept='image/*'
+                  className='hidden'
+                  onChange={handleAdditionalFiles}
+                  onClick={(e) => {
+                    (e.target as HTMLInputElement).value = "";
+                  }}
+                />
+              </label>
+            )}
           </div>
         </div>
 

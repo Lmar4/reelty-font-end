@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { AuthenticatedRequest, withAuth } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -6,18 +6,15 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export async function POST(request: Request) {
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId: authUserId } = await auth();
-    if (!authUserId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const body = await request.json();
     const { userId, stripeSubscriptionId, reason, feedback } = body;
 
     // Users can only cancel their own subscription
-    if (authUserId !== userId) {
+    if (request.auth.userId !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -33,10 +30,10 @@ export async function POST(request: Request) {
     // The webhook will handle updating the user's subscription status in our database
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[SUBSCRIPTION_CANCEL]", error);
+    console.error("[SUBSCRIPTION_CANCEL_ERROR]", error);
     return new NextResponse(
-      error instanceof Error ? error.message : "Internal error",
+      error instanceof Error ? error.message : "Failed to cancel subscription",
       { status: 500 }
     );
   }
-}
+});

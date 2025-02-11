@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-export async function POST(
-  request: Request,
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: adminId } = await auth();
-    if (!adminId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { adjustment } = await request.json();
     if (typeof adjustment !== "number") {
       return new NextResponse("Invalid credit adjustment", { status: 400 });
@@ -18,25 +17,24 @@ export async function POST(
 
     const { userId } = await params;
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/admin/users/${userId}/credits`,
+    const result = await makeBackendRequest(
+      `/api/admin/users/${userId}/credits`,
       {
         method: "POST",
+        sessionToken: request.auth.sessionToken,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${adminId}`,
         },
-        body: JSON.stringify({ adjustment }),
+        body: { adjustment },
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to adjust credits");
-    }
-
-    return NextResponse.json(await response.json());
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("[CREDITS_ADJUST]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[CREDITS_ADJUST_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to adjust credits",
+      { status: 500 }
+    );
   }
-}
+});

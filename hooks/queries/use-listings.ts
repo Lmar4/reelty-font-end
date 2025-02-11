@@ -2,19 +2,31 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listing } from "@/types/prisma-types";
 import { toast } from "sonner";
+import { useAuth } from "@clerk/nextjs";
 
 const LISTINGS_QUERY_KEY = "listings";
 
-async function fetchListings(userId: string): Promise<Listing[]> {
-  const response = await fetch(`/api/listings?userId=${userId}`);
+async function fetchListings(
+  userId: string,
+  token: string
+): Promise<Listing[]> {
+  const response = await fetch(`/api/listings?userId=${userId}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch listings");
   }
   return response.json();
 }
 
-async function fetchListingById(id: string): Promise<Listing> {
-  const response = await fetch(`/api/listings/${id}`);
+async function fetchListingById(id: string, token: string): Promise<Listing> {
+  const response = await fetch(`/api/listings/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch listing");
   }
@@ -28,10 +40,16 @@ interface CreateListingInput {
   photoLimit: number;
 }
 
-async function createListing(input: CreateListingInput): Promise<Listing> {
+async function createListing(
+  input: CreateListingInput,
+  token: string
+): Promise<Listing> {
   const response = await fetch("/api/listings", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
       ...input,
       coordinates: input.coordinates
@@ -50,53 +68,44 @@ async function createListing(input: CreateListingInput): Promise<Listing> {
     );
   }
 
-  const data = await response.json();
-  if (!data.id) {
+  const json = await response.json();
+  const listing = json.data ?? json;
+
+  if (!listing.id) {
     throw new Error("Invalid response: missing listing ID");
   }
 
-  return data;
+  return listing;
 }
 
 interface UploadPhotoInput {
   file: File;
   listingId: string;
-  order: number;
-}
-
-async function uploadPhoto(
-  input: UploadPhotoInput
-): Promise<{ filePath: string }> {
-  if (!input.listingId) {
-    throw new Error("Listing ID is required");
-  }
-
-  const formData = new FormData();
-  formData.append("file", input.file);
-  formData.append("order", input.order.toString());
-
-  const response = await fetch(`/api/listings/${input.listingId}/photos`, {
-    method: "POST",
-    body: formData,
-  });
-  if (!response.ok) {
-    throw new Error("Failed to upload photo");
-  }
-  return response.json();
+  order?: number;
 }
 
 export function useListings(userId: string) {
+  const { getToken } = useAuth();
+
   return useQuery({
     queryKey: [LISTINGS_QUERY_KEY, userId],
-    queryFn: () => fetchListings(userId),
+    queryFn: async () => {
+      const token = await getToken();
+      return fetchListings(userId, token || "");
+    },
     enabled: !!userId,
   });
 }
 
 export function useListing(id: string, options?: { initialData?: Listing }) {
+  const { getToken } = useAuth();
+
   return useQuery({
     queryKey: [LISTINGS_QUERY_KEY, id],
-    queryFn: () => fetchListingById(id),
+    queryFn: async () => {
+      const token = await getToken();
+      return fetchListingById(id, token || "");
+    },
     enabled: !!id,
     initialData: options?.initialData,
   });
@@ -104,10 +113,14 @@ export function useListing(id: string, options?: { initialData?: Listing }) {
 
 export function useCreateListing() {
   const queryClient = useQueryClient();
+  const { getToken } = useAuth();
 
   return useMutation({
-    mutationFn: createListing,
-    onSuccess: (data, variables) => {
+    mutationFn: async (input: CreateListingInput) => {
+      const token = await getToken();
+      return createListing(input, token || "");
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
       toast.success("Listing created successfully!");
       return data;
@@ -120,8 +133,39 @@ export function useCreateListing() {
 }
 
 export function useUploadPhoto() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
   return useMutation({
-    mutationFn: uploadPhoto,
+    mutationFn: async ({ listingId, file, order }: UploadPhotoInput) => {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append("file", file);
+      if (order !== undefined) {
+        formData.append("order", String(order));
+      }
+
+      const response = await fetch(`/api/listings/${listingId}/photos`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ error: response.statusText }));
+        throw new Error(error.error || "Failed to upload photo");
+      }
+
+      const data = await response.json();
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
+    },
     onError: (error) => {
       console.error("[UPLOAD_PHOTO_ERROR]", error);
       toast.error(

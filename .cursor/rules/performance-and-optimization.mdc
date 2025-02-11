@@ -1,0 +1,18 @@
+---
+description: Ensures application performance and optimization
+globs: app/**/*.ts, app/**/*.tsx
+---
+
+This rule helps with:
+@components - Component optimization
+@lib/utils - Performance utilities
+@hooks - Custom hooks
+@public - Asset optimization
+@api - API performance
+
+Key tasks:
+- Code splitting
+- Bundle optimization
+- Image optimization
+- Cache strategies
+- Performance monitoring

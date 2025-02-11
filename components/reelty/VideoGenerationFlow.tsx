@@ -1,18 +1,18 @@
-import { useState } from "react";
-import { useAuth } from "@clerk/nextjs";
-import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Upload, Video, Settings, Check, MapPin } from "lucide-react";
-import { useCreateJob } from "@/hooks/use-jobs";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { LoadingState } from "@/components/ui/loading-state";
+import { Progress } from "@/components/ui/progress";
 import { useCreateListing, useUploadPhoto } from "@/hooks/queries/use-listings";
 import { useTemplates } from "@/hooks/queries/use-templates";
-import FileUpload from "./FileUpload";
+import { useCreateJob } from "@/hooks/use-jobs";
+import { useAuth } from "@clerk/nextjs";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, Loader2, MapPin, Video } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import AddressInput from "./AddressInput";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Card } from "@/components/ui/card";
-import { LoadingState } from "@/components/ui/loading-state";
+import FileUpload from "./FileUpload";
 import PhotoManager from "./PhotoManager";
 
 interface VideoGenerationFlowProps {
@@ -82,6 +82,14 @@ export default function VideoGenerationFlow({
   };
 
   const handleStartProcessing = async () => {
+    console.log("Starting video generation flow...", {
+      userId,
+      selectedTemplate,
+      photosCount: selectedPhotos.length,
+      address,
+      coordinates,
+    });
+
     if (
       !userId ||
       !selectedTemplate ||
@@ -99,17 +107,22 @@ export default function VideoGenerationFlow({
 
     try {
       // Create listing
+      console.log("Creating listing...", { address, coordinates });
       const listing = await createListing.mutateAsync({
         userId,
         address,
         coordinates,
         photoLimit: 10,
       });
+      console.log("Listing created successfully:", listing);
 
       setProgress(20);
       setProcessingStatus("Uploading photos...");
 
       // Upload photos
+      console.log("Starting photo uploads...", {
+        photoCount: selectedPhotos.length,
+      });
       const uploadPromises = selectedPhotos.map((file, index) =>
         uploadPhoto.mutateAsync({
           file,
@@ -120,16 +133,29 @@ export default function VideoGenerationFlow({
 
       const uploadResults = await Promise.all(uploadPromises);
       const uploadedFilePaths = uploadResults.map((result) => result.filePath);
+      console.log("Photos uploaded successfully:", { uploadedFilePaths });
 
       setProgress(60);
       setProcessingStatus("Generating video...");
 
-      // Create video generation job
-      await createJob.mutateAsync({
+      // Get selected template details
+      const template = templates?.find((t) => t.id === selectedTemplate);
+      if (!template) {
+        throw new Error("Selected template not found");
+      }
+
+      // Create video generation job with template name
+      console.log("Creating video generation job...", {
         listingId: listing.id,
-        template: selectedTemplate,
+        template: template.name.toLowerCase().replace(/\s+/g, "_"),
         inputFiles: uploadedFilePaths,
       });
+      const job = await createJob.mutateAsync({
+        listingId: listing.id,
+        template: template.name.toLowerCase().replace(/\s+/g, "_"),
+        inputFiles: uploadedFilePaths,
+      });
+      console.log("Video generation job created:", job);
 
       setProgress(100);
       setProcessingStatus("Complete!");
@@ -199,27 +225,49 @@ export default function VideoGenerationFlow({
             <div className='space-y-4'>
               <Label>Select Template</Label>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                {templates?.map((template) => (
-                  <Card
-                    key={template.id}
-                    className={`p-4 cursor-pointer transition-all ${
-                      selectedTemplate === template.id
-                        ? "border-purple-500 ring-2 ring-purple-500"
-                        : "hover:border-gray-300"
-                    }`}
-                    onClick={() => setSelectedTemplate(template.id)}
-                  >
-                    <div className='flex items-start gap-3'>
-                      <Video className='w-5 h-5 text-purple-500 mt-1' />
-                      <div>
-                        <h3 className='font-semibold'>{template.name}</h3>
-                        <p className='text-sm text-gray-500'>
-                          {template.description}
-                        </p>
+                {templates?.map((template) => {
+                  const isAvailable = template.subscriptionTier === userTier;
+                  return (
+                    <Card
+                      key={template.id}
+                      className={`p-4 cursor-pointer transition-all ${
+                        selectedTemplate === template.id
+                          ? "border-purple-500 ring-2 ring-purple-500"
+                          : isAvailable
+                          ? "hover:border-gray-300"
+                          : "opacity-50 cursor-not-allowed"
+                      }`}
+                      onClick={() =>
+                        isAvailable && setSelectedTemplate(template.id)
+                      }
+                    >
+                      <div className='flex items-start gap-3'>
+                        <Video
+                          className={`w-5 h-5 ${
+                            isAvailable ? "text-purple-500" : "text-gray-400"
+                          } mt-1`}
+                        />
+                        <div>
+                          <div className='flex items-center gap-2'>
+                            <h3 className='font-semibold'>{template.name}</h3>
+                            {!isAvailable && (
+                              <span className='text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full'>
+                                {template.subscriptionTier
+                                  .charAt(0)
+                                  .toUpperCase() +
+                                  template.subscriptionTier.slice(1)}{" "}
+                                Plan
+                              </span>
+                            )}
+                          </div>
+                          <p className='text-sm text-gray-500'>
+                            {template.description}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  );
+                })}
               </div>
               <Button
                 className='w-full mt-6'

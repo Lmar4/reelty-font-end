@@ -30,13 +30,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Asset, AssetType } from "@/types/asset-types";
+import {
+  Asset,
+  AssetType,
+  CreateAssetInput,
+  UpdateAssetInput,
+} from "@/types/asset-types";
 import {
   useAssets,
   useCreateAsset,
   useUpdateAsset,
   useDeleteAsset,
 } from "@/hooks/queries/use-assets";
+
+// Define the asset types array for the select options
+const ASSET_TYPES: AssetType[] = ["MUSIC", "WATERMARK", "LOTTIE"];
 
 interface AssetManagementSectionProps {
   initialAssets: Asset[];
@@ -51,9 +59,9 @@ export default function AssetManagementSection({
   const { toast } = useToast();
 
   const { data: assets, isLoading } = useAssets({
+    initialData: initialAssets,
     type: selectedType,
     includeInactive,
-    initialData: initialAssets,
   });
 
   const createAsset = useCreateAsset();
@@ -63,13 +71,23 @@ export default function AssetManagementSection({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = {
+    const file = formData.get("filePath") as File;
+
+    if (!file) {
+      toast({
+        title: "Error",
+        description: "File is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const data: CreateAssetInput = {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
-      filePath: formData.get("filePath") as string,
       type: formData.get("type") as AssetType,
       subscriptionTier: formData.get("subscriptionTier") as string,
-      isActive: true,
+      file,
     };
 
     try {
@@ -94,7 +112,7 @@ export default function AssetManagementSection({
       await updateAsset.mutateAsync({
         id,
         isActive: !currentState,
-      });
+      } as UpdateAssetInput);
       toast({
         title: "Success",
         description: "Asset updated successfully",
@@ -150,7 +168,7 @@ export default function AssetManagementSection({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value=''>All Types</SelectItem>
-              {Object.values(AssetType).map((type) => (
+              {ASSET_TYPES.map((type) => (
                 <SelectItem key={type} value={type}>
                   {type}
                 </SelectItem>
@@ -175,8 +193,8 @@ export default function AssetManagementSection({
                   <Textarea id='description' name='description' />
                 </div>
                 <div className='space-y-2'>
-                  <Label htmlFor='filePath'>File Path</Label>
-                  <Input id='filePath' name='filePath' required />
+                  <Label htmlFor='filePath'>File</Label>
+                  <Input id='filePath' name='filePath' type='file' required />
                 </div>
                 <div className='space-y-2'>
                   <Label htmlFor='type'>Type</Label>
@@ -185,7 +203,7 @@ export default function AssetManagementSection({
                       <SelectValue placeholder='Select a type' />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.values(AssetType).map((type) => (
+                      {ASSET_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>
                           {type}
                         </SelectItem>

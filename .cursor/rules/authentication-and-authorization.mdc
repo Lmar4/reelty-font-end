@@ -1,0 +1,17 @@
+---
+description: Implements secure authentication and authorization
+globs: app/**/*.ts, middleware.ts
+---
+This rule helps with:
+@middleware - Auth middleware
+@components/auth - Auth components
+@lib/auth - Auth utilities
+@api/auth - Auth endpoints
+@hooks/auth - Auth hooks
+
+Key tasks:
+- User authentication
+- Session management
+- Role-based access
+- Protected routes
+- Auth UI components

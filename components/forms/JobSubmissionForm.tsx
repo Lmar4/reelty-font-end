@@ -3,28 +3,43 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useCreateJob } from "@/hooks/use-jobs";
+import { useTemplates } from "@/hooks/queries/use-templates";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface JobSubmissionFormProps {
   listingId: string;
   onSuccess?: () => void;
+  userTier?: string;
 }
 
 export const JobSubmissionForm = ({
   listingId,
   onSuccess,
+  userTier = "free",
 }: JobSubmissionFormProps) => {
-  const [template, setTemplate] = useState("basic");
+  const [template, setTemplate] = useState("");
   const [files, setFiles] = useState<string[]>([]);
 
   const createJob = useCreateJob();
+  const { data: templates, isLoading } = useTemplates(userTier);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!template) {
+      toast.error("Please select a template");
+      return;
+    }
 
     try {
       await createJob.mutateAsync({
@@ -41,25 +56,40 @@ export const JobSubmissionForm = ({
     }
   };
 
+  if (isLoading) {
+    return (
+      <Card className='p-6 flex justify-center'>
+        <Loader2 className='h-6 w-6 animate-spin' />
+      </Card>
+    );
+  }
+
   return (
-    <Card className="p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="template">Template</Label>
-          <Input
-            id="template"
-            value={template}
-            onChange={(e) => setTemplate(e.target.value)}
-            required
-          />
+    <Card className='p-6'>
+      <form onSubmit={handleSubmit} className='space-y-4'>
+        <div className='space-y-2'>
+          <Label htmlFor='template'>Template</Label>
+          <Select value={template} onValueChange={setTemplate}>
+            <SelectTrigger>
+              <SelectValue placeholder='Select a template' />
+            </SelectTrigger>
+            <SelectContent>
+              {templates?.map((template) => (
+                <SelectItem key={template.id} value={template.id}>
+                  {template.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div>
-          <Label htmlFor="files">Files</Label>
-          <Input
-            id="files"
-            type="file"
+        <div className='space-y-2'>
+          <Label htmlFor='files'>Files</Label>
+          <input
+            id='files'
+            type='file'
             multiple
+            className='w-full'
             onChange={(e) => {
               const fileList = e.target.files;
               if (fileList) {
@@ -70,14 +100,10 @@ export const JobSubmissionForm = ({
           />
         </div>
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={createJob.isPending}
-        >
+        <Button type='submit' className='w-full' disabled={createJob.isPending}>
           {createJob.isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
               Submitting...
             </>
           ) : (

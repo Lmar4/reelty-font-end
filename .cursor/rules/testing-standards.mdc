@@ -1,0 +1,18 @@
+---
+description: Enforces testing practices and coverage
+globs: **/*.test.ts, **/*.test.tsx
+---
+
+This rule helps with:
+@tests/unit - Unit tests
+@tests/integration - Integration tests
+@tests/e2e - End-to-end tests
+@tests/mocks - Test mocks
+@tests/fixtures - Test data
+
+Key tasks:
+- Writing unit tests
+- Integration testing
+- E2E test scenarios
+- Mock data management
+- Test coverage

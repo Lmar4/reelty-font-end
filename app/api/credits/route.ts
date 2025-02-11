@@ -1,34 +1,26 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-export async function GET(request: Request) {
+export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Fetch credits from backend
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/credits/${userId}`,
+    const credits = await makeBackendRequest<{ credits: number }>(
+      `/api/credits/${request.auth.userId}`,
       {
-        headers: {
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
-        },
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch credits from backend");
-    }
-
-    const { creditsRemaining } = await response.json();
-    return NextResponse.json(creditsRemaining);
+    return NextResponse.json(credits);
   } catch (error) {
-    console.error("Error fetching credits:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch credits" },
+    console.error("[CREDITS_GET]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch credits",
       { status: 500 }
     );
   }
-}
+});

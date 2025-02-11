@@ -1,0 +1,16 @@
+---
+description: Standardizes version control practices
+globs: .git/*, .gitignore
+---
+This rule helps with:
+@.git - Version control
+@.github - GitHub workflows
+@docs/working-memory - Task tracking
+@docs/templates - Documentation
+
+Key tasks:
+- Commit formatting
+- Branch management
+- Version tagging
+- Task tracking
+- Change documentation

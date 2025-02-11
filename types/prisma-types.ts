@@ -15,6 +15,7 @@ export interface User {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  password: string;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   stripePriceId: string | null;
@@ -39,7 +40,7 @@ export interface User {
   searchHistory?: SearchHistory[];
   errorLogs?: ErrorLog[];
   tempUploads?: TempUpload[];
-  currentTier?: SubscriptionTier;
+  currentTier?: SubscriptionTier | null;
 }
 
 export interface SubscriptionTier {
@@ -63,17 +64,13 @@ export interface Template {
   id: string;
   name: string;
   description: string;
-  sequence: JsonValue;
-  durations: JsonValue;
-  musicPath: string | null;
-  musicVolume: number | null;
-  subscriptionTier: string;
-  isActive: boolean;
+  tiers: string[];
+  order: number;
   createdAt: Date;
   updatedAt: Date;
 
   // Relations
-  tier?: SubscriptionTier;
+  subscriptionTiers?: SubscriptionTier[];
 }
 
 export interface CreditLog {
@@ -86,7 +83,7 @@ export interface CreditLog {
 
   // Relations
   user?: User;
-  admin?: User;
+  admin?: User | null;
 }
 
 export interface TierChange {
@@ -100,7 +97,7 @@ export interface TierChange {
 
   // Relations
   user?: User;
-  admin?: User;
+  admin?: User | null;
 }
 
 export interface Asset {
@@ -135,6 +132,7 @@ export interface Listing {
   userId: string;
   address: string;
   description: string | null;
+  coordinates: Record<string, any>;
   status: string;
   photoLimit: number;
   createdAt: Date;
@@ -151,6 +149,7 @@ export interface Photo {
   userId: string;
   listingId: string;
   filePath: string;
+  processedFilePath: string | null;
   order: number;
   createdAt: Date;
   updatedAt: Date;
@@ -165,8 +164,9 @@ export interface VideoJob {
   userId: string;
   listingId: string;
   status: string;
+  progress: number;
   template: string | null;
-  inputFiles: JsonValue | null;
+  inputFiles: any | null;
   outputFile: string | null;
   error: string | null;
   createdAt: Date;
@@ -195,14 +195,14 @@ export interface ErrorLog {
   createdAt: Date;
 
   // Relations
-  user?: User;
+  user?: User | null;
 }
 
 export interface TempUpload {
   id: string;
   userId: string;
   address: string | null;
-  files: JsonValue;
+  files: any[];
   createdAt: Date;
   expiresAt: Date;
 
@@ -219,6 +219,17 @@ export interface SubscriptionLog {
   stripeProductId: string | null;
   status: string;
   periodEnd: Date | null;
+  createdAt: Date;
+
+  // Relations
+  user?: User;
+}
+
+export interface Activity {
+  id: string;
+  userId: string;
+  action: string;
+  details: JsonValue;
   createdAt: Date;
 
   // Relations

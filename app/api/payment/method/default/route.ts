@@ -1,22 +1,19 @@
+import { AuthenticatedRequest, withAuth } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export async function POST(request: Request) {
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { customerId, paymentMethodId } = await request.json();
     if (!customerId || !paymentMethodId) {
-      return NextResponse.json(
-        { error: "Customer ID and payment method ID are required" },
+      return new NextResponse(
+        "Customer ID and payment method ID are required",
         { status: 400 }
       );
     }
@@ -27,14 +24,14 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({
-      data: { success: true },
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error updating default payment method:", error);
-    return NextResponse.json(
-      { error: "Failed to update default payment method" },
+    console.error("[DEFAULT_PAYMENT_METHOD_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to update default payment method",
       { status: 500 }
     );
   }
-}
+});

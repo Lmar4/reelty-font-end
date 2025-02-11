@@ -1,83 +1,66 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
+import { User } from "@/types/prisma-types";
 
-export async function GET(
-  request: Request,
+export const GET = withAuth(async function GET(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: authUserId } = await auth();
-    if (!authUserId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { userId } = await params;
+
     // Users can only access their own data
-    if (authUserId !== userId) {
+    if (request.auth.userId !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/users/${userId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${authUserId}`,
-        },
-      }
-    );
+    const user = await makeBackendRequest<User>(`/api/users/${userId}`, {
+      method: "GET",
+      sessionToken: request.auth.sessionToken,
+    });
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        return new NextResponse("User not found", { status: 404 });
-      }
-      throw new Error("Failed to fetch user");
-    }
-
-    const user = await response.json();
     return NextResponse.json(user);
   } catch (error) {
-    console.error("[USER_GET]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[USER_GET_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch user",
+      { status: 500 }
+    );
   }
-}
+});
 
-export async function PATCH(
-  request: Request,
+export const PATCH = withAuth(async function PATCH(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: authUserId } = await auth();
-    if (!authUserId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { userId } = await params;
+
     // Users can only update their own data
-    if (authUserId !== userId) {
+    if (request.auth.userId !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
     const body = await request.json();
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/users/${userId}`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${authUserId}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
+    const user = await makeBackendRequest<User>(`/api/users/${userId}`, {
+      method: "PATCH",
+      sessionToken: request.auth.sessionToken,
+      body: body,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
-    if (!response.ok) {
-      throw new Error("Failed to update user");
-    }
-
-    const user = await response.json();
     return NextResponse.json(user);
   } catch (error) {
-    console.error("[USER_PATCH]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[USER_PATCH_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to update user",
+      { status: 500 }
+    );
   }
-}
+});

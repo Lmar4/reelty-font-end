@@ -116,16 +116,10 @@ export default function FileUpload({
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!validateFiles(files)) return;
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
 
-    try {
-      await uploadFiles(files);
-    } catch (error) {
-      // If upload fails, don't call onFilesSelected
-      console.error("Upload failed:", error);
-    }
+    onFilesSelected(files);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -245,7 +239,7 @@ export default function FileUpload({
         data-testid='file-input'
         aria-label='File input'
         className='fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none'
-        onChange={handleFileUpload}
+        onChange={handleFileChange}
         onClick={(e) => {
           (e.target as HTMLInputElement).value = "";
         }}

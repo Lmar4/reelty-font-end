@@ -36,6 +36,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             alt={listing.address}
             width={800}
             height={600}
+            unoptimized
+            priority={0 === 0}
             className='w-full aspect-[4/3] object-cover'
           />
           <button

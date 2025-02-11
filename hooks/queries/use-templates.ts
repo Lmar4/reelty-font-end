@@ -13,7 +13,7 @@ interface Template {
 }
 
 async function fetchTemplates(subscriptionTier: string): Promise<Template[]> {
-  const response = await fetch(`/api/templates?tier=${subscriptionTier}`);
+  const response = await fetch(`/api/templates?tierId=${subscriptionTier}`);
   if (!response.ok) {
     throw new Error("Failed to fetch templates");
   }

@@ -1,50 +1,46 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
+import { Photo } from "@/types/prisma-types";
 
-export async function POST(
-  request: Request,
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { listingId } = await params;
     const formData = await request.formData();
-    const files = formData.getAll("files");
+    const file = formData.get("file") as File;
+    const order = formData.get("order");
 
-    if (!files || files.length === 0) {
-      return new NextResponse("No files provided", { status: 400 });
+    if (!file) {
+      return new NextResponse("No file provided", { status: 400 });
     }
 
-    // Create a new FormData instance for the backend request
+    // Forward the request to our backend
     const backendFormData = new FormData();
-    files.forEach((file) => {
-      backendFormData.append("files", file);
-    });
+    backendFormData.append("file", file);
+    if (order) backendFormData.append("order", order.toString());
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/listings/${listingId}/photos`,
+    const photo = await makeBackendRequest<Photo>(
+      `/api/listings/${listingId}/photos`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${userId}`,
-        },
+        sessionToken: request.auth.sessionToken,
         body: backendFormData,
+        // Let the browser handle the Content-Type header for FormData
       }
     );
 
-    if (!response.ok) {
-      const error = await response.text();
-      return new NextResponse(error, { status: response.status });
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ data: photo });
   } catch (error) {
-    console.error("[PHOTOS_UPLOAD]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[PHOTO_UPLOAD_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to upload photo",
+      { status: 500 }
+    );
   }
-}
+});

@@ -1,0 +1,17 @@
+---
+description: Ensures consistent documentation across the project
+globs: docs/**/*.md
+---
+This rule helps with:
+@docs/features - Feature documentation structure
+@docs/technical - Implementation details
+@docs/working-memory - Active task tracking
+@docs/templates - Documentation templates
+
+Key tasks:
+- Maintaining feature docs
+- Updating technical docs
+- Task documentation
+- Progress tracking
+- Documentation reviews
+- Cross-referencing

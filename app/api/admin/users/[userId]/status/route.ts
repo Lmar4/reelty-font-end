@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import {
+  withAuth,
+  AuthenticatedRequest,
+  makeBackendRequest,
+} from "@/utils/withAuth";
 
-export async function POST(
-  request: Request,
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const { userId: adminId } = await auth();
-    if (!adminId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { status } = await request.json();
     if (!["active", "suspended", "inactive"].includes(status)) {
       return new NextResponse("Invalid status", { status: 400 });
@@ -18,25 +17,24 @@ export async function POST(
 
     const { userId } = await params;
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/admin/users/${userId}/status`,
+    const result = await makeBackendRequest(
+      `/api/admin/users/${userId}/status`,
       {
         method: "POST",
+        sessionToken: request.auth.sessionToken,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${adminId}`,
         },
-        body: JSON.stringify({ status }),
+        body: { status },
       }
     );
 
-    if (!response.ok) {
-      throw new Error("Failed to update status");
-    }
-
-    return NextResponse.json(await response.json());
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("[STATUS_UPDATE]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    console.error("[STATUS_UPDATE_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to update status",
+      { status: 500 }
+    );
   }
-}
+});

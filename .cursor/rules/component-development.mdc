@@ -1,0 +1,18 @@
+---
+description: Standardizes React component patterns and UI development
+globs: app/components/**/*.tsx
+---
+This rule helps with:
+@components/ui - shadcn/UI component usage
+@components/forms - Form component patterns
+@components/common - Shared components
+@components/modals - Modal implementations
+@hooks - Component-related hooks
+
+Key tasks:
+- Building reusable components
+- Implementing UI patterns
+- Managing component state
+- Handling props and events
+- Component optimization
+- Accessibility compliance

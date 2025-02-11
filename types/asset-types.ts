@@ -1,41 +1,42 @@
-export enum AssetType {
-  MUSIC = "MUSIC",
-  WATERMARK = "WATERMARK",
-  LOTTIE = "LOTTIE",
-}
+import type { Asset as PrismaAsset, AssetType } from "./prisma-types";
 
-export interface Asset {
-  id: string;
-  name: string;
-  description?: string | null;
-  filePath: string;
-  type: AssetType;
-  subscriptionTier: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+export type { AssetType, PrismaAsset as Asset };
+
+export interface GetAssetsParams {
+  type?: AssetType;
+  includeInactive?: boolean;
 }
 
 export interface CreateAssetInput {
   name: string;
   description?: string;
-  filePath: string;
   type: AssetType;
   subscriptionTier: string;
-  isActive?: boolean;
+  file: File;
 }
 
 export interface UpdateAssetInput {
   id: string;
   name?: string;
   description?: string;
-  filePath?: string;
-  type?: AssetType;
-  subscriptionTier?: string;
   isActive?: boolean;
 }
 
-export interface GetAssetsParams {
-  type?: AssetType;
-  includeInactive?: boolean;
+export interface AssetUploadResponse {
+  id: string;
+  filePath: string;
+  uploadUrl: string;
+}
+
+export interface AssetDownloadResponse {
+  downloadUrl: string;
+  expiresAt: Date;
+}
+
+export interface AssetStats {
+  totalAssets: number;
+  byType: Record<AssetType, number>;
+  byTier: Record<string, number>;
+  activeAssets: number;
+  totalStorage: number; // in bytes
 }

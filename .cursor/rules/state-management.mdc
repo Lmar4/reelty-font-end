@@ -1,0 +1,17 @@
+---
+description: Manages application state and data flow
+globs: app/**/*.ts, app/**/*.tsx
+---
+This rule helps with:
+@contexts - Context providers
+@hooks/queries - Data fetching
+@hooks/state - State management
+@providers - App providers
+@lib/state - State utilities
+
+Key tasks:
+- Managing global state
+- Data fetching patterns
+- State persistence
+- Cache management
+- State synchronization

@@ -1,78 +1,60 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { SubscriptionTier } from "@/types/prisma-types";
+import {
+  AuthenticatedRequest,
+  makeBackendRequest,
+  withAuth,
+} from "@/utils/withAuth";
 import { NextResponse } from "next/server";
-import { sendSubscriptionChangeEmail } from "@/lib/plunk";
 import Stripe from "stripe";
+
+interface StripeCustomer {
+  stripeCustomerId: string;
+  stripeSubscriptionId: string | null;
+}
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export async function PATCH(request: Request) {
+export const PATCH = withAuth(async function PATCH(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId: authUserId } = await auth();
-    if (!authUserId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const body = await request.json();
     const { userId, tierId } = body;
 
     // Users can only update their own subscription
-    if (authUserId !== userId) {
+    if (request.auth.userId !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
     // Get current subscription details
-    const currentResponse = await fetch(
-      `${process.env.BACKEND_URL}/api/subscription/current/${userId}`,
+    const currentSubscription = await makeBackendRequest(
+      `/api/subscription/current/${userId}`,
       {
-        headers: {
-          Authorization: `Bearer ${authUserId}`,
-        },
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
-
-    if (!currentResponse.ok) {
-      throw new Error("Failed to fetch current subscription");
-    }
-
-    const currentSubscription = await currentResponse.json();
 
     // Get new tier details
-    const newTierResponse = await fetch(
-      `${process.env.BACKEND_URL}/api/subscription/tier/${tierId}`,
+    const newTier = await makeBackendRequest<SubscriptionTier>(
+      `/api/subscription/tier/${tierId}`,
       {
-        headers: {
-          Authorization: `Bearer ${authUserId}`,
-        },
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
       }
     );
-
-    if (!newTierResponse.ok) {
-      if (newTierResponse.status === 404) {
-        return new NextResponse("Subscription tier not found", { status: 404 });
-      }
-      throw new Error("Failed to fetch new tier details");
-    }
-
-    const newTier = await newTierResponse.json();
 
     // Get Stripe customer ID
-    const customerResponse = await fetch(
-      `${process.env.BACKEND_URL}/api/users/${userId}/stripe-customer`,
-      {
-        headers: {
-          Authorization: `Bearer ${authUserId}`,
-        },
-      }
-    );
-
-    if (!customerResponse.ok) {
-      throw new Error("Failed to fetch Stripe customer");
-    }
-
     const { stripeCustomerId, stripeSubscriptionId } =
-      await customerResponse.json();
+      await makeBackendRequest<StripeCustomer>(
+        `/api/users/${userId}/stripe-customer`,
+        {
+          method: "GET",
+          sessionToken: request.auth.sessionToken,
+        }
+      );
 
     if (!stripeCustomerId) {
       throw new Error("No Stripe customer found");
@@ -90,7 +72,7 @@ export async function PATCH(request: Request) {
         items: [
           {
             id: subscription.items.data[0].id,
-            price: newTier.stripePriceId, // Make sure your tier object includes stripePriceId
+            price: newTier.stripePriceId,
           },
         ],
         proration_behavior: "always_invoice", // This will trigger immediate proration
@@ -113,10 +95,12 @@ export async function PATCH(request: Request) {
     // The subscription update webhook will handle updating the database and sending emails
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[SUBSCRIPTION_TIER_PATCH]", error);
+    console.error("[SUBSCRIPTION_TIER_ERROR]", error);
     return new NextResponse(
-      error instanceof Error ? error.message : "Internal error",
+      error instanceof Error
+        ? error.message
+        : "Failed to update subscription tier",
       { status: 500 }
     );
   }
-}
+});
