@@ -1,29 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
+import { Template } from "@/types/prisma-types";
 
-interface Template {
-  id: string;
-  name: string;
-  description: string;
-  sequence: any;
-  durations: any;
-  musicPath?: string;
-  musicVolume?: number;
-  subscriptionTier: string;
-  isActive: boolean;
-}
-
-async function fetchTemplates(subscriptionTier: string): Promise<Template[]> {
-  const response = await fetch(`/api/templates?tierId=${subscriptionTier}`);
+async function fetchTemplates(): Promise<Template[]> {
+  const response = await fetch(`/api/video-templates`);
   if (!response.ok) {
     throw new Error("Failed to fetch templates");
   }
   return response.json();
 }
 
-export function useTemplates(subscriptionTier: string) {
+export function useTemplates(userTier?: string) {
   return useQuery({
-    queryKey: ["templates", subscriptionTier],
-    queryFn: () => fetchTemplates(subscriptionTier),
-    enabled: !!subscriptionTier,
+    queryKey: ["templates", userTier],
+    queryFn: () => fetchTemplates(),
   });
 }

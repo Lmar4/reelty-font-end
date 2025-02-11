@@ -151,6 +151,9 @@ export interface Photo {
   filePath: string;
   processedFilePath: string | null;
   order: number;
+  status: "pending" | "processing" | "completed" | "error";
+  error: string | null;
+  runwayVideoPath: string | null;
   createdAt: Date;
   updatedAt: Date;
 

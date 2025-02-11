@@ -226,7 +226,10 @@ export default function VideoGenerationFlow({
               <Label>Select Template</Label>
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 {templates?.map((template) => {
-                  const isAvailable = template.subscriptionTier === userTier;
+                  const isAvailable =
+                    template.subscriptionTiers?.some(
+                      (tier) => tier.name.toLowerCase() === userTier
+                    ) ?? false;
                   return (
                     <Card
                       key={template.id}
@@ -252,11 +255,7 @@ export default function VideoGenerationFlow({
                             <h3 className='font-semibold'>{template.name}</h3>
                             {!isAvailable && (
                               <span className='text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded-full'>
-                                {template.subscriptionTier
-                                  .charAt(0)
-                                  .toUpperCase() +
-                                  template.subscriptionTier.slice(1)}{" "}
-                                Plan
+                                Pro Plan
                               </span>
                             )}
                           </div>
