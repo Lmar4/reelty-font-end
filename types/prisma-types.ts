@@ -83,6 +83,12 @@ export interface SubscriptionTier {
   stripeProductId: string;
   features: string[];
   monthlyPrice: number;
+  creditExpirationDays: number;
+  creditRolloverMonths: number;
+  hasWatermark: boolean;
+  maxPhotosPerListing: number;
+  maxReelDownloads: number | null;
+  maxActiveListings: number;
   createdAt: Date;
   updatedAt: Date;
 

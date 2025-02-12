@@ -1,3 +1,5 @@
+import type { SubscriptionTier as PrismaSubscriptionTier } from "./prisma-types";
+
 export const SUBSCRIPTION_TIERS = {
   BASIC: "550e8400-e29b-41d4-a716-446655440000",
   PRO: "550e8400-e29b-41d4-a716-446655440001",
@@ -56,17 +58,8 @@ export type SubscriptionStatus =
   | "UNPAID"
   | "INACTIVE";
 
-export interface SubscriptionTier {
-  id: string;
-  name: string;
-  description: string;
-  stripePriceId: string;
-  stripeProductId: string;
-  features: string[];
-  monthlyPrice: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+// Use the imported type instead of redefining it
+export type SubscriptionTier = PrismaSubscriptionTier;
 
 export interface SubscriptionLog {
   id: string;
