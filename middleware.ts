@@ -11,7 +11,6 @@ const isPublicPath = createRouteMatcher([
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
-// Admin tier ID constant
 const ADMIN_TIER_ID = "550e8400-e29b-41d4-a716-446655440003";
 
 export default clerkMiddleware(async (auth, req) => {
@@ -42,64 +41,41 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Handle admin routes
   if (isAdmin) {
-    console.log("[MIDDLEWARE] Processing admin route access for URL:", req.url);
+    const token = await getToken();
+    if (!token) {
+      const homeUrl = new URL("/", req.url);
+      return NextResponse.redirect(homeUrl);
+    }
+
     try {
-      const sessionToken = await getToken();
-      console.log("[MIDDLEWARE] Session token exists:", !!sessionToken);
-
-      if (!sessionToken) {
-        console.log("[MIDDLEWARE] No session token found, redirecting to home");
-        const homeUrl = new URL("/", req.url);
-        return NextResponse.redirect(homeUrl);
-      }
-
-      const apiUrl = `${process.env.BACKEND_URL}/api/users/${userId}`;
-      console.log("[MIDDLEWARE] Fetching user data from:", apiUrl);
-
-      const response = await fetch(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      console.log("[MIDDLEWARE] User data response status:", response.status);
-
-      if (!response.ok) {
-        console.log(
-          "[MIDDLEWARE] Failed to fetch user data:",
-          await response.text()
-        );
-        const homeUrl = new URL("/", req.url);
-        return NextResponse.redirect(homeUrl);
-      }
-
-      const responseData = await response.json();
-      console.log(
-        "[MIDDLEWARE] User data response:",
-        JSON.stringify(responseData, null, 2)
+      // Fetch user data to check admin status
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
       );
 
-      const { data: user } = responseData;
-      console.log("[MIDDLEWARE] Admin check:", {
-        currentTierId: user?.currentTierId,
-        requiredTierId: ADMIN_TIER_ID,
-        isAdmin: user?.currentTierId === ADMIN_TIER_ID,
-      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch user data");
+      }
 
-      if (user?.currentTierId !== ADMIN_TIER_ID) {
-        console.log("[MIDDLEWARE] User is not admin, redirecting to home");
+      const userData = await response.json();
+
+      // Check if user has admin tier
+      if (userData?.data?.currentTierId !== ADMIN_TIER_ID) {
+        console.log("Unauthorized admin access attempt:", {
+          userId,
+          currentTier: userData?.data?.currentTierId,
+        });
         const homeUrl = new URL("/", req.url);
         return NextResponse.redirect(homeUrl);
       }
-
-      console.log("[MIDDLEWARE] Admin access granted");
     } catch (error) {
-      console.error("[MIDDLEWARE] Admin auth error:", {
-        name: error instanceof Error ? error.name : "Unknown Error",
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : "No stack trace",
-      });
+      console.error("Error checking admin access:", error);
       const homeUrl = new URL("/", req.url);
       return NextResponse.redirect(homeUrl);
     }
