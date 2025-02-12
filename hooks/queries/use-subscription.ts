@@ -1,6 +1,8 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
+import { toast } from "sonner";
 import { SubscriptionTier } from "@/types/prisma-types";
 
 async function fetchSubscriptionTiers(): Promise<SubscriptionTier[]> {
@@ -42,6 +44,7 @@ async function createCheckoutSession(
 interface UpdateSubscriptionParams {
   userId: string;
   tierId: string;
+  previousPriceId?: string | null;
 }
 
 async function updateSubscriptionTier(
@@ -61,6 +64,109 @@ async function updateSubscriptionTier(
   }
 }
 
+const SUBSCRIPTION_QUERY_KEY = "subscription";
+
+export function useSubscription() {
+  const { getToken } = useAuth();
+
+  return useQuery({
+    queryKey: [SUBSCRIPTION_QUERY_KEY],
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/subscription/current`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to fetch subscription");
+      }
+
+      const result = await response.json();
+      return result.data;
+    },
+  });
+}
+
+export function useUpdateSubscription() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async (data: { tierId: string }) => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/subscription/tier`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to update subscription");
+      }
+
+      const result = await response.json();
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SUBSCRIPTION_QUERY_KEY] });
+      toast.success("Subscription updated successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to update subscription");
+    },
+  });
+}
+
+export function useCancelSubscription() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+
+  return useMutation({
+    mutationFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/subscription/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to cancel subscription");
+      }
+
+      const result = await response.json();
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SUBSCRIPTION_QUERY_KEY] });
+      toast.success("Subscription cancelled successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to cancel subscription");
+    },
+  });
+}
+
 export function useSubscriptionTiers() {
   return useQuery({
     queryKey: ["subscriptionTiers"],
@@ -71,11 +177,5 @@ export function useSubscriptionTiers() {
 export function useCreateCheckoutSession() {
   return useMutation({
     mutationFn: createCheckoutSession,
-  });
-}
-
-export function useUpdateSubscription() {
-  return useMutation({
-    mutationFn: updateSubscriptionTier,
   });
 }

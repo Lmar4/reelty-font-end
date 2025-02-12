@@ -10,31 +10,43 @@ async function fetchListings(
   userId: string,
   token: string
 ): Promise<Listing[]> {
-  const response = await fetch(`/api/listings?userId=${userId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/listings`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
 
   if (!response.ok) {
-    if (response.status === 429) {
-      throw new Error("Rate limit exceeded. Please try again later.");
-    }
-    throw new Error("Failed to fetch listings");
+    const error = await response.json();
+    throw new Error(error.error || "Failed to fetch listings");
   }
-  return response.json();
+
+  const result = await response.json();
+  return result.data;
 }
 
 async function fetchListingById(id: string, token: string): Promise<Listing> {
-  const response = await fetch(`/api/listings/${id}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/listings/${id}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
   if (!response.ok) {
-    throw new Error("Failed to fetch listing");
+    const error = await response.json();
+    throw new Error(error.error || "Failed to fetch listing");
   }
-  return response.json();
+
+  const result = await response.json();
+  return result.data;
 }
 
 interface CreateListingInput {
@@ -98,15 +110,23 @@ export function useListings(userId: string) {
       return fetchListings(userId, token || "");
     },
     enabled: !!userId,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    gcTime: 1000 * 60 * 5, // Cache for 5 minutes before garbage collection
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Cache for 10 minutes before garbage collection
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes("Rate limit")) {
-        return failureCount < 3; // Only retry 3 times for rate limits
+        return failureCount < 2; // Only retry once for rate limits
       }
       return failureCount < 2; // Default to 2 retries for other errors
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff with max 30s
+    retryDelay: (attemptIndex) => {
+      // For rate limit errors, wait longer
+      const baseDelay = 1000 * Math.pow(2, attemptIndex);
+      return Math.min(baseDelay, 30000); // Cap at 30 seconds
+    },
+    refetchOnMount: false, // Don't refetch on mount if we have cached data
+    refetchOnWindowFocus: true, // But do refetch when window regains focus
+    refetchOnReconnect: true, // And when internet connection is restored
+    structuralSharing: true,
   });
 }
 
@@ -131,7 +151,25 @@ export function useCreateListing() {
   return useMutation({
     mutationFn: async (input: CreateListingInput) => {
       const token = await getToken();
-      return createListing(input, token || "");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/listings`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(input),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create listing");
+      }
+
+      const result = await response.json();
+      return result.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
@@ -158,13 +196,16 @@ export function useUploadPhoto() {
         formData.append("order", String(order));
       }
 
-      const response = await fetch(`/api/listings/${listingId}/photos`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/listings/${listingId}/photos`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
 
       if (!response.ok) {
         const error = await response
