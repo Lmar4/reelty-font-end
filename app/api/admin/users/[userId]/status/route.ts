@@ -5,7 +5,7 @@ import {
   makeBackendRequest,
 } from "@/utils/withAuth";
 
-export const POST = withAuth(async function POST(
+export const PATCH = withAuth(async function PATCH(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
@@ -16,7 +16,7 @@ export const POST = withAuth(async function POST(
     const result = await makeBackendRequest(
       `/api/admin/users/${userId}/status`,
       {
-        method: "POST",
+        method: "PATCH",
         sessionToken: request.auth.sessionToken,
         headers: {
           "Content-Type": "application/json",

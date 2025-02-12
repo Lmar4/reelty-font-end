@@ -48,10 +48,9 @@ export async function POST(request: Request) {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        const userId = subscription.metadata.userId;
 
-        // Fetch subscription details
-        const subscriptionWithPrice = await stripe.subscriptions.retrieve(
+        // Fetch subscription details with expanded price and product
+        const subscriptionWithDetails = await stripe.subscriptions.retrieve(
           subscription.id,
           {
             expand: ["items.data.price.product"],
@@ -70,13 +69,11 @@ export async function POST(request: Request) {
           }
         );
 
-        // Get the price details
-        const priceId = subscriptionWithPrice.items.data[0].price.id;
-        const productId = (
-          subscriptionWithPrice.items.data[0].price.product as Stripe.Product
-        ).id;
+        // Get the price and product details
+        const priceData = subscriptionWithDetails.items.data[0].price;
+        const productData = priceData.product as Stripe.Product;
 
-        // Update user's subscription in our backend
+        // Notify backend about subscription change
         const response = await fetch(
           `${process.env.BACKEND_URL}/api/subscription/update`,
           {
@@ -86,10 +83,10 @@ export async function POST(request: Request) {
               Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
             },
             body: JSON.stringify({
-              userId,
+              userId: subscription.metadata.userId,
               stripeSubscriptionId: subscription.id,
-              priceId,
-              productId,
+              priceId: priceData.id,
+              productId: productData.id,
               status: subscription.status,
               currentPeriodEnd: subscription.current_period_end,
             }),
@@ -107,7 +104,7 @@ export async function POST(request: Request) {
         ) {
           // Fetch user details
           const userResponse = await fetch(
-            `${process.env.BACKEND_URL}/api/users/${userId}`,
+            `${process.env.BACKEND_URL}/api/users/${subscription.metadata.userId}`,
             {
               headers: {
                 Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
@@ -129,10 +126,6 @@ export async function POST(request: Request) {
             }
           );
 
-          const currentPrice = subscriptionWithPrice.items.data[0].price;
-          const currentProduct = currentPrice.product as Stripe.Product;
-          const previousProduct = previousPrice.product as Stripe.Product;
-
           const effectiveDate = new Date().toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
@@ -143,12 +136,12 @@ export async function POST(request: Request) {
           await sendSubscriptionChangeEmail(
             user.email,
             user.firstName || "there",
-            previousProduct.name,
-            currentProduct.name,
+            (previousPrice.product as Stripe.Product).name,
+            productData.name,
             previousPrice.unit_amount! / 100,
-            currentPrice.unit_amount! / 100,
-            currentProduct.metadata.features
-              ? JSON.parse(currentProduct.metadata.features)
+            priceData.unit_amount! / 100,
+            productData.metadata.features
+              ? JSON.parse(productData.metadata.features)
               : [],
             effectiveDate,
             formattedNextBillingDate
@@ -158,10 +151,8 @@ export async function POST(request: Request) {
       }
 
       case "customer.subscription.deleted": {
+        // Notify backend about subscription cancellation
         const subscription = event.data.object as Stripe.Subscription;
-        const userId = subscription.metadata.userId;
-
-        // Update user's subscription status in our backend
         await fetch(`${process.env.BACKEND_URL}/api/subscription/cancel`, {
           method: "POST",
           headers: {
@@ -169,7 +160,7 @@ export async function POST(request: Request) {
             Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
           },
           body: JSON.stringify({
-            userId,
+            userId: subscription.metadata.userId,
             stripeSubscriptionId: subscription.id,
           }),
         });
@@ -178,6 +169,8 @@ export async function POST(request: Request) {
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
+        if (!invoice.subscription) break;
+
         const subscription = await stripe.subscriptions.retrieve(
           invoice.subscription as string,
           {

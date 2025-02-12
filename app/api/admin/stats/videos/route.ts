@@ -7,7 +7,7 @@ import {
 
 export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const data = await makeBackendRequest("/api/admin/analytics/videos", {
+    const data = await makeBackendRequest("/api/admin/videos", {
       method: "GET",
       sessionToken: request.auth.sessionToken,
     });
