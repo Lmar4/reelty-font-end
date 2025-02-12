@@ -69,9 +69,16 @@ export function UserFilters() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value='all'>All Statuses</SelectItem>
-            <SelectItem value='active'>Active</SelectItem>
-            <SelectItem value='suspended'>Suspended</SelectItem>
-            <SelectItem value='inactive'>Inactive</SelectItem>
+            <SelectItem value='ACTIVE'>Active</SelectItem>
+            <SelectItem value='CANCELED'>Canceled</SelectItem>
+            <SelectItem value='INCOMPLETE'>Incomplete</SelectItem>
+            <SelectItem value='INCOMPLETE_EXPIRED'>
+              Incomplete Expired
+            </SelectItem>
+            <SelectItem value='PAST_DUE'>Past Due</SelectItem>
+            <SelectItem value='TRIALING'>Trialing</SelectItem>
+            <SelectItem value='UNPAID'>Unpaid</SelectItem>
+            <SelectItem value='INACTIVE'>Inactive</SelectItem>
           </SelectContent>
         </Select>
 

@@ -34,7 +34,7 @@ export default function RevenueAnalyticsSection({
   const { data: analytics } = useQuery({
     queryKey: ["revenueAnalytics"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/analytics/revenue");
+      const response = await fetch("/api/admin/stats/revenue");
       if (!response.ok) {
         throw new Error("Failed to fetch revenue analytics");
       }

@@ -65,29 +65,33 @@ export function UserList() {
         throw new Error(errorData || "Failed to fetch users");
       }
       const data = await response.json();
-      console.log("API Response:", data);
+
       return data as UsersResponse;
     },
   });
 
   const users = response?.data ?? [];
-  console.log("Users data:", users);
 
   const columns: ColumnDef<AdminUser>[] = [
     {
-      accessorKey: "name",
+      accessorKey: "firstName",
       header: "Name",
+      cell: ({ row }) => {
+        const firstName = row.original.firstName || "";
+        const lastName = row.original.lastName || "";
+        return `${firstName} ${lastName}`.trim() || "N/A";
+      },
     },
     {
       accessorKey: "email",
       header: "Email",
     },
     {
-      accessorKey: "subscriptionTier",
+      accessorKey: "currentTier",
       header: "Subscription",
       cell: ({ row }) => (
         <Badge variant='secondary'>
-          {getTierNameById(row.original.subscriptionTier)}
+          {row.original.currentTier?.name || "No Tier"}
         </Badge>
       ),
     },
@@ -115,34 +119,34 @@ export function UserList() {
               }
               className='text-xs'
             >
-              {credits > 10 ? "Good" : credits > 0 ? "Low" : "Empty"}
+              {credits > 4 ? "Good" : credits > 0 ? "Low" : "Empty"}
             </Badge>
           </div>
         );
       },
     },
     {
-      accessorKey: "status",
+      accessorKey: "subscriptionStatus",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.original.status;
+        const status = row.original.subscriptionStatus;
         return (
           <Badge
             variant={
               !status
                 ? "secondary"
-                : status === "active"
+                : status === "ACTIVE"
                 ? "default"
-                : status === "past_due" || status === "unpaid"
+                : status === "PAST_DUE" || status === "UNPAID"
                 ? "destructive"
-                : status === "trialing"
+                : status === "TRIALING"
                 ? "default"
                 : "secondary"
             }
           >
             {!status
               ? "Unknown"
-              : status === "incomplete_expired"
+              : status === "INCOMPLETE_EXPIRED"
               ? "Expired"
               : status.charAt(0).toUpperCase() +
                 status.slice(1).replace("_", " ")}
@@ -151,12 +155,12 @@ export function UserList() {
       },
     },
     {
-      accessorKey: "lastActive",
+      accessorKey: "lastLoginAt",
       header: "Last Active",
       cell: ({ row }) => {
-        const lastActive = row.original.lastActive;
+        const lastActive = row.original.lastLoginAt;
         if (!lastActive) return "N/A";
-        
+
         try {
           const date = new Date(lastActive);
           // Check if date is valid

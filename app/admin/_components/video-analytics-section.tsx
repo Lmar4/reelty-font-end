@@ -26,7 +26,7 @@ export default function VideoAnalyticsSection({
   const { data: analytics } = useQuery({
     queryKey: ["videoAnalytics"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/analytics/videos");
+      const response = await fetch("/api/admin/stats/videos");
       if (!response.ok) {
         throw new Error("Failed to fetch video analytics");
       }

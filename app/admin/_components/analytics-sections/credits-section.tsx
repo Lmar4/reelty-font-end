@@ -80,13 +80,13 @@ export const CreditsSection: FC<CreditsSectionProps> = ({
         />
         <StatCard
           title='Top Credit Type'
-          value={data?.creditsByType[0]?.reason || "N/A"}
+          value={data?.creditsByType[0]?.type || "N/A"}
           isLoading={isLoading}
           skeletonWidth='w-[120px]'
         />
         <StatCard
           title='Top User Credits'
-          value={data?.topUsers[0]?.credits || 0}
+          value={data?.topUsers[0]?.total || 0}
           isLoading={isLoading}
         />
         <StatCard

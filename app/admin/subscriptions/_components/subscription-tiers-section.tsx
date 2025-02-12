@@ -17,6 +17,7 @@ import { formatCurrency } from "@/lib/utils";
 
 export function SubscriptionTiersSection() {
   const [editingTier, setEditingTier] = useState<SubscriptionTier | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: tiers, isLoading } = useQuery({
     queryKey: ["subscription-tiers"],
@@ -29,35 +30,53 @@ export function SubscriptionTiersSection() {
     },
   });
 
+  const handleAddTier = () => {
+    setEditingTier(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditTier = (tier: SubscriptionTier) => {
+    setEditingTier(tier);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setEditingTier(null);
+    setIsDialogOpen(false);
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="animate-pulse bg-gray-200 h-8 w-48 rounded" />
-          <div className="animate-pulse bg-gray-200 h-10 w-32 rounded" />
+      <div className='space-y-4'>
+        <div className='flex justify-between items-center'>
+          <div className='animate-pulse bg-gray-200 h-8 w-48 rounded' />
+          <div className='animate-pulse bg-gray-200 h-10 w-32 rounded' />
         </div>
-        
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 space-y-4">
-            <div className="grid grid-cols-5 gap-4 pb-4 border-b">
-              <div className="animate-pulse bg-gray-200 h-6 w-20 rounded" />
-              <div className="animate-pulse bg-gray-200 h-6 w-32 rounded" />
-              <div className="animate-pulse bg-gray-200 h-6 w-16 rounded" />
-              <div className="animate-pulse bg-gray-200 h-6 w-24 rounded" />
-              <div className="animate-pulse bg-gray-200 h-6 w-20 rounded" />
+
+        <div className='bg-white rounded-lg shadow'>
+          <div className='p-6 space-y-4'>
+            <div className='grid grid-cols-5 gap-4 pb-4 border-b'>
+              <div className='animate-pulse bg-gray-200 h-6 w-20 rounded' />
+              <div className='animate-pulse bg-gray-200 h-6 w-32 rounded' />
+              <div className='animate-pulse bg-gray-200 h-6 w-16 rounded' />
+              <div className='animate-pulse bg-gray-200 h-6 w-24 rounded' />
+              <div className='animate-pulse bg-gray-200 h-6 w-20 rounded' />
             </div>
 
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="grid grid-cols-5 gap-4 py-4">
-                <div className="animate-pulse bg-gray-200 h-6 w-24 rounded" />
-                <div className="animate-pulse bg-gray-200 h-6 w-48 rounded" />
-                <div className="animate-pulse bg-gray-200 h-6 w-20 rounded" />
-                <div className="space-y-2">
+              <div key={i} className='grid grid-cols-5 gap-4 py-4'>
+                <div className='animate-pulse bg-gray-200 h-6 w-24 rounded' />
+                <div className='animate-pulse bg-gray-200 h-6 w-48 rounded' />
+                <div className='animate-pulse bg-gray-200 h-6 w-20 rounded' />
+                <div className='space-y-2'>
                   {[...Array(3)].map((_, j) => (
-                    <div key={j} className="animate-pulse bg-gray-200 h-4 w-32 rounded" />
+                    <div
+                      key={j}
+                      className='animate-pulse bg-gray-200 h-4 w-32 rounded'
+                    />
                   ))}
                 </div>
-                <div className="animate-pulse bg-gray-200 h-8 w-16 rounded" />
+                <div className='animate-pulse bg-gray-200 h-8 w-16 rounded' />
               </div>
             ))}
           </div>
@@ -75,9 +94,7 @@ export function SubscriptionTiersSection() {
             Manage subscription tiers and their features
           </p>
         </div>
-        <Button onClick={() => setEditingTier(null)}>
-          Add New Tier
-        </Button>
+        <Button onClick={handleAddTier}>Add New Tier</Button>
       </div>
 
       <Table>
@@ -104,7 +121,7 @@ export function SubscriptionTiersSection() {
                 </ul>
               </TableCell>
               <TableCell>
-                <Button variant='ghost' onClick={() => setEditingTier(tier)}>
+                <Button variant='ghost' onClick={() => handleEditTier(tier)}>
                   Edit
                 </Button>
               </TableCell>
@@ -115,8 +132,8 @@ export function SubscriptionTiersSection() {
 
       <EditTierDialog
         tier={editingTier}
-        open={!!editingTier}
-        onClose={() => setEditingTier(null)}
+        open={isDialogOpen}
+        onClose={handleCloseDialog}
       />
     </div>
   );

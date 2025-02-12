@@ -9,6 +9,18 @@ import type {
   UserStats,
   BulkDiscount,
   AgencyUser,
+  Asset,
+  CreateAssetInput,
+  UpdateAssetInput,
+  CreateBulkDiscountInput,
+  ApplyBulkDiscountInput,
+  CreateAgencyInput,
+  Agency,
+  SubscriptionTier,
+  Template,
+  CreateTemplateInput,
+  ReorderTemplatesInput,
+  AddAgencyUserInput,
 } from "./types";
 
 interface ApiResponse<T> {
@@ -19,7 +31,8 @@ interface ApiResponse<T> {
 async function makeAuthenticatedRequest<T>(
   endpoint: string,
   actionName: string,
-  transformResponse?: (data: any) => T
+  transformResponse?: (data: any) => T,
+  options?: RequestInit
 ): Promise<T> {
   console.log(`[${actionName}] Starting request`);
 
@@ -38,7 +51,7 @@ async function makeAuthenticatedRequest<T>(
       throw new Error("Unauthorized - No session token");
     }
 
-    const url = `${process.env.BACKEND_URL}${endpoint}`;
+    const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}${endpoint}`;
     console.log(`[${actionName}] Making request to:`, url);
 
     const response = await fetch(url, {
@@ -47,6 +60,7 @@ async function makeAuthenticatedRequest<T>(
         "Content-Type": "application/json",
       },
       next: { revalidate: 60 },
+      ...options,
     });
 
     console.log(`[${actionName}] Response status:`, response.status);
@@ -116,15 +130,148 @@ export async function getRecentActivity(): Promise<Activity[]> {
     "/api/admin/analytics/activity",
     "RECENT_ACTIVITY",
     (data) => {
-      // If the response is wrapped in a success/data structure
-      if (data && Array.isArray(data.data)) {
-        return data.data;
-      }
-      // If the response is a direct array
-      if (Array.isArray(data)) {
-        return data;
-      }
+      if (data && Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data)) return data;
       return [];
+    }
+  );
+}
+
+export async function getAssets(): Promise<Asset[]> {
+  return makeAuthenticatedRequest<Asset[]>(
+    "/api/admin/assets/assets",
+    "GET_ASSETS",
+    (data) => {
+      if (data && Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data)) return data;
+      return [];
+    }
+  );
+}
+
+export async function createAsset(asset: CreateAssetInput): Promise<Asset> {
+  return makeAuthenticatedRequest<Asset>(
+    "/api/admin/assets/assets",
+    "CREATE_ASSET",
+    undefined,
+    {
+      method: "POST",
+      body: JSON.stringify(asset),
+    }
+  );
+}
+
+export async function updateAsset(
+  assetId: string,
+  asset: UpdateAssetInput
+): Promise<Asset> {
+  return makeAuthenticatedRequest<Asset>(
+    `/api/admin/assets/assets/${assetId}`,
+    "UPDATE_ASSET",
+    undefined,
+    {
+      method: "PATCH",
+      body: JSON.stringify(asset),
+    }
+  );
+}
+
+export async function deleteAsset(assetId: string): Promise<void> {
+  return makeAuthenticatedRequest<void>(
+    `/api/admin/assets/assets/${assetId}`,
+    "DELETE_ASSET",
+    undefined,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+export async function getBulkDiscounts(): Promise<BulkDiscount[]> {
+  return makeAuthenticatedRequest<BulkDiscount[]>(
+    "/api/admin/bulk-discounts",
+    "BULK_DISCOUNTS",
+    (data) => {
+      if (data && Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data)) return data;
+      return [];
+    }
+  );
+}
+
+export async function createBulkDiscount(
+  discount: CreateBulkDiscountInput
+): Promise<BulkDiscount> {
+  return makeAuthenticatedRequest<BulkDiscount>(
+    "/api/admin/bulk-discounts",
+    "CREATE_BULK_DISCOUNT",
+    undefined,
+    {
+      method: "POST",
+      body: JSON.stringify(discount),
+    }
+  );
+}
+
+export async function applyBulkDiscount(
+  data: ApplyBulkDiscountInput
+): Promise<void> {
+  return makeAuthenticatedRequest<void>(
+    "/api/admin/bulk-discounts/apply",
+    "APPLY_BULK_DISCOUNT",
+    undefined,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function deactivateBulkDiscount(
+  discountId: string
+): Promise<void> {
+  return makeAuthenticatedRequest<void>(
+    `/api/admin/bulk-discounts/${discountId}/deactivate`,
+    "DEACTIVATE_BULK_DISCOUNT",
+    undefined,
+    {
+      method: "POST",
+    }
+  );
+}
+
+export async function getAgencies(): Promise<AgencyUser[]> {
+  return makeAuthenticatedRequest<AgencyUser[]>(
+    "/api/admin/agencies",
+    "GET_AGENCIES",
+    (data) => {
+      if (data && Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data)) return data;
+      return [];
+    }
+  );
+}
+
+export async function createAgency(agency: CreateAgencyInput): Promise<Agency> {
+  return makeAuthenticatedRequest<Agency>(
+    "/api/admin/agencies",
+    "CREATE_AGENCY",
+    undefined,
+    {
+      method: "POST",
+      body: JSON.stringify(agency),
+    }
+  );
+}
+
+export async function addAgencyUser(data: AddAgencyUserInput): Promise<void> {
+  return makeAuthenticatedRequest<void>(
+    "/api/admin/agencies/users",
+    "ADD_AGENCY_USER",
+    undefined,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
     }
   );
 }
@@ -143,38 +290,54 @@ export async function getUserStats(): Promise<UserStats> {
   );
 }
 
-export async function getBulkDiscounts(): Promise<BulkDiscount[]> {
-  return makeAuthenticatedRequest<BulkDiscount[]>(
-    "/api/admin/bulk-discounts",
-    "BULK_DISCOUNTS",
+export async function getSubscriptionTiers(): Promise<SubscriptionTier[]> {
+  return makeAuthenticatedRequest<SubscriptionTier[]>(
+    "/api/admin/subscription-tiers",
+    "GET_SUBSCRIPTION_TIERS",
     (data) => {
-      // If the response is wrapped in a success/data structure
-      if (data && Array.isArray(data.data)) {
-        return data.data;
-      }
-      // If the response is a direct array
-      if (Array.isArray(data)) {
-        return data;
-      }
+      if (data && Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data)) return data;
       return [];
     }
   );
 }
 
-export async function getAgencies(): Promise<AgencyUser[]> {
-  return makeAuthenticatedRequest<AgencyUser[]>(
-    "/api/admin/agencies",
-    "AGENCIES",
+export async function getTemplates(): Promise<Template[]> {
+  return makeAuthenticatedRequest<Template[]>(
+    "/api/admin/templates",
+    "GET_TEMPLATES",
     (data) => {
-      // If the response is wrapped in a success/data structure
-      if (data && Array.isArray(data.data)) {
-        return data.data;
-      }
-      // If the response is a direct array
-      if (Array.isArray(data)) {
-        return data;
-      }
+      if (data && Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data)) return data;
       return [];
+    }
+  );
+}
+
+export async function createTemplate(
+  template: CreateTemplateInput
+): Promise<Template> {
+  return makeAuthenticatedRequest<Template>(
+    "/api/admin/templates",
+    "CREATE_TEMPLATE",
+    undefined,
+    {
+      method: "POST",
+      body: JSON.stringify(template),
+    }
+  );
+}
+
+export async function reorderTemplates(
+  order: ReorderTemplatesInput
+): Promise<void> {
+  return makeAuthenticatedRequest<void>(
+    "/api/admin/templates/reorder",
+    "REORDER_TEMPLATES",
+    undefined,
+    {
+      method: "PUT",
+      body: JSON.stringify(order),
     }
   );
 }

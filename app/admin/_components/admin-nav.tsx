@@ -11,6 +11,7 @@ import {
   CreditCard,
   FileVideo,
   Settings,
+  LayoutDashboard,
 } from "lucide-react";
 
 interface Route {
@@ -56,6 +57,13 @@ const routes: Route[] = [
     icon: Settings,
     color: "text-gray-500",
     active: (pathname: string) => pathname.startsWith("/admin/settings"),
+  },
+  {
+    href: "/dashboard",
+    label: "User Dashboard",
+    icon: LayoutDashboard,
+    color: "text-yellow-500",
+    active: (pathname: string) => pathname.startsWith("/dashboard"),
   },
 ];
 

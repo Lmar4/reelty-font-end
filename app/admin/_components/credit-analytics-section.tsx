@@ -26,7 +26,7 @@ export default function CreditAnalyticsSection({
   const { data: analytics } = useQuery({
     queryKey: ["creditAnalytics"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/analytics/credits");
+      const response = await fetch("/api/admin/stats/credits");
       if (!response.ok) {
         throw new Error("Failed to fetch credit analytics");
       }
@@ -95,13 +95,18 @@ export default function CreditAnalyticsSection({
         <h3 className='text-lg font-semibold mb-4'>Top Credit Users</h3>
         <div className='space-y-4'>
           {analytics.topUsers.map(
-            (user: { id: string; email: string; credits: number }) => (
+            (user: {
+              userId: string;
+              email: string;
+              total: number;
+              count: number;
+            }) => (
               <div
-                key={user.id}
+                key={user.userId}
                 className='flex items-center justify-between p-2 bg-muted rounded-lg'
               >
                 <span className='text-sm font-medium'>{user.email}</span>
-                <span className='text-sm'>{user.credits} credits</span>
+                <span className='text-sm'>{user.total} credits</span>
               </div>
             )
           )}

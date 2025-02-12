@@ -41,17 +41,20 @@ export interface VideoAnalytics {
 export interface CreditAnalytics {
   totalCredits: number;
   creditsByType: Array<{
-    reason: string;
-    amount: number;
+    type: string;
+    total: number;
+    count: number;
   }>;
   topUsers: Array<{
     userId: string;
     email: string;
-    credits: number;
+    total: number;
+    count: number;
   }>;
   dailyCredits: Array<{
     date: string;
     amount: number;
+    count: number;
   }>;
 }
 
@@ -107,4 +110,99 @@ export interface AgencyUser {
   createdAt: string;
   updatedAt: string;
   role: "AGENCY" | "AGENCY_USER";
+}
+
+// Asset types
+export interface Asset {
+  id: string;
+  name: string;
+  type: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAssetInput {
+  name: string;
+  type: string;
+  url: string;
+}
+
+export interface UpdateAssetInput {
+  name?: string;
+  type?: string;
+  url?: string;
+}
+
+// Bulk Discount types
+export interface CreateBulkDiscountInput {
+  code: string;
+  discountPercent: number;
+  maxUses: number;
+  expiresAt?: string;
+}
+
+export interface ApplyBulkDiscountInput {
+  code: string;
+  userId: string;
+}
+
+// Agency types
+export interface Agency {
+  id: string;
+  name: string;
+  maxUsers: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAgencyInput {
+  name: string;
+  maxUsers: number;
+  ownerEmail: string;
+  initialCredits: number;
+}
+
+export interface AddAgencyUserInput {
+  agencyId: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  credits?: number;
+}
+
+// Subscription types
+export interface SubscriptionTier {
+  id: string;
+  name: string;
+  price: number;
+  credits: number;
+  features: string[];
+  stripePriceId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Template types
+export interface Template {
+  id: string;
+  name: string;
+  description?: string;
+  thumbnailUrl: string;
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTemplateInput {
+  name: string;
+  description?: string;
+  thumbnailUrl: string;
+  order?: number;
+  isActive?: boolean;
+}
+
+export interface ReorderTemplatesInput {
+  templateIds: string[];
 }

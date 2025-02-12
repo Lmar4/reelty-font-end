@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -26,11 +27,11 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [creditAdjustment, setCreditAdjustment] = useState("");
-  const [newStatus, setNewStatus] = useState<AdminUser["status"]>(
-    user?.status || "inactive"
+  const [newStatus, setNewStatus] = useState<AdminUser["subscriptionStatus"]>(
+    user?.subscriptionStatus || "INACTIVE"
   );
 
-  const handleStatusChange = (value: AdminUser["status"]) => {
+  const handleStatusChange = (value: AdminUser["subscriptionStatus"]) => {
     setNewStatus(value);
   };
 
@@ -44,24 +45,42 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
 
       // Update credits if adjustment provided
       if (creditAdjustment) {
+        const amount = parseInt(creditAdjustment, 10);
+        
+        // Validate credit removal
+        if (amount < 0 && Math.abs(amount) > user.credits) {
+          toast.error(`Cannot remove ${Math.abs(amount)} credits. User only has ${user.credits} credits.`);
+          return;
+        }
+
         const response = await fetch(`/api/admin/users/${user.id}/credits`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            amount: parseInt(creditAdjustment, 10),
-            reason: "Manual adjustment by admin",
+            amount,
+            reason: amount >= 0 ? "Credits added by admin" : "Credits removed by admin",
           }),
         });
 
         if (!response.ok) {
-          throw new Error("Failed to adjust credits");
+          const errorData = await response.text();
+          throw new Error(errorData || "Failed to adjust credits");
         }
+
+        const data = await response.json();
+        if (data.success && data.data.credits !== undefined) {
+          user.credits = data.data.credits;
+        }
+
+        toast.success(
+          `Successfully ${amount >= 0 ? 'added' : 'removed'} ${Math.abs(amount)} credits`
+        );
       }
 
       // Update status if changed
-      if (newStatus && newStatus !== user.status) {
+      if (newStatus && newStatus !== user.subscriptionStatus) {
         const response = await fetch(`/api/admin/users/${user.id}/status`, {
-          method: "POST",
+          method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: newStatus }),
         });
@@ -93,43 +112,71 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
         <DialogHeader>
           <DialogTitle>Manage User</DialogTitle>
           <DialogDescription>
-            Update {user.name}&apos;s account settings and credits
+            Update {user.firstName}&apos;s account settings and credits
           </DialogDescription>
         </DialogHeader>
 
         <div className='grid gap-4 py-4'>
           <div className='grid gap-2'>
             <label className='text-sm font-medium'>Adjust Credits</label>
-            <div className='flex flex-col justify-start items-center gap-2'>
-              <Input
-                type='number'
-                value={creditAdjustment}
-                onChange={(e) => setCreditAdjustment(e.target.value)}
-                placeholder='Enter amount (+ or -)'
-              />
-              <div className='text-sm text-muted-foreground w-full'>
-                Current: {user.credits}
+            <div className='flex flex-col gap-2'>
+              <div className='flex items-center gap-2'>
+                <div className='text-sm text-muted-foreground'>
+                  Current Credits: {user.credits || 0}
+                </div>
+                <Badge
+                  variant={
+                    user.credits > 10
+                      ? 'default'
+                      : user.credits > 0
+                      ? 'secondary'
+                      : 'destructive'
+                  }
+                >
+                  {user.credits > 10 ? 'Good' : user.credits > 0 ? 'Low' : 'Empty'}
+                </Badge>
+              </div>
+              <div className='flex gap-2'>
+                <Input
+                  type='number'
+                  value={creditAdjustment}
+                  onChange={(e) => setCreditAdjustment(e.target.value)}
+                  placeholder='Enter amount (negative to remove)'
+                />
+                <Button
+                  onClick={() => handleSave()}
+                  disabled={!creditAdjustment || isLoading}
+                  variant={parseInt(creditAdjustment) >= 0 ? 'default' : 'destructive'}
+                >
+                  {parseInt(creditAdjustment) >= 0 ? 'Add' : 'Remove'}
+                </Button>
+              </div>
+              <div className='text-sm text-muted-foreground'>
+                Note: Credits expire after 30 days
               </div>
             </div>
           </div>
 
           <div className='grid gap-2'>
             <label className='text-sm font-medium'>Status</label>
-            <Select value={user.status} onValueChange={handleStatusChange}>
+            <Select
+              value={user.subscriptionStatus}
+              onValueChange={handleStatusChange}
+            >
               <SelectTrigger>
                 <SelectValue placeholder='Select status' />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='active'>Active</SelectItem>
-                <SelectItem value='canceled'>Canceled</SelectItem>
-                <SelectItem value='incomplete'>Incomplete</SelectItem>
-                <SelectItem value='incomplete_expired'>
+                <SelectItem value='ACTIVE'>Active</SelectItem>
+                <SelectItem value='CANCELED'>Canceled</SelectItem>
+                <SelectItem value='INCOMPLETE'>Incomplete</SelectItem>
+                <SelectItem value='INCOMPLETE_EXPIRED'>
                   Incomplete Expired
                 </SelectItem>
-                <SelectItem value='past_due'>Past Due</SelectItem>
-                <SelectItem value='trialing'>Trialing</SelectItem>
-                <SelectItem value='unpaid'>Unpaid</SelectItem>
-                <SelectItem value='inactive'>Inactive</SelectItem>
+                <SelectItem value='PAST_DUE'>Past Due</SelectItem>
+                <SelectItem value='TRIALING'>Trialing</SelectItem>
+                <SelectItem value='UNPAID'>Unpaid</SelectItem>
+                <SelectItem value='INACTIVE'>Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
