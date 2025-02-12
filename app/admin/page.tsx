@@ -13,6 +13,7 @@ import {
   getRecentActivity,
 } from "./actions";
 
+export const dynamic = "force-dynamic";
 // Set a reasonable revalidation interval (e.g., 5 minutes)
 export const revalidate = 300;
 

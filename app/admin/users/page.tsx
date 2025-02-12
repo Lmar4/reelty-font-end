@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Separator } from "@/components/ui/separator";
 import Loading from "./loading";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "User Management | Admin Dashboard",
   description: "Manage users and their subscriptions",
