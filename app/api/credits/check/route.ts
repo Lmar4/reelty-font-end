@@ -12,10 +12,6 @@ export const POST = withAuth(async function POST(
     const data = await makeBackendRequest("/api/credits/check", {
       method: "POST",
       sessionToken: request.auth.sessionToken,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: { userId: request.auth.userId },
     });
 
     return NextResponse.json(data);

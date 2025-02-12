@@ -14,7 +14,7 @@ import {
   Bar,
   BarChart,
 } from "recharts";
-import { type VideoAnalytics } from "../actions";
+import { type VideoAnalytics } from "../types";
 
 interface VideoAnalyticsSectionProps {
   initialData: VideoAnalytics;

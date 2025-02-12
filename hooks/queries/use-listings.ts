@@ -15,7 +15,11 @@ async function fetchListings(
       Authorization: `Bearer ${token}`,
     },
   });
+
   if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error("Rate limit exceeded. Please try again later.");
+    }
     throw new Error("Failed to fetch listings");
   }
   return response.json();
@@ -94,6 +98,15 @@ export function useListings(userId: string) {
       return fetchListings(userId, token || "");
     },
     enabled: !!userId,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    gcTime: 1000 * 60 * 5, // Cache for 5 minutes before garbage collection
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes("Rate limit")) {
+        return failureCount < 3; // Only retry 3 times for rate limits
+      }
+      return failureCount < 2; // Default to 2 retries for other errors
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff with max 30s
   });
 }
 

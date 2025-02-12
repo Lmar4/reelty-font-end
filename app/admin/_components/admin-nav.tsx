@@ -43,13 +43,13 @@ const routes: Route[] = [
     color: "text-pink-700",
     active: (pathname: string) => pathname.startsWith("/admin/subscriptions"),
   },
-  {
-    href: "/admin/videos",
-    label: "Videos",
-    icon: FileVideo,
-    color: "text-orange-700",
-    active: (pathname: string) => pathname.startsWith("/admin/videos"),
-  },
+  // {
+  //   href: "/admin/videos",
+  //   label: "Videos",
+  //   icon: FileVideo,
+  //   color: "text-orange-700",
+  //   active: (pathname: string) => pathname.startsWith("/admin/videos"),
+  // },
   {
     href: "/admin/settings",
     label: "Settings",

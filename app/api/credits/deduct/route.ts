@@ -23,7 +23,6 @@ export const POST = withAuth(async function POST(
         "Content-Type": "application/json",
       },
       body: {
-        userId: request.auth.userId,
         amount,
         reason: reason || "Video generation",
       },

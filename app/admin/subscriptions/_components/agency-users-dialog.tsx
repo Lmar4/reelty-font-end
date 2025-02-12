@@ -7,6 +7,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -35,12 +37,15 @@ export function AgencyUsersDialog({
   onClose,
 }: AgencyUsersDialogProps) {
   const [isInviting, setIsInviting] = useState(false);
+  const [userToRemove, setUserToRemove] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["agency-users", agency?.id],
     queryFn: async () => {
-      if (!agency?.id) return null;
+      if (!agency?.id) {
+        return null;
+      }
       const response = await fetch(`/api/admin/agencies/${agency.id}/users`);
       if (!response.ok) {
         throw new Error("Failed to fetch agency users");
@@ -70,114 +75,143 @@ export function AgencyUsersDialog({
         queryKey: ["agency-users", agency?.id],
       });
       toast.success("User removed successfully");
+      setUserToRemove(null);
     },
     onError: (error) => {
       toast.error(
         error instanceof Error ? error.message : "Failed to remove user"
       );
+      setUserToRemove(null);
     },
   });
 
   const handleRemoveUser = (userId: string) => {
-    if (confirm("Are you sure you want to remove this user?")) {
-      removeUserMutation.mutate(userId);
-    }
+    setUserToRemove(userId);
   };
 
-  if (!agency) return null;
+  if (!agency) {
+    return null;
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className='max-w-4xl'>
-        <DialogHeader>
-          <DialogTitle>Agency Users - {agency.agencyName}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className='max-w-4xl'>
+          <DialogHeader>
+            <DialogTitle>Agency Users - {agency.agencyName}</DialogTitle>
+          </DialogHeader>
 
-        <div className='space-y-6'>
-          <div className='flex justify-between items-center'>
-            <div>
-              <p className='text-muted-foreground'>
-                Managing users for {agency.agencyName}
-              </p>
-              <p className='text-sm text-muted-foreground'>
-                {users?.length || 0} of {agency.agencyMaxUsers} users
-              </p>
+          <div className='space-y-6'>
+            <div className='flex justify-between items-center'>
+              <div>
+                <p className='text-muted-foreground'>
+                  Managing users for {agency.agencyName}
+                </p>
+                <p className='text-sm text-muted-foreground'>
+                  {users?.length || 0} of {agency.agencyMaxUsers} users
+                </p>
+              </div>
+              <Button
+                onClick={() => setIsInviting(true)}
+                disabled={(users?.length || 0) >= (agency.agencyMaxUsers || 0)}
+              >
+                Invite User
+              </Button>
             </div>
-            <Button
-              onClick={() => setIsInviting(true)}
-              disabled={(users?.length || 0) >= (agency.agencyMaxUsers || 0)}
-            >
-              Invite User
-            </Button>
+
+            {isLoading ? (
+              <div className='flex items-center justify-center p-8'>
+                <div className='text-muted-foreground'>Loading users...</div>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Credits</TableHead>
+                    <TableHead>Last Active</TableHead>
+                    <TableHead>Videos</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users?.map((user: AgencyUserStats) => (
+                    <TableRow key={user.userId}>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        {user.firstName} {user.lastName}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant='outline'>
+                          {user.usedCredits} / {user.totalCredits}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDate(user.lastActive)}</TableCell>
+                      <TableCell>{user.videoGenerations}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            new Date(user.lastActive) >
+                            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {new Date(user.lastActive) >
+                          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                            ? "Active"
+                            : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant='ghost'
+                          onClick={() => handleRemoveUser(user.userId)}
+                        >
+                          Remove
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
 
-          {isLoading ? (
-            <div className='flex items-center justify-center p-8'>
-              <div className='text-muted-foreground'>Loading users...</div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Credits</TableHead>
-                  <TableHead>Last Active</TableHead>
-                  <TableHead>Videos</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users?.map((user: AgencyUserStats) => (
-                  <TableRow key={user.userId}>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      {user.firstName} {user.lastName}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant='outline'>
-                        {user.usedCredits} / {user.totalCredits}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(user.lastActive)}</TableCell>
-                    <TableCell>{user.videoGenerations}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          new Date(user.lastActive) >
-                          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                            ? "default"
-                            : "secondary"
-                        }
-                      >
-                        {new Date(user.lastActive) >
-                        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                          ? "Active"
-                          : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant='ghost'
-                        onClick={() => handleRemoveUser(user.userId)}
-                      >
-                        Remove
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+          <InviteUserDialog
+            agency={agency}
+            open={isInviting}
+            onClose={() => setIsInviting(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
-        <InviteUserDialog
-          agency={agency}
-          open={isInviting}
-          onClose={() => setIsInviting(false)}
-        />
-      </DialogContent>
-    </Dialog>
+      <Dialog open={!!userToRemove} onOpenChange={() => setUserToRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove this user? This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setUserToRemove(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant='destructive'
+              onClick={() =>
+                userToRemove && removeUserMutation.mutate(userToRemove)
+              }
+            >
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

@@ -9,10 +9,12 @@ interface PendingListingHandlerProps {
   children: React.ReactNode;
 }
 
-async function convertTempToListing(data: {
+interface ListingData {
   userId: string;
-  [key: string]: any;
-}): Promise<void> {
+  [key: string]: string | number | boolean | object;
+}
+
+async function convertTempToListing(data: ListingData): Promise<void> {
   const response = await fetch("/api/listings/convert", {
     method: "POST",
     headers: {
@@ -41,8 +43,12 @@ export function PendingListingHandler({
   });
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!user) return;
+    if (!isLoaded) {
+      return;
+    }
+    if (!user) {
+      return;
+    }
 
     const storedData = localStorage.getItem("preAuthListingData");
     if (storedData) {

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { withAuth } from "@/utils/withAuth";
+import { makeBackendRequest, withAuth } from "@/utils/withAuth";
 import { z } from "zod";
 
 const subscriptionTierSchema = z.object({
@@ -18,21 +18,13 @@ export const GET = withAuth(async (request) => {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/admin/subscription-tiers?page=${page}&limit=${limit}`,
+    const data = await makeBackendRequest(
+      `/api/admin/subscription-tiers?page=${page}&limit=${limit}`,
       {
-        headers: {
-          Authorization: `Bearer ${request.auth.sessionToken}`,
-        },
+        sessionToken: request.auth.sessionToken,
       }
     );
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch subscription tiers");
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("[SUBSCRIPTION_TIERS_GET]", error);
     return NextResponse.json(

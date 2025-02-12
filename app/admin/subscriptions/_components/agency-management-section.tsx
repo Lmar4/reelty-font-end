@@ -13,11 +13,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EditAgencyDialog } from "./edit-agency-dialog";
-import { AgencyUser } from "@/types/agency";
+import { AgencyUser } from "@/app/admin/types";
 import { formatDate } from "@/lib/utils";
 import { AgencyUsersDialog } from "./agency-users-dialog";
 import { CreditManagementDialog } from "./credit-management-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAgencies } from "@/app/admin/actions";
 
 export function AgencyManagementSection() {
   const [editingAgency, setEditingAgency] = useState<AgencyUser | null>(null);
@@ -28,14 +29,7 @@ export function AgencyManagementSection() {
 
   const { data: agencies, isLoading } = useQuery({
     queryKey: ["agencies"],
-    queryFn: async () => {
-      const response = await fetch("/api/admin/agencies");
-      if (!response.ok) {
-        throw new Error("Failed to fetch agencies");
-      }
-      const data = await response.json();
-      return data.data;
-    },
+    queryFn: getAgencies,
   });
 
   if (isLoading) {
@@ -54,57 +48,21 @@ export function AgencyManagementSection() {
             <table className='w-full caption-bottom text-sm'>
               <thead className='[&_tr]:border-b'>
                 <tr className='border-b transition-colors'>
-                  <th className='h-12 px-4 text-left align-middle'>
-                    <Skeleton className='h-4 w-[100px]' />
-                  </th>
-                  <th className='h-12 px-4 text-left align-middle'>
-                    <Skeleton className='h-4 w-[80px]' />
-                  </th>
-                  <th className='h-12 px-4 text-left align-middle'>
-                    <Skeleton className='h-4 w-[60px]' />
-                  </th>
-                  <th className='h-12 px-4 text-left align-middle'>
-                    <Skeleton className='h-4 w-[70px]' />
-                  </th>
-                  <th className='h-12 px-4 text-left align-middle'>
-                    <Skeleton className='h-4 w-[60px]' />
-                  </th>
-                  <th className='h-12 px-4 text-left align-middle'>
-                    <Skeleton className='h-4 w-[80px]' />
-                  </th>
-                  <th className='h-12 px-4 text-left align-middle'>
-                    <Skeleton className='h-4 w-[100px]' />
-                  </th>
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <th key={i} className='h-12 px-4 text-left align-middle'>
+                      <Skeleton className='h-4 w-[80px]' />
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className='[&_tr:last-child]:border-0'>
                 {Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index} className='border-b transition-colors'>
-                    <td className='p-4'>
-                      <Skeleton className='h-4 w-[150px]' />
-                    </td>
-                    <td className='p-4'>
-                      <Skeleton className='h-4 w-[120px]' />
-                    </td>
-                    <td className='p-4'>
-                      <Skeleton className='h-4 w-[80px]' />
-                    </td>
-                    <td className='p-4'>
-                      <Skeleton className='h-4 w-[90px]' />
-                    </td>
-                    <td className='p-4'>
-                      <Skeleton className='h-4 w-[70px]' />
-                    </td>
-                    <td className='p-4'>
-                      <Skeleton className='h-4 w-[100px]' />
-                    </td>
-                    <td className='p-4'>
-                      <div className='flex gap-2'>
-                        <Skeleton className='h-9 w-[60px]' />
-                        <Skeleton className='h-9 w-[90px]' />
-                        <Skeleton className='h-9 w-[120px]' />
-                      </div>
-                    </td>
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <td key={i} className='p-4'>
+                        <Skeleton className='h-4 w-[100px]' />
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>

@@ -88,14 +88,6 @@ export default function VideoGenerationFlow({
   };
 
   const handleStartProcessing = async () => {
-    console.log("Starting video generation flow...", {
-      userId,
-      selectedTemplate,
-      photosCount: selectedPhotos.length,
-      address,
-      coordinates,
-    });
-
     if (
       !userId ||
       !selectedTemplate ||
@@ -113,22 +105,19 @@ export default function VideoGenerationFlow({
 
     try {
       // Create listing
-      console.log("Creating listing...", { address, coordinates });
+
       const listing = await createListing.mutateAsync({
         userId,
         address,
         coordinates,
         photoLimit: 10,
       });
-      console.log("Listing created successfully:", listing);
 
       setProgress(20);
       setProcessingStatus("Uploading photos...");
 
       // Upload photos
-      console.log("Starting photo uploads...", {
-        photoCount: selectedPhotos.length,
-      });
+
       const uploadPromises = selectedPhotos.map((file, index) =>
         uploadPhoto.mutateAsync({
           file,
@@ -139,7 +128,6 @@ export default function VideoGenerationFlow({
 
       const uploadResults = await Promise.all(uploadPromises);
       const uploadedFilePaths = uploadResults.map((result) => result.filePath);
-      console.log("Photos uploaded successfully:", { uploadedFilePaths });
 
       setProgress(60);
       setProcessingStatus("Generating video...");
@@ -151,17 +139,12 @@ export default function VideoGenerationFlow({
       }
 
       // Create video generation job with template name
-      console.log("Creating video generation job...", {
-        listingId: listing.id,
-        template: template.name.toLowerCase().replace(/\s+/g, ""),
-        inputFiles: uploadedFilePaths,
-      });
+
       const job = await createJob.mutateAsync({
         listingId: listing.id,
         template: template.name.toLowerCase().replace(/\s+/g, ""),
         inputFiles: uploadedFilePaths,
       });
-      console.log("Video generation job created:", job);
 
       setProgress(100);
       setProcessingStatus("Complete!");
@@ -434,7 +417,7 @@ export default function VideoGenerationFlow({
                 </h3>
                 <p className='text-sm text-gray-500'>
                   Your video reel is ready. You will receive an email
-                  notification when it's available.
+                  notification when it&apos;s available.
                 </p>
               </div>
             </div>

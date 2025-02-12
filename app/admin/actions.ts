@@ -1,186 +1,180 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import type {
+  RevenueAnalytics,
+  VideoAnalytics,
+  CreditAnalytics,
+  Activity,
+  UserStats,
+  BulkDiscount,
+  AgencyUser,
+} from "./types";
 
-export interface RevenueAnalytics {
-  totalRevenue: number;
-  monthlyRevenue: Array<{
-    month: string;
-    amount: number;
-  }>;
-  subscriptionStats: {
-    active: number;
-    cancelled: number;
-    total: number;
-  };
-  revenueByTier: Array<{
-    tier: string;
-    amount: number;
-  }>;
-  dailyRevenue: Array<{
-    date: string;
-    amount: number;
-  }>;
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
 }
 
-export interface VideoAnalytics {
-  processingStats: {
-    total: number;
-    success: number;
-    failed: number;
-    inProgress: number;
-  };
-  dailyJobs: Array<{
-    date: string;
-    total: number;
-    success: number;
-    failed: number;
-  }>;
-  timeDistribution: Array<{
-    hour: number;
-    count: number;
-  }>;
-}
+async function makeAuthenticatedRequest<T>(
+  endpoint: string,
+  actionName: string,
+  transformResponse?: (data: any) => T
+): Promise<T> {
+  console.log(`[${actionName}] Starting request`);
 
-export interface CreditAnalytics {
-  totalCredits: number;
-  creditsByType: Array<{
-    reason: string;
-    amount: number;
-  }>;
-  topUsers: Array<{
-    userId: string;
-    email: string;
-    credits: number;
-  }>;
-  dailyCredits: Array<{
-    date: string;
-    amount: number;
-  }>;
+  try {
+    const { userId, getToken } = await auth();
+    console.log(`[${actionName}] Auth check - User ID:`, userId);
+
+    if (!userId) {
+      throw new Error("Unauthorized - No user ID");
+    }
+
+    const sessionToken = await getToken();
+    console.log(`[${actionName}] Session token exists:`, !!sessionToken);
+
+    if (!sessionToken) {
+      throw new Error("Unauthorized - No session token");
+    }
+
+    const url = `${process.env.BACKEND_URL}${endpoint}`;
+    console.log(`[${actionName}] Making request to:`, url);
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${sessionToken}`,
+        "Content-Type": "application/json",
+      },
+      next: { revalidate: 60 },
+    });
+
+    console.log(`[${actionName}] Response status:`, response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[${actionName}] Error response:`, errorText);
+      throw new Error(
+        `Request failed with status ${response.status}: ${errorText}`
+      );
+    }
+
+    const rawData = await response.json();
+    console.log(`[${actionName}] Raw response:`, rawData);
+
+    // Check if the response follows the API response structure
+    if (
+      rawData &&
+      typeof rawData === "object" &&
+      "success" in rawData &&
+      "data" in rawData
+    ) {
+      const apiResponse = rawData as ApiResponse<T>;
+      if (!apiResponse.success) {
+        throw new Error("API returned unsuccessful response");
+      }
+      return transformResponse
+        ? transformResponse(apiResponse.data)
+        : apiResponse.data;
+    }
+
+    // If response doesn't follow the API structure, return as is or transform
+    return transformResponse ? transformResponse(rawData) : (rawData as T);
+  } catch (error) {
+    console.error(`[${actionName}] Error:`, {
+      name: error instanceof Error ? error.name : "Unknown Error",
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : "No stack trace",
+    });
+    throw error;
+  }
 }
 
 export async function getRevenueAnalytics(): Promise<RevenueAnalytics> {
-  const { userId, getToken } = await auth();
-  if (!userId) {
-    throw new Error("Unauthorized");
-  }
-
-  const sessionToken = await getToken();
-  if (!sessionToken) {
-    throw new Error("No session token available");
-  }
-
-  console.log("[REVENUE_ANALYTICS] Making request with token:", sessionToken);
-  const response = await fetch(
-    `${process.env.BACKEND_URL}/api/admin/analytics/revenue`,
-    {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 60 }, // Cache for 1 minute
-    }
+  return makeAuthenticatedRequest<RevenueAnalytics>(
+    "/api/admin/analytics/revenue",
+    "REVENUE_ANALYTICS"
   );
-
-  console.log("[REVENUE_ANALYTICS] Response status:", response.status);
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("[REVENUE_ANALYTICS] Error response:", errorText);
-    throw new Error(`Failed to fetch revenue analytics: ${errorText}`);
-  }
-
-  return response.json();
 }
 
 export async function getVideoAnalytics(): Promise<VideoAnalytics> {
-  const { userId, getToken } = await auth();
-  if (!userId) {
-    throw new Error("Unauthorized");
-  }
-
-  const sessionToken = await getToken();
-  if (!sessionToken) {
-    throw new Error("No session token available");
-  }
-
-  console.log("[VIDEO_ANALYTICS] Making request with token:", sessionToken);
-  const response = await fetch(
-    `${process.env.BACKEND_URL}/api/admin/analytics/videos`,
-    {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 60 }, // Cache for 1 minute
-    }
+  return makeAuthenticatedRequest<VideoAnalytics>(
+    "/api/admin/analytics/videos",
+    "VIDEO_ANALYTICS"
   );
-
-  console.log("[VIDEO_ANALYTICS] Response status:", response.status);
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("[VIDEO_ANALYTICS] Error response:", errorText);
-    throw new Error(`Failed to fetch video analytics: ${errorText}`);
-  }
-
-  return response.json();
 }
 
 export async function getCreditAnalytics(): Promise<CreditAnalytics> {
-  const { userId, getToken } = await auth();
-  if (!userId) {
-    throw new Error("Unauthorized");
-  }
-
-  const sessionToken = await getToken();
-  if (!sessionToken) {
-    throw new Error("No session token available");
-  }
-
-  console.log("[CREDIT_ANALYTICS] Making request with token:", sessionToken);
-  const response = await fetch(
-    `${process.env.BACKEND_URL}/api/admin/analytics/credits`,
-    {
-      headers: {
-        Authorization: `Bearer ${sessionToken}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 60 }, // Cache for 1 minute
-    }
+  return makeAuthenticatedRequest<CreditAnalytics>(
+    "/api/admin/analytics/credits",
+    "CREDIT_ANALYTICS"
   );
-
-  console.log("[CREDIT_ANALYTICS] Response status:", response.status);
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("[CREDIT_ANALYTICS] Error response:", errorText);
-    throw new Error(`Failed to fetch credit analytics: ${errorText}`);
-  }
-
-  return response.json();
-}
-
-export type ActivityType = "video" | "subscription" | "credit";
-
-export interface Activity {
-  id: string;
-  type: ActivityType;
-  description: string;
-  user: {
-    email: string;
-  };
-  createdAt: string;
 }
 
 export async function getRecentActivity(): Promise<Activity[]> {
-  const response = await fetch(
-    `${process.env.BACKEND_URL}/api/admin/analytics/activity`,
-    {
-      next: { revalidate: 60 }, // Cache for 1 minute
+  return makeAuthenticatedRequest<Activity[]>(
+    "/api/admin/analytics/activity",
+    "RECENT_ACTIVITY",
+    (data) => {
+      // If the response is wrapped in a success/data structure
+      if (data && Array.isArray(data.data)) {
+        return data.data;
+      }
+      // If the response is a direct array
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
     }
   );
+}
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch recent activity");
-  }
+export async function getUserStats(): Promise<UserStats> {
+  return makeAuthenticatedRequest<UserStats>(
+    "/api/admin/stats/users",
+    "USER_STATS",
+    (data) => ({
+      totalUsers: data.totalUsers,
+      activeUsers: data.activeUsers,
+      newUsers: 0, // This field is missing from the API
+      usersByTier: data.usersByTier,
+      recentActivity: [], // This field is missing from the API
+    })
+  );
+}
 
-  return response.json();
+export async function getBulkDiscounts(): Promise<BulkDiscount[]> {
+  return makeAuthenticatedRequest<BulkDiscount[]>(
+    "/api/admin/bulk-discounts",
+    "BULK_DISCOUNTS",
+    (data) => {
+      // If the response is wrapped in a success/data structure
+      if (data && Array.isArray(data.data)) {
+        return data.data;
+      }
+      // If the response is a direct array
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
+    }
+  );
+}
+
+export async function getAgencies(): Promise<AgencyUser[]> {
+  return makeAuthenticatedRequest<AgencyUser[]>(
+    "/api/admin/agencies",
+    "AGENCIES",
+    (data) => {
+      // If the response is wrapped in a success/data structure
+      if (data && Array.isArray(data.data)) {
+        return data.data;
+      }
+      // If the response is a direct array
+      if (Array.isArray(data)) {
+        return data;
+      }
+      return [];
+    }
+  );
 }

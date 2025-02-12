@@ -1,25 +1,13 @@
-// Base types
-export * from "./subscription";
-export * from "./asset-types";
-export * from "./admin";
-
-// Prisma types
+// Base Prisma types
 export * as PrismaTypes from "./prisma-types";
 
-// User and Job related types
-export {
-  type SubscriptionStatus,
-  type User as ExtendedUser,
-  type UpdateUserInput,
-  type UserSubscriptionInfo,
-  type UserCreditInfo,
-  type UserActivityLog,
-  type UserStats,
-  type VideoJob,
-  type CreateVideoJobInput,
-  type UpdateVideoJobInput,
-  type GetVideoJobsParams,
-  type RegenerateVideoInput,
-} from "./user-types";
+// User types - excluding SubscriptionStatus to avoid conflict
+export type { User, UserSubscriptionInfo, UserActivityLog } from "./user-types";
 
+// Domain specific types
+export * from "./subscription";
+export * from "./agency";
+export * from "./analytics";
+export * from "./admin";
+export * from "./asset-types";
 export * from "./job-types";

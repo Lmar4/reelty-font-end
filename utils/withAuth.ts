@@ -8,7 +8,7 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-interface BackendResponse<T> {
+export interface BackendResponse<T> {
   success: boolean;
   data?: T;
   error?: string;

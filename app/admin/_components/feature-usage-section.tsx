@@ -42,7 +42,9 @@ export default function FeatureUsageSection() {
     );
   }
 
-  if (!usage) return null;
+  if (!usage) {
+    return null;
+  }
 
   return (
     <Card className='p-6'>

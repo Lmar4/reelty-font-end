@@ -42,40 +42,64 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Handle admin routes
   if (isAdmin) {
+    console.log("[MIDDLEWARE] Processing admin route access for URL:", req.url);
     try {
       const sessionToken = await getToken();
+      console.log("[MIDDLEWARE] Session token exists:", !!sessionToken);
 
       if (!sessionToken) {
+        console.log("[MIDDLEWARE] No session token found, redirecting to home");
         const homeUrl = new URL("/", req.url);
         return NextResponse.redirect(homeUrl);
       }
 
-      const response = await fetch(
-        `${process.env.BACKEND_URL}/api/users/${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${sessionToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const apiUrl = `${process.env.BACKEND_URL}/api/users/${userId}`;
+      console.log("[MIDDLEWARE] Fetching user data from:", apiUrl);
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      console.log("[MIDDLEWARE] User data response status:", response.status);
 
       if (!response.ok) {
+        console.log(
+          "[MIDDLEWARE] Failed to fetch user data:",
+          await response.text()
+        );
         const homeUrl = new URL("/", req.url);
         return NextResponse.redirect(homeUrl);
       }
 
       const responseData = await response.json();
+      console.log(
+        "[MIDDLEWARE] User data response:",
+        JSON.stringify(responseData, null, 2)
+      );
 
       const { data: user } = responseData;
+      console.log("[MIDDLEWARE] Admin check:", {
+        currentTierId: user?.currentTierId,
+        requiredTierId: ADMIN_TIER_ID,
+        isAdmin: user?.currentTierId === ADMIN_TIER_ID,
+      });
 
       if (user?.currentTierId !== ADMIN_TIER_ID) {
-        console.log("[ADMIN_CHECK] User is not admin, redirecting");
+        console.log("[MIDDLEWARE] User is not admin, redirecting to home");
         const homeUrl = new URL("/", req.url);
         return NextResponse.redirect(homeUrl);
       }
+
+      console.log("[MIDDLEWARE] Admin access granted");
     } catch (error) {
-      console.error("[ADMIN_AUTH_ERROR] Full error:", error);
+      console.error("[MIDDLEWARE] Admin auth error:", {
+        name: error instanceof Error ? error.name : "Unknown Error",
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : "No stack trace",
+      });
       const homeUrl = new URL("/", req.url);
       return NextResponse.redirect(homeUrl);
     }

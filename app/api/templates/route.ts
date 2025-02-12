@@ -7,6 +7,7 @@ import {
 import { Template, User } from "@/types/prisma-types";
 
 const DEFAULT_TEMPLATE: Template = {
+  thumbnailUrl: null,
   id: "default",
   name: "Default Template",
   description: "Default video template",

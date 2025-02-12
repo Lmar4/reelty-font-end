@@ -82,7 +82,7 @@ export const sendAgencyWelcomeEmail = async ({
 export const sendCreditUpdateEmail = async ({
   to,
   firstName,
-  lastName,
+
   agencyName,
   creditsAdded,
   totalCredits,

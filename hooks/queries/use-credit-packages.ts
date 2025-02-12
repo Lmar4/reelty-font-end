@@ -1,27 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
-import type { SubscriptionTier } from "@/types/prisma-types";
 
-export interface CreditPackage extends SubscriptionTier {
+export interface CreditPackage {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  features: string[];
   credits: number;
 }
 
 async function fetchCreditPackages(): Promise<CreditPackage[]> {
   try {
-    const response = await fetch("/api/subscription/tiers", {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
+    const response = await fetch("/api/subscription/tiers");
     if (!response.ok) {
       throw new Error("Failed to fetch credit packages");
     }
 
-    const tiers: SubscriptionTier[] = await response.json();
+    const { data: tiers } = await response.json();
 
     // Convert subscription tiers to credit packages by extracting credits from features
-    return tiers.map((tier) => {
+    return (tiers || []).map((tier: CreditPackage) => {
       const creditFeature = tier.features.find(
         (feature) =>
           feature.toLowerCase().includes("credit") ||
@@ -47,5 +45,7 @@ export function useCreditPackages() {
   return useQuery({
     queryKey: ["creditPackages"],
     queryFn: fetchCreditPackages,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    retry: 3,
   });
 }

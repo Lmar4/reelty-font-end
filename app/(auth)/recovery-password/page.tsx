@@ -19,7 +19,9 @@ function RecoveryPasswordContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signIn || !code) return;
+    if (!signIn || !code) {
+      return;
+    }
 
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");

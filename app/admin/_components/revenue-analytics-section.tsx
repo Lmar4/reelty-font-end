@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { type RevenueAnalytics } from "../actions";
+import { type RevenueAnalytics } from "../types";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -46,7 +46,9 @@ export default function RevenueAnalyticsSection({
 
   // Calculate trends from daily revenue
   const calculateTrend = () => {
-    if (analytics.dailyRevenue.length < 2) return { isUp: true, percentage: 0 };
+    if (analytics.dailyRevenue.length < 2) {
+      return { isUp: true, percentage: 0 };
+    }
 
     const today =
       analytics.dailyRevenue[analytics.dailyRevenue.length - 1].amount;

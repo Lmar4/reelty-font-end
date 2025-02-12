@@ -68,7 +68,7 @@ export default function CreditPackages() {
 
         <div>
           <div className='text-3xl font-bold'>
-            ${Number(pkg.monthlyPrice).toFixed(2)}
+            ${Number(pkg.price).toFixed(2)}
           </div>
           <div className='text-sm text-gray-500'>{pkg.credits} credits</div>
           {isOneTime && (
@@ -111,9 +111,9 @@ export default function CreditPackages() {
       <div className='bg-white rounded-lg p-6 shadow-sm border'>
         <h2 className='text-xl font-semibold mb-2'>Your Credits</h2>
         {isLoadingCredits ? (
-          <div className='flex items-center'>
-            <Loader2 className='h-5 w-5 animate-spin mr-2' />
-            <span>Loading credits...</span>
+          <div className='flex items-center space-x-2'>
+            <div className='h-8 w-24 bg-gray-200 animate-pulse rounded'></div>
+            <div className='h-4 w-16 bg-gray-200 animate-pulse rounded'></div>
           </div>
         ) : (
           <div className='text-3xl font-bold'>

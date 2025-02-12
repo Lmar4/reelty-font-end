@@ -11,33 +11,20 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
+import { getRecentActivity } from "../actions";
+import type { Activity } from "../types";
 
-interface Activity {
-  id: string;
-  type: string;
-  description: string;
-  userId: string;
-  timestamp: string;
+interface RecentActivitySectionProps {
+  initialData?: Activity[];
 }
 
-async function getRecentActivity(): Promise<Activity[]> {
-  const response = await fetch("/api/admin/activity", {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch recent activity");
-  }
-  return response.json();
-}
-
-export default function RecentActivitySection() {
+export default function RecentActivitySection({
+  initialData = [],
+}: RecentActivitySectionProps) {
   const { data: activities, isLoading } = useQuery({
     queryKey: ["recentActivity"],
     queryFn: getRecentActivity,
+    initialData,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -72,9 +59,9 @@ export default function RecentActivitySection() {
           <TableRow key={activity.id}>
             <TableCell className='font-medium'>{activity.type}</TableCell>
             <TableCell>{activity.description}</TableCell>
-            <TableCell>{activity.userId}</TableCell>
+            <TableCell>{activity.user.email}</TableCell>
             <TableCell>
-              {format(new Date(activity.timestamp), "MMM d, yyyy HH:mm")}
+              {format(new Date(activity.createdAt), "MMM d, yyyy HH:mm")}
             </TableCell>
           </TableRow>
         ))}

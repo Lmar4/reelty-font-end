@@ -45,7 +45,9 @@ export default function SystemStatsSection() {
     );
   }
 
-  if (!stats) return null;
+  if (!stats) {
+    return null;
+  }
 
   return (
     <Card className='p-6'>

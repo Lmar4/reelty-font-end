@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { EditDiscountDialog } from "./edit-discount-dialog";
-import { BulkDiscount } from "@/types/agency";
+import { BulkDiscount } from "@/app/admin/types";
 import { formatDate } from "@/lib/utils";
+import { getBulkDiscounts } from "@/app/admin/actions";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function BulkDiscountsSection() {
   const [editingDiscount, setEditingDiscount] = useState<BulkDiscount | null>(
@@ -23,17 +25,48 @@ export function BulkDiscountsSection() {
 
   const { data: discounts, isLoading } = useQuery({
     queryKey: ["bulk-discounts"],
-    queryFn: async () => {
-      const response = await fetch("/api/admin/bulk-discounts");
-      if (!response.ok) {
-        throw new Error("Failed to fetch bulk discounts");
-      }
-      return response.json();
-    },
+    queryFn: getBulkDiscounts,
   });
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className='space-y-6'>
+        <div className='flex justify-between items-center'>
+          <div>
+            <Skeleton className='h-7 w-[200px]' />
+            <Skeleton className='h-4 w-[300px] mt-2' />
+          </div>
+          <Skeleton className='h-10 w-[120px]' />
+        </div>
+
+        <div className='border rounded-lg'>
+          <div className='relative w-full overflow-auto'>
+            <table className='w-full caption-bottom text-sm'>
+              <thead className='[&_tr]:border-b'>
+                <tr className='border-b transition-colors'>
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <th key={i} className='h-12 px-4 text-left align-middle'>
+                      <Skeleton className='h-4 w-[80px]' />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className='[&_tr:last-child]:border-0'>
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <tr key={index} className='border-b transition-colors'>
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <td key={i} className='p-4'>
+                        <Skeleton className='h-4 w-[100px]' />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -56,7 +89,8 @@ export function BulkDiscountsSection() {
             <TableHead>Name</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Discount</TableHead>
-            <TableHead>Users</TableHead>
+            <TableHead>Current Usage</TableHead>
+            <TableHead>Total Usage</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Expires</TableHead>
             <TableHead>Actions</TableHead>
@@ -69,7 +103,16 @@ export function BulkDiscountsSection() {
               <TableCell>{discount.description}</TableCell>
               <TableCell>{discount.discountPercent}%</TableCell>
               <TableCell>
-                {discount.currentUsers} / {discount.maxUsers}
+                <div className="flex flex-col">
+                  <span>{discount.currentUsers} / {discount.maxUsers}</span>
+                  <span className="text-xs text-muted-foreground">current</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-col">
+                  <span>{discount.totalUsageCount}</span>
+                  <span className="text-xs text-muted-foreground">total uses</span>
+                </div>
               </TableCell>
               <TableCell>
                 <Badge variant={discount.isActive ? "default" : "secondary"}>

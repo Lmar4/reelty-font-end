@@ -84,8 +84,8 @@ async function fetchCreditHistory(
     throw new Error("Failed to fetch credit history");
   }
 
-  const data = await response.json();
-  return data.history;
+  const { data } = await response.json();
+  return data;
 }
 
 export function useCredits(userId: string, options: UseCreditsOptions = {}) {

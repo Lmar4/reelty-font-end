@@ -26,7 +26,7 @@ export function VideoJobCard({
         isPremiumLocked ? "opacity-50 cursor-not-allowed" : ""
       }`}
     >
-      {job.status === "processing" ? (
+      {job.status === "PROCESSING" ? (
         <div className='w-full aspect-video bg-gray-100 flex items-center justify-center'>
           <LoadingState
             text='Processing video...'
@@ -51,13 +51,13 @@ export function VideoJobCard({
         <div className='flex justify-between items-center'>
           <div className='flex items-center gap-2'>
             <span className='text-sm text-gray-500'>
-              {job.status === "completed"
+              {job.status === "COMPLETED"
                 ? "Ready"
-                : job.status === "failed"
+                : job.status === "FAILED"
                 ? "Failed"
                 : "Processing..."}
             </span>
-            {job.status === "failed" && (
+            {job.status === "FAILED" && (
               <button
                 onClick={onRegenerate}
                 className='text-sm text-blue-600 hover:text-blue-700 inline-flex items-center gap-1'
@@ -67,7 +67,7 @@ export function VideoJobCard({
               </button>
             )}
           </div>
-          {job.status === "completed" && (
+          {job.status === "COMPLETED" && (
             <button
               onClick={() => onDownload(job.id)}
               disabled={isPremiumLocked}

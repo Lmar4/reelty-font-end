@@ -1,17 +1,23 @@
 import { NextResponse } from "next/server";
 import {
   withAuth,
-  AuthenticatedRequest,
   makeBackendRequest,
+  AuthenticatedRequest,
 } from "@/utils/withAuth";
-import { SubscriptionTier } from "@/types/prisma-types";
 
-export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
+interface SubscriptionTier {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  features: string[];
+}
+
+export const GET = withAuth(async (request: AuthenticatedRequest) => {
   try {
     const tiers = await makeBackendRequest<SubscriptionTier[]>(
       "/api/subscription/tiers",
       {
-        method: "GET",
         sessionToken: request.auth.sessionToken,
       }
     );
@@ -19,10 +25,8 @@ export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
     return NextResponse.json(tiers);
   } catch (error) {
     console.error("[SUBSCRIPTION_TIERS_GET]", error);
-    return new NextResponse(
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch subscription tiers",
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch subscription tiers" },
       { status: 500 }
     );
   }

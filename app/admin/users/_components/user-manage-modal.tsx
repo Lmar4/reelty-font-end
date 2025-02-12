@@ -35,7 +35,9 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -81,7 +83,9 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
     }
   };
 
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   return (
     <Dialog open={!!user} onOpenChange={() => onClose()}>
@@ -89,7 +93,7 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
         <DialogHeader>
           <DialogTitle>Manage User</DialogTitle>
           <DialogDescription>
-            Update {user.name}'s account settings and credits
+            Update {user.name}&apos;s account settings and credits
           </DialogDescription>
         </DialogHeader>
 

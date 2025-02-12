@@ -129,7 +129,9 @@ export function UserList() {
         return (
           <Badge
             variant={
-              status === "active"
+              !status
+                ? "secondary"
+                : status === "active"
                 ? "default"
                 : status === "past_due" || status === "unpaid"
                 ? "destructive"
@@ -138,7 +140,9 @@ export function UserList() {
                 : "secondary"
             }
           >
-            {status === "incomplete_expired"
+            {!status
+              ? "Unknown"
+              : status === "incomplete_expired"
               ? "Expired"
               : status.charAt(0).toUpperCase() +
                 status.slice(1).replace("_", " ")}
@@ -149,12 +153,28 @@ export function UserList() {
     {
       accessorKey: "lastActive",
       header: "Last Active",
-      cell: ({ row }) => format(new Date(row.original.lastActive), "PPp"),
+      cell: ({ row }) => {
+        const lastActive = row.original.lastActive;
+        if (!lastActive) return "N/A";
+        
+        try {
+          const date = new Date(lastActive);
+          // Check if date is valid
+          if (isNaN(date.getTime())) return "Invalid Date";
+          return format(date, "PPp");
+        } catch (error) {
+          console.error("Error formatting date:", error);
+          return "Invalid Date";
+        }
+      },
     },
     {
       accessorKey: "createdAt",
       header: "Joined",
-      cell: ({ row }) => format(new Date(row.original.createdAt), "PPp"),
+      cell: ({ row }) => {
+        const createdAt = row.original.createdAt;
+        return createdAt ? format(new Date(createdAt), "PPp") : "N/A";
+      },
     },
     {
       id: "actions",

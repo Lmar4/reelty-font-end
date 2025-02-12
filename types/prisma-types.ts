@@ -10,24 +10,53 @@ export type JsonValue =
 
 export type AssetType = "MUSIC" | "WATERMARK" | "LOTTIE";
 
+export type UserRole = "USER" | "ADMIN" | "AGENCY" | "AGENCY_USER";
+
+export type SubscriptionStatus =
+  | "ACTIVE"
+  | "CANCELED"
+  | "INCOMPLETE"
+  | "INCOMPLETE_EXPIRED"
+  | "PAST_DUE"
+  | "TRIALING"
+  | "UNPAID"
+  | "INACTIVE";
+
+export type VideoGenerationStatus =
+  | "QUEUED"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
+
 export interface User {
   id: string; // Clerk ID
   email: string;
   firstName: string | null;
   lastName: string | null;
   password: string;
+  role: UserRole;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   stripePriceId: string | null;
   stripeProductId: string | null;
-  subscriptionStatus: string | null;
+  subscriptionStatus: SubscriptionStatus;
   subscriptionPeriodEnd: Date | null;
   currentTierId: string | null;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 
+  // Agency related fields
+  agencyId: string | null;
+  agencyOwnerId: string | null;
+  agencyName: string | null;
+  agencyMaxUsers: number | null;
+  agencyCurrentUsers: number;
+
   // Relations
+  agency?: User | null;
+  agencyUsers?: User[];
   subscriptionLogs?: SubscriptionLog[];
   creditLogs?: CreditLog[];
   adminCreditLogs?: CreditLog[];
@@ -37,10 +66,13 @@ export interface User {
   listings?: Listing[];
   photos?: Photo[];
   videoJobs?: VideoJob[];
+  videoGenerationJobs?: VideoGenerationJob[];
+  agencyVideoJobs?: VideoGenerationJob[];
   searchHistory?: SearchHistory[];
   errorLogs?: ErrorLog[];
   tempUploads?: TempUpload[];
   currentTier?: SubscriptionTier | null;
+  bulkDiscount?: BulkDiscount | null;
 }
 
 export interface SubscriptionTier {
@@ -66,6 +98,7 @@ export interface Template {
   description: string;
   tiers: string[];
   order: number;
+  thumbnailUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 
@@ -132,7 +165,7 @@ export interface Listing {
   userId: string;
   address: string;
   description: string | null;
-  coordinates: Record<string, any>;
+  coordinates: JsonValue;
   status: string;
   photoLimit: number;
   createdAt: Date;
@@ -151,7 +184,7 @@ export interface Photo {
   filePath: string;
   processedFilePath: string | null;
   order: number;
-  status: "pending" | "processing" | "completed" | "error";
+  status: string;
   error: string | null;
   runwayVideoPath: string | null;
   createdAt: Date;
@@ -166,12 +199,16 @@ export interface VideoJob {
   id: string;
   userId: string;
   listingId: string;
-  status: string;
+  status: VideoGenerationStatus;
   progress: number;
   template: string | null;
-  inputFiles: any | null;
+  inputFiles: JsonValue | null;
   outputFile: string | null;
   error: string | null;
+  position: number;
+  priority: number;
+  startedAt: Date | null;
+  completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 
@@ -205,7 +242,7 @@ export interface TempUpload {
   id: string;
   userId: string;
   address: string | null;
-  files: any[];
+  files: JsonValue;
   createdAt: Date;
   expiresAt: Date;
 
@@ -228,13 +265,48 @@ export interface SubscriptionLog {
   user?: User;
 }
 
-export interface Activity {
+export interface ProcessedAsset {
+  id: string;
+  type: string;
+  path: string;
+  hash: string;
+  settings: JsonValue | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BulkDiscount {
+  id: string;
+  name: string;
+  description: string;
+  discountPercent: number;
+  maxUsers: number;
+  currentUsers: number;
+  isActive: boolean;
+  expiresAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  users?: User[];
+}
+
+export interface VideoGenerationJob {
   id: string;
   userId: string;
-  action: string;
-  details: JsonValue;
+  agencyId: string | null;
+  inputFiles: JsonValue;
+  template: string;
+  status: VideoGenerationStatus;
+  position: number;
+  priority: number;
+  error: string | null;
+  result: string | null;
   createdAt: Date;
+  startedAt: Date | null;
+  completedAt: Date | null;
 
   // Relations
   user?: User;
+  agency?: User | null;
 }

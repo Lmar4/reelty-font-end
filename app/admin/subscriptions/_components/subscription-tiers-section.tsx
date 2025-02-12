@@ -30,7 +30,40 @@ export function SubscriptionTiersSection() {
   });
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="animate-pulse bg-gray-200 h-8 w-48 rounded" />
+          <div className="animate-pulse bg-gray-200 h-10 w-32 rounded" />
+        </div>
+        
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-5 gap-4 pb-4 border-b">
+              <div className="animate-pulse bg-gray-200 h-6 w-20 rounded" />
+              <div className="animate-pulse bg-gray-200 h-6 w-32 rounded" />
+              <div className="animate-pulse bg-gray-200 h-6 w-16 rounded" />
+              <div className="animate-pulse bg-gray-200 h-6 w-24 rounded" />
+              <div className="animate-pulse bg-gray-200 h-6 w-20 rounded" />
+            </div>
+
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="grid grid-cols-5 gap-4 py-4">
+                <div className="animate-pulse bg-gray-200 h-6 w-24 rounded" />
+                <div className="animate-pulse bg-gray-200 h-6 w-48 rounded" />
+                <div className="animate-pulse bg-gray-200 h-6 w-20 rounded" />
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, j) => (
+                    <div key={j} className="animate-pulse bg-gray-200 h-4 w-32 rounded" />
+                  ))}
+                </div>
+                <div className="animate-pulse bg-gray-200 h-8 w-16 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -42,7 +75,7 @@ export function SubscriptionTiersSection() {
             Manage subscription tiers and their features
           </p>
         </div>
-        <Button onClick={() => setEditingTier({} as SubscriptionTier)}>
+        <Button onClick={() => setEditingTier(null)}>
           Add New Tier
         </Button>
       </div>
@@ -58,7 +91,7 @@ export function SubscriptionTiersSection() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tiers?.map((tier: SubscriptionTier) => (
+          {tiers?.data?.map((tier: SubscriptionTier) => (
             <TableRow key={tier.id}>
               <TableCell className='font-medium'>{tier.name}</TableCell>
               <TableCell>{tier.description}</TableCell>

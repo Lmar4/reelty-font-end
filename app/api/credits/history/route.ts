@@ -8,7 +8,7 @@ import { CreditLog } from "@/types/prisma-types";
 
 export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
-    const data = await makeBackendRequest<CreditLog[]>(
+    const response = await makeBackendRequest<CreditLog[]>(
       `/api/credits/history/${request.auth.userId}`,
       {
         method: "GET",
@@ -16,7 +16,7 @@ export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
       }
     );
 
-    return NextResponse.json(data);
+    return NextResponse.json(response);
   } catch (error) {
     console.error("[CREDIT_HISTORY_ERROR]", error);
     return new NextResponse(

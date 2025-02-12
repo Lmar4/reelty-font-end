@@ -1,23 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { withAuth, makeBackendRequest } from "@/utils/withAuth";
 
-export async function GET(request: Request) {
+export const GET = withAuth(async (request) => {
   try {
-    const { userId, getToken } = await auth();
-
-    if (!userId) {
-      return new NextResponse("Unauthorized - No user ID found", {
-        status: 401,
-      });
-    }
-
-    const token = await getToken();
-    if (!token) {
-      return new NextResponse("Unauthorized - No token available", {
-        status: 401,
-      });
-    }
-
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const tier = searchParams.get("tier");
@@ -28,38 +13,30 @@ export async function GET(request: Request) {
 
     // Build query parameters
     const queryParams = new URLSearchParams();
-    if (tier) queryParams.set("tier", tier);
-    if (status) queryParams.set("status", status);
-    if (minCredits) queryParams.set("minCredits", minCredits);
-    if (maxCredits) queryParams.set("maxCredits", maxCredits);
-    if (search) queryParams.set("search", search);
-
-    // Call backend API
-    const response = await fetch(
-      `${process.env.BACKEND_URL}/api/admin/users?${queryParams.toString()}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[USERS_GET] Backend error:", {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText,
-      });
-      return new NextResponse(
-        errorText || "Failed to fetch users from backend",
-        { status: response.status }
-      );
+    if (tier) {
+      queryParams.set("tier", tier);
+    }
+    if (status) {
+      queryParams.set("status", status);
+    }
+    if (minCredits) {
+      queryParams.set("minCredits", minCredits);
+    }
+    if (maxCredits) {
+      queryParams.set("maxCredits", maxCredits);
+    }
+    if (search) {
+      queryParams.set("search", search);
     }
 
-    const users = await response.json();
-    return NextResponse.json(users);
+    // Call backend API using makeBackendRequest
+    const data = await makeBackendRequest(
+      `/api/admin/users?${queryParams.toString()}`,
+      {
+        sessionToken: request.auth.sessionToken,
+      }
+    );
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error("[USERS_GET]", error);
     return new NextResponse(
@@ -67,4 +44,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-}
+});

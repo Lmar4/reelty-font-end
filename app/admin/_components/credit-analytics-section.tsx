@@ -14,7 +14,7 @@ import {
   Bar,
   BarChart,
 } from "recharts";
-import { type CreditAnalytics } from "../actions";
+import { type CreditAnalytics } from "../types";
 
 interface CreditAnalyticsSectionProps {
   initialData: CreditAnalytics;

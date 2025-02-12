@@ -10,8 +10,8 @@ export interface AgencyUser {
   agencyMaxUsers?: number;
   agencyCurrentUsers?: number;
   totalCredits?: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AgencyStats {
@@ -44,9 +44,9 @@ export interface BulkDiscount {
   maxUsers: number;
   currentUsers: number;
   isActive: boolean;
-  expiresAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BulkDiscountInput {
@@ -54,7 +54,7 @@ export interface BulkDiscountInput {
   description: string;
   discountPercent: number;
   maxUsers: number;
-  expiresAt?: Date;
+  expiresAt?: string;
 }
 
 export interface AgencyUserStats {
@@ -64,7 +64,7 @@ export interface AgencyUserStats {
   lastName?: string;
   totalCredits: number;
   usedCredits: number;
-  lastActive: Date;
+  lastActive: string;
   videoGenerations: number;
 }
 

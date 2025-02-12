@@ -20,20 +20,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { UserStats } from "@/app/admin/types";
 
-interface UserStats {
-  totalUsers: number;
-  activeUsers: number;
-  newUsers: number;
-  usersByTier: {
-    tier: string;
-    count: number;
-  }[];
-  recentActivity: {
-    userId: string;
-    action: string;
-    timestamp: string;
-  }[];
+interface UserStatsSectionProps {
+  initialData: UserStats;
+}
+
+interface ApiResponse {
+  success: boolean;
+  data: {
+    totalUsers: number;
+    activeUsers: number;
+    usersByTier: Array<{
+      tier: string;
+      count: number;
+    }>;
+  };
 }
 
 async function getUserStats(): Promise<UserStats> {
@@ -41,13 +43,30 @@ async function getUserStats(): Promise<UserStats> {
   if (!response.ok) {
     throw new Error("Failed to fetch user stats");
   }
-  return response.json();
+  const apiResponse: ApiResponse = await response.json();
+
+  if (!apiResponse.success || !apiResponse.data) {
+    throw new Error("Invalid response format");
+  }
+
+  // Transform API response to match UserStats type
+  return {
+    totalUsers: apiResponse.data.totalUsers,
+    activeUsers: apiResponse.data.activeUsers,
+    newUsers: 0, // This seems to be missing from the API response
+    usersByTier: apiResponse.data.usersByTier,
+    recentActivity: [], // This seems to be missing from the API response
+  };
 }
 
-export default function UserStatsSection() {
+export default function UserStatsSection({
+  initialData,
+}: UserStatsSectionProps) {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["userStats"],
     queryFn: getUserStats,
+    initialData,
+    refetchInterval: 60000, // Refresh every minute
   });
 
   if (isLoading) {
@@ -58,7 +77,9 @@ export default function UserStatsSection() {
     );
   }
 
-  if (!stats) return null;
+  if (!stats) {
+    return null;
+  }
 
   return (
     <div className='space-y-6'>
@@ -83,42 +104,48 @@ export default function UserStatsSection() {
         </Card>
       </div>
 
-      <Card className='p-6'>
-        <h2 className='text-2xl font-bold mb-6'>Users by Subscription Tier</h2>
-        <div className='h-[300px]'>
-          <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={stats.usersByTier}>
-              <CartesianGrid strokeDasharray='3 3' />
-              <XAxis dataKey='tier' />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey='count' fill='#8884d8' />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+      {stats.usersByTier.length > 0 && (
+        <Card className='p-6'>
+          <h2 className='text-2xl font-bold mb-6'>
+            Users by Subscription Tier
+          </h2>
+          <div className='h-[300px]'>
+            <ResponsiveContainer width='100%' height='100%'>
+              <BarChart data={stats.usersByTier}>
+                <CartesianGrid strokeDasharray='3 3' />
+                <XAxis dataKey='tier' />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey='count' fill='#8884d8' />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
 
-      <Card className='p-6'>
-        <h2 className='text-2xl font-bold mb-6'>Recent User Activity</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User ID</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Timestamp</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {stats.recentActivity.map((activity, index) => (
-              <TableRow key={index}>
-                <TableCell>{activity.userId}</TableCell>
-                <TableCell>{activity.action}</TableCell>
-                <TableCell>{activity.timestamp}</TableCell>
+      {stats.recentActivity && stats.recentActivity.length > 0 && (
+        <Card className='p-6'>
+          <h2 className='text-2xl font-bold mb-6'>Recent User Activity</h2>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User ID</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Timestamp</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+            </TableHeader>
+            <TableBody>
+              {stats.recentActivity.map((activity) => (
+                <TableRow key={`${activity.userId}-${activity.timestamp}`}>
+                  <TableCell>{activity.userId}</TableCell>
+                  <TableCell>{activity.action}</TableCell>
+                  <TableCell>{activity.timestamp}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

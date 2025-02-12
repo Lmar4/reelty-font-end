@@ -1,10 +1,10 @@
 import { Card } from "@/components/ui/card";
+import type { Activity } from "../types";
 import {
   getVideoAnalytics,
   getRevenueAnalytics,
   getCreditAnalytics,
   getRecentActivity,
-  type Activity,
 } from "../actions";
 import { format } from "date-fns";
 import {

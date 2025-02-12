@@ -45,3 +45,83 @@ export const TIER_ORDER: Record<SubscriptionTierId, number> = {
   [SUBSCRIPTION_TIERS.ENTERPRISE]: 2,
   [SUBSCRIPTION_TIERS.ADMIN]: 3,
 } as const;
+
+export type SubscriptionStatus =
+  | "ACTIVE"
+  | "CANCELED"
+  | "INCOMPLETE"
+  | "INCOMPLETE_EXPIRED"
+  | "PAST_DUE"
+  | "TRIALING"
+  | "UNPAID"
+  | "INACTIVE";
+
+export interface SubscriptionTier {
+  id: string;
+  name: string;
+  description: string;
+  stripePriceId: string;
+  stripeProductId: string;
+  features: string[];
+  monthlyPrice: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SubscriptionLog {
+  id: string;
+  userId: string;
+  action: string;
+  stripeSubscriptionId: string;
+  stripePriceId?: string;
+  stripeProductId?: string;
+  status: string;
+  periodEnd?: Date;
+  createdAt: Date;
+}
+
+export interface TierChange {
+  id: string;
+  userId: string;
+  oldTier: string;
+  newTier: string;
+  reason: string;
+  adminId?: string;
+  createdAt: Date;
+}
+
+// Frontend specific types
+export interface Subscription {
+  id: string;
+  plan: string;
+  status: Lowercase<SubscriptionStatus> | "free";
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  stripePriceId?: string;
+  stripeProductId?: string;
+  features?: string[];
+}
+
+export interface SubscriptionResponse {
+  success: boolean;
+  data: Subscription;
+  error?: string;
+}
+
+export interface SubscriptionTiersResponse {
+  success: boolean;
+  data: SubscriptionTier[];
+  error?: string;
+}
+
+export interface TierChangeResponse {
+  success: boolean;
+  data: TierChange;
+  error?: string;
+}
+
+export interface SubscriptionLogResponse {
+  success: boolean;
+  data: SubscriptionLog[];
+  error?: string;
+}
