@@ -1,9 +1,5 @@
 "use client";
 
-import { useUser, useClerk } from "@clerk/nextjs";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +8,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2, Shield, Key, Trash2 } from "lucide-react";
+import { useClerk, useUser } from "@clerk/nextjs";
+import { Loader2, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function AccountSettings() {
   const { user } = useUser();
@@ -71,7 +71,7 @@ export default function AccountSettings() {
             </CardDescription>
           </CardHeader>
           <CardContent className='space-y-4'>
-            <div className='grid grid-cols-2 gap-x-4 gap-y-2'>
+            <div className='grid grid-cols-1 gap-x-4 gap-y-2'>
               <div className='text-sm font-medium text-gray-500'>Name</div>
               <div className='text-sm'>
                 {user?.firstName} {user?.lastName}

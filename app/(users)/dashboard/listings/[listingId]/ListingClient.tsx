@@ -5,7 +5,7 @@ import PricingModal from "@/components/modals/PricingModal";
 import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useListing } from "@/hooks/queries/use-listings";
-import { useUser } from "@/hooks/queries/use-user";
+import { useUserData } from "@/hooks/queries/use-user";
 import { Listing, Photo, VideoJob } from "@/types/prisma-types";
 import { getBaseS3Url } from "@/utils/s3-url";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -372,10 +372,8 @@ const useListingData = (
   initialListing: Listing,
   initialJobs: VideoJob[]
 ) => {
-  const { data: currentUser, isLoading: isCurrentUserLoading } = useUser("me");
-  const { data: userData, isLoading: isUserLoading } = useUser(
-    currentUser?.id || "me"
-  );
+  const { data: currentUser, isLoading: isCurrentUserLoading } = useUserData();
+  const { data: userData, isLoading: isUserLoading } = useUserData();
   const { data: listing, isLoading: isListingLoading } = useListing(listingId, {
     initialData: initialListing,
   });

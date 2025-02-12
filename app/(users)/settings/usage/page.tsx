@@ -103,7 +103,7 @@ const AccountOverviewCard: React.FC<AccountOverviewCardProps> = ({
 }) => (
   <Card className='p-6'>
     <h2 className='text-lg font-semibold mb-4'>Account Overview</h2>
-    <div className='grid grid-cols-2 gap-x-4 gap-y-2'>
+    <div className='grid grid-cols-1 gap-x-4 gap-y-2'>
       <div className='text-sm font-medium text-gray-500'>Email</div>
       {isLoading ? (
         <div className='h-4 w-32 bg-gray-200 animate-pulse rounded' />

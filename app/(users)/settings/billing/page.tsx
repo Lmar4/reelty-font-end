@@ -112,7 +112,20 @@ function CreditSection() {
       <Card className='p-6'>
         <h2 className='text-lg font-semibold mb-4'>Credit Balance</h2>
         {isLoading ? (
-          <Skeleton className='h-24 w-full' />
+          <div className='grid grid-cols-3 gap-4'>
+            <div className='space-y-2'>
+              <Skeleton className='h-4 w-24' />
+              <Skeleton className='h-8 w-16' />
+            </div>
+            <div className='space-y-2'>
+              <Skeleton className='h-4 w-24' />
+              <Skeleton className='h-8 w-16' />
+            </div>
+            <div className='space-y-2'>
+              <Skeleton className='h-4 w-24' />
+              <Skeleton className='h-8 w-16' />
+            </div>
+          </div>
         ) : (
           <div className='grid grid-cols-3 gap-4'>
             <div>

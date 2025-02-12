@@ -1,13 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import { useUser } from "@/hooks/queries/use-user";
-import {
-  useSubscriptionTiers,
-  useUpdateSubscription,
-} from "@/hooks/queries/use-subscription";
+import { CancelSubscriptionDialog } from "@/components/reelty/CancelSubscriptionDialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,29 +10,67 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CancelSubscriptionDialog } from "@/components/reelty/CancelSubscriptionDialog";
-import { User, SubscriptionTier } from "@/types/prisma-types";
+import {
+  useSubscriptionTiers,
+  useUpdateSubscription,
+} from "@/hooks/queries/use-subscription";
+import { useUserData } from "@/hooks/queries/use-user";
+import { SubscriptionTier } from "@/types/prisma-types";
+import { loadStripe } from "@stripe/stripe-js";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 export default function SubscriptionsSettings() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(
     null
   );
-  const { data: userData } = useUser(currentUser?.id || "");
-  const { data: subscriptionTiers } = useSubscriptionTiers();
+  const { data: user, isLoading: isUserLoading } = useUserData();
+  const { data: subscriptionTiers, isLoading: isLoadingTiers } =
+    useSubscriptionTiers();
   const updateSubscriptionMutation = useUpdateSubscription();
 
   const handleSubscriptionUpdate = async () => {
-    if (!userData?.id || !selectedTier) return;
+    if (!user?.id || !selectedTier) return;
 
     try {
       setIsUpdating(true);
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error("Stripe failed to load");
+
+      // If user has no subscription, create a new checkout session
+      if (!user.stripeSubscriptionId) {
+        const response = await fetch("/api/subscription/create-checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            tierId: selectedTier.id,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to create checkout session");
+        }
+
+        const { sessionId } = await response.json();
+        // Use Stripe.js to redirect to checkout
+        const { error } = await stripe.redirectToCheckout({ sessionId });
+        if (error) throw error;
+        return;
+      }
+
+      // If user has an existing subscription, update it
       await updateSubscriptionMutation.mutateAsync({
-        userId: userData.id,
         tierId: selectedTier.id,
       });
+
       toast.success("Subscription updated successfully");
       setSelectedTier(null);
     } catch (error) {
@@ -53,15 +84,15 @@ export default function SubscriptionsSettings() {
   };
 
   const handleCancelSubscription = async (reason: string, feedback: string) => {
-    if (!userData?.id || !userData?.stripeSubscriptionId) return;
+    if (!user?.id || !user?.stripeSubscriptionId) return;
 
     try {
       const response = await fetch("/api/subscription/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: userData.id,
-          stripeSubscriptionId: userData.stripeSubscriptionId,
+          userId: user.id,
+          stripeSubscriptionId: user.stripeSubscriptionId,
           reason,
           feedback,
         }),
@@ -70,14 +101,19 @@ export default function SubscriptionsSettings() {
       if (!response.ok) {
         throw new Error("Failed to cancel subscription");
       }
+
+      toast.success("Subscription cancelled successfully");
+      setIsCancelling(false);
     } catch (error) {
       console.error("Subscription cancellation error:", error);
-      throw error;
+      toast.error(
+        error instanceof Error ? error.message : "Failed to cancel subscription"
+      );
     }
   };
 
   const currentTier = subscriptionTiers?.find(
-    (tier) => tier.id === userData?.currentTierId
+    (tier) => tier.id === user?.currentTierId
   );
 
   const calculatePriceDifference = (newTier: SubscriptionTier) => {
@@ -86,16 +122,21 @@ export default function SubscriptionsSettings() {
   };
 
   const formatNextBillingDate = () => {
-    if (!userData?.subscriptionPeriodEnd) return "";
-    return new Date(userData.subscriptionPeriodEnd).toLocaleDateString(
-      "en-US",
-      {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }
-    );
+    if (!user?.subscriptionPeriodEnd) return "";
+    return new Date(user.subscriptionPeriodEnd).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
   };
+
+  if (isUserLoading || isLoadingTiers) {
+    return (
+      <div className='flex items-center justify-center min-h-[400px]'>
+        <Loader2 className='h-8 w-8 animate-spin' />
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6'>
@@ -116,7 +157,7 @@ export default function SubscriptionsSettings() {
           <p className='text-blue-600'>
             {currentTier?.name || "No active subscription"}
           </p>
-          {userData?.subscriptionStatus === "ACTIVE" && (
+          {user?.subscriptionStatus === "ACTIVE" && (
             <>
               <p className='text-sm text-blue-600 mt-2'>
                 Next billing date: {formatNextBillingDate()}
@@ -136,7 +177,11 @@ export default function SubscriptionsSettings() {
           {subscriptionTiers?.map((tier) => (
             <div
               key={tier.id}
-              className='border rounded-lg p-6 hover:shadow-lg transition-shadow'
+              className={`border rounded-lg p-6 transition-shadow ${
+                user?.currentTierId === tier.id
+                  ? "border-primary bg-primary/5"
+                  : "hover:shadow-lg"
+              }`}
             >
               <h3 className='text-xl font-semibold mb-2'>{tier.name}</h3>
               <p className='text-gray-600 mb-4'>{tier.description}</p>
@@ -153,15 +198,18 @@ export default function SubscriptionsSettings() {
                   ))}
                 </ul>
               )}
-              <button
+              <Button
                 onClick={() => setSelectedTier(tier)}
-                disabled={isUpdating || userData?.currentTierId === tier.id}
-                className='w-full py-2 px-4 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed'
+                disabled={isUpdating || user?.currentTierId === tier.id}
+                className='w-full'
+                variant={
+                  user?.currentTierId === tier.id ? "outline" : "default"
+                }
               >
-                {userData?.currentTierId === tier.id
+                {user?.currentTierId === tier.id
                   ? "Current Plan"
                   : "Select Plan"}
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -182,7 +230,11 @@ export default function SubscriptionsSettings() {
                   <div className='bg-gray-50 p-4 rounded-md'>
                     <p className='font-medium'>Price Change:</p>
                     <p className='text-lg'>
-                      ${calculatePriceDifference(selectedTier).toFixed(2)}/month{" "}
+                      $
+                      {Math.abs(calculatePriceDifference(selectedTier)).toFixed(
+                        2
+                      )}
+                      /month{" "}
                       {calculatePriceDifference(selectedTier) > 0
                         ? "increase"
                         : "decrease"}
@@ -190,7 +242,7 @@ export default function SubscriptionsSettings() {
                   </div>
                   {selectedTier.features.length > 0 && (
                     <div>
-                      <p className='font-medium mb-2'>New Features:</p>
+                      <p className='font-medium mb-2'>Features:</p>
                       <ul className='list-disc list-inside'>
                         {selectedTier.features.map((feature, index) => (
                           <li key={index}>{feature}</li>
@@ -199,8 +251,9 @@ export default function SubscriptionsSettings() {
                     </div>
                   )}
                   <p className='text-sm text-gray-500'>
-                    Your subscription will be updated immediately, and the new
-                    pricing will be reflected in your next billing cycle.
+                    {user?.stripeSubscriptionId
+                      ? "Your subscription will be updated immediately, and the new pricing will be reflected in your next billing cycle."
+                      : "You will be redirected to Stripe to complete your subscription purchase."}
                   </p>
                 </div>
               )}
@@ -216,7 +269,7 @@ export default function SubscriptionsSettings() {
             </Button>
             <Button onClick={handleSubscriptionUpdate} disabled={isUpdating}>
               {isUpdating && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-              Confirm Change
+              {user?.stripeSubscriptionId ? "Confirm Change" : "Subscribe"}
             </Button>
           </DialogFooter>
         </DialogContent>
