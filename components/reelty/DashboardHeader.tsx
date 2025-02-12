@@ -6,8 +6,19 @@ import { ProfileDropdown } from "./ProfileDropdown";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-const navigationItems = [
+import { UserRole } from "@/types/prisma-types";
+import { useRole } from "@/hooks/useRole";
+
+type NavigationItem = {
+  name: string;
+  href: string;
+  roles?: UserRole[];
+};
+
+const navigationItems: NavigationItem[] = [
   { name: "Dashboard", href: "/dashboard" },
+  { name: "Admin Dashboard", href: "/admin", roles: ["ADMIN"] },
+  { name: "Agency Dashboard", href: "/agency", roles: ["AGENCY"] },
   { name: "Settings", href: "/settings" },
 ];
 
@@ -15,7 +26,14 @@ export function DashboardHeader() {
   const { user } = useUser();
   const pathname = usePathname();
 
+  // Get user role from your database - you'll need to implement this hook
+  const userRole = useRole();
+
   if (!user) return null;
+
+  const filteredNavItems = navigationItems.filter(
+    (item) => !item.roles || item.roles.includes(userRole)
+  );
 
   return (
     <header className='bg-white border-b border-gray-200 sticky top-0 z-50'>
@@ -32,7 +50,7 @@ export function DashboardHeader() {
               />
             </Link>
             <nav className='hidden md:flex space-x-4'>
-              {navigationItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

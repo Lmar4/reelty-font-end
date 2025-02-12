@@ -2,9 +2,7 @@
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useCreateCheckoutSession } from "@/hooks/queries/use-subscription";
-import { useUser } from "@/hooks/queries/use-user";
-import { User } from "@/types/prisma-types";
-import { useState } from "react";
+import { useUserData } from "@/hooks/queries/use-user";
 import { toast } from "sonner";
 
 interface PricingModalProps {
@@ -20,12 +18,14 @@ export default function PricingModal({
   listingId,
   onUpgradeComplete,
 }: PricingModalProps) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const { data: userData } = useUser(currentUser?.id || "");
+  const { data: userData } = useUserData();
   const createCheckoutSession = useCreateCheckoutSession();
 
   const handleUpgrade = async (priceId: string) => {
-    if (!userData?.id) return;
+    if (!userData?.id) {
+      toast.error("Please sign in to upgrade your plan");
+      return;
+    }
 
     try {
       const url = await createCheckoutSession.mutateAsync({
@@ -40,7 +40,11 @@ export default function PricingModal({
       }
     } catch (error) {
       console.error("[UPGRADE_ERROR]", error);
-      toast.error(error instanceof Error ? error.message : "Failed to start upgrade process");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to start upgrade process"
+      );
     }
   };
 
@@ -78,16 +82,16 @@ export default function PricingModal({
                 disabled={createCheckoutSession.isPending}
                 className='w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
               >
-                {createCheckoutSession.isPending ? "Processing..." : "Upgrade to Pro"}
+                {createCheckoutSession.isPending
+                  ? "Processing..."
+                  : "Upgrade to Pro"}
               </button>
             </div>
 
             {/* Enterprise Plan */}
             <div className='border rounded-lg p-6'>
               <h3 className='text-xl font-semibold mb-4'>Enterprise Plan</h3>
-              <p className='text-gray-600 mb-6'>
-                For agencies and large teams
-              </p>
+              <p className='text-gray-600 mb-6'>For agencies and large teams</p>
               <ul className='space-y-3 mb-8'>
                 <li className='flex items-center'>
                   <span className='mr-2'>✓</span>
@@ -111,7 +115,9 @@ export default function PricingModal({
                 disabled={createCheckoutSession.isPending}
                 className='w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
               >
-                {createCheckoutSession.isPending ? "Processing..." : "Upgrade to Enterprise"}
+                {createCheckoutSession.isPending
+                  ? "Processing..."
+                  : "Upgrade to Enterprise"}
               </button>
             </div>
           </div>
