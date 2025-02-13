@@ -14,6 +14,7 @@ import type {
   Listing,
   VideoJob as PrismaVideoJob,
   JsonValue,
+  Template,
 } from "@/types/prisma-types";
 import {
   useQuery,
@@ -24,6 +25,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
+import { useTemplates } from "@/hooks/queries/use-templates";
+import { useCreateJob } from "@/hooks/use-jobs";
 
 // Extend the Prisma types with our runtime needs
 interface VideoJobStatus extends PrismaVideoJob {
@@ -265,51 +268,6 @@ const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
   );
 };
 
-// Add template type definition
-interface Template {
-  id: string;
-  name: string;
-  image: string;
-  isPro?: boolean;
-}
-
-// Add mock templates (we'll replace this with real data later)
-const templates: Template[] = [
-  {
-    id: "classic",
-    name: "Classic",
-    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750",
-  },
-  {
-    id: "modern",
-    name: "Modern Minimalist",
-    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9",
-  },
-  {
-    id: "warm",
-    name: "Warm & Inviting",
-    image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6",
-  },
-  {
-    id: "google-earth",
-    name: "Google Earth",
-    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa",
-    isPro: true,
-  },
-  {
-    id: "x-city",
-    name: "$X in Y City",
-    image: "https://images.unsplash.com/photo-1545156521-77bd85671d30",
-    isPro: true,
-  },
-  {
-    id: "reelty-core",
-    name: "Reelty Core",
-    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c",
-    isPro: true,
-  },
-];
-
 interface ListingClientProps {
   listingId: string;
   searchParams: { [key: string]: string | string[] | undefined };
@@ -328,6 +286,10 @@ export function ListingClient({
   // Custom hooks
   const { currentUser, userData, listing, jobStatus, isLoading } =
     useListingData(listingId, initialListing);
+
+  // Video generation mutation
+  const { mutate: createVideoJob, isPending: isGeneratingVideo } =
+    useCreateJob();
 
   // Transform photos for the settings modal
   const transformedPhotos = useMemo(
@@ -354,6 +316,46 @@ export function ListingClient({
     } else {
       showToast(result.error || "Failed to regenerate images", "error");
     }
+  };
+
+  const handleVideoGeneration = (templateId: string) => {
+    if (!listing?.photos?.length) {
+      showToast("No photos available for video generation", "error");
+      return;
+    }
+
+    // Get processed photo paths
+    const processedPhotos = listing.photos
+      .filter((photo) => photo.processedFilePath && !photo.error)
+      .map((photo) => photo.processedFilePath!)
+      .filter(Boolean);
+
+    if (!processedPhotos.length) {
+      showToast("No processed photos available for video generation", "error");
+      return;
+    }
+
+    createVideoJob(
+      {
+        listingId,
+        template: templateId,
+        inputFiles: processedPhotos,
+      },
+      {
+        onSuccess: () => {
+          showToast("Video generation started", "success");
+          queryClient.invalidateQueries({ queryKey: ["listing", listingId] });
+        },
+        onError: (error) => {
+          showToast(
+            error instanceof Error
+              ? error.message
+              : "Failed to start video generation",
+            "error"
+          );
+        },
+      }
+    );
   };
 
   return (
@@ -425,62 +427,6 @@ export function ListingClient({
         <>
           {jobStatus && <JobStatusMessage status={jobStatus} />}
 
-          {/* Templates Grid */}
-          <div className='-mx-2 md:mx-0'>
-            <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 px-2 md:px-0'>
-              {templates.map((template) => (
-                <div
-                  key={template.id}
-                  className='bg-white rounded-lg overflow-hidden shadow-sm'
-                >
-                  <div className='relative aspect-[9/16] overflow-hidden'>
-                    <Image
-                      src={template.image}
-                      alt={template.name}
-                      fill
-                      className='object-cover'
-                    />
-                    {/* Reelty Watermark */}
-                    <div className='absolute bottom-[20%] left-1/2 -translate-x-1/2 flex items-center'>
-                      <Image
-                        src='/images/logo-cutout.svg'
-                        alt='Reelty'
-                        width={120}
-                        height={40}
-                        className='opacity-40 brightness-0 invert'
-                      />
-                    </div>
-                    {template.isPro && (
-                      <div className='absolute inset-0 bg-black/50' />
-                    )}
-                  </div>
-                  <div className='p-3 md:p-4 bg-[#ebebeb]'>
-                    <div className='flex items-center justify-between mb-3 md:mb-4'>
-                      <h3 className='text-[13px] md:text-[15px] font-bold text-[#1c1c1c]'>
-                        {template.name}
-                      </h3>
-                      {template.isPro && (
-                        <span className='text-[11px] md:text-[13px] font-medium bg-black text-white px-2 py-0.5 rounded'>
-                          Pro
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      className={`w-full rounded-lg py-2 md:py-2.5 text-[13px] md:text-[14px] font-medium transition-colors ${
-                        template.isPro
-                          ? "bg-[#d1d1d1] text-[#1c1c1c]/40 cursor-not-allowed"
-                          : "bg-black text-white hover:bg-black/90"
-                      }`}
-                      disabled={template.isPro}
-                    >
-                      Download HD
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Video Jobs Section */}
           {listing?.videoJobs && listing.videoJobs.length > 0 && (
             <div className='space-y-4 mt-8'>
@@ -490,14 +436,38 @@ export function ListingClient({
                   {job.status === "PROCESSING" ? (
                     <VideoGenerationProgress jobId={job.id} />
                   ) : job.status === "COMPLETED" && job.outputFile ? (
-                    <video
-                      className='w-full rounded-lg'
-                      controls
-                      src={job.outputFile}
-                      poster={
-                        listing.photos?.[0]?.processedFilePath || undefined
-                      }
-                    />
+                    <div className='space-y-4'>
+                      <video
+                        className='w-full rounded-lg'
+                        controls
+                        src={job.outputFile}
+                        poster={
+                          listing.photos?.[0]?.processedFilePath || undefined
+                        }
+                      />
+                      <div className='flex justify-end'>
+                        <a
+                          href={job.outputFile}
+                          download
+                          className='inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-black/90'
+                        >
+                          <svg
+                            className='w-4 h-4 mr-2'
+                            fill='none'
+                            stroke='currentColor'
+                            viewBox='0 0 24 24'
+                          >
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              strokeWidth={2}
+                              d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
+                            />
+                          </svg>
+                          Download HD
+                        </a>
+                      </div>
+                    </div>
                   ) : job.status === "FAILED" ? (
                     <div className='text-red-600 text-sm'>
                       Video generation failed. Please try again.

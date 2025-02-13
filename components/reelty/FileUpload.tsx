@@ -185,7 +185,9 @@ export default function FileUpload({
         </div>
 
         <div className='flex flex-col items-center gap-2'>
-          <h3 className='text-xl text-gray-900'>Drag your files to start</h3>
+          <h3 className='text-xl text-gray-900'>
+            Drag your listing photos to start
+          </h3>
 
           <div className='flex items-center gap-3 my-1'>
             <div className='h-[1px] w-20 bg-gray-200'></div>

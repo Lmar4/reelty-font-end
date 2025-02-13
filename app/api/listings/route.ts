@@ -33,24 +33,26 @@ export const POST = withAuth(async function POST(
   try {
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
-      throw new Error('Backend URL not configured');
+      throw new Error("Backend URL not configured");
     }
 
     // Check content type to determine how to handle the body
-    const contentType = request.headers.get('content-type');
-    console.log('[LISTINGS_POST] Content-Type:', contentType);
-    
+    const contentType = request.headers.get("content-type");
+    console.log("[LISTINGS_POST] Content-Type:", contentType);
+
     let body;
     let isFormData = false;
 
-    if (contentType?.includes('multipart/form-data')) {
-      return new NextResponse("Please use JSON for creating listings", { status: 400 });
+    if (contentType?.includes("multipart/form-data")) {
+      return new NextResponse("Please use JSON for creating listings", {
+        status: 400,
+      });
       // We'll handle file uploads separately after listing creation
     } else {
       // Handle JSON
       body = await request.json();
-      console.log('[LISTINGS_POST] JSON body:', body);
-      
+      console.log("[LISTINGS_POST] JSON body:", body);
+
       // Validate required fields for JSON requests
       if (!body.address) {
         return new NextResponse("Missing required field: address", {
@@ -61,13 +63,13 @@ export const POST = withAuth(async function POST(
 
     // Forward the request to the backend
     const headers: HeadersInit = {
-      'Authorization': `Bearer ${request.auth.sessionToken}`
+      Authorization: `Bearer ${request.auth.sessionToken}`,
     };
 
     // Only set Content-Type for JSON requests
     // For FormData, let the browser set the correct boundary
     if (!isFormData) {
-      headers['Content-Type'] = 'application/json';
+      headers["Content-Type"] = "application/json";
     }
 
     // For JSON requests, validate and transform the data
@@ -75,13 +77,21 @@ export const POST = withAuth(async function POST(
       // Ensure coordinates are properly formatted numbers if they exist
       if (body.coordinates) {
         body.coordinates = {
-          lat: typeof body.coordinates.lat === "string" ? parseFloat(body.coordinates.lat) : body.coordinates.lat,
-          lng: typeof body.coordinates.lng === "string" ? parseFloat(body.coordinates.lng) : body.coordinates.lng
+          lat:
+            typeof body.coordinates.lat === "string"
+              ? parseFloat(body.coordinates.lat)
+              : body.coordinates.lat,
+          lng:
+            typeof body.coordinates.lng === "string"
+              ? parseFloat(body.coordinates.lng)
+              : body.coordinates.lng,
         };
 
         // Validate coordinates are valid numbers
         if (isNaN(body.coordinates.lat) || isNaN(body.coordinates.lng)) {
-          return new NextResponse("Invalid coordinates format", { status: 400 });
+          return new NextResponse("Invalid coordinates format", {
+            status: 400,
+          });
         }
       }
 
@@ -91,26 +101,27 @@ export const POST = withAuth(async function POST(
         address: body.address,
         coordinates: body.coordinates,
         photoLimit: body.photoLimit || 10,
-        description: body.description || ""
+        description: body.description || "",
       };
       body = transformedBody;
     }
 
     const response = await fetch(`${backendUrl}/api/listings`, {
-      method: 'POST',
+      method: "POST",
       headers,
-      body: isFormData ? body : JSON.stringify(body)
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
       let errorMessage;
       try {
         const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || response.statusText;
+        errorMessage =
+          errorData.error || errorData.message || response.statusText;
       } catch {
         errorMessage = await response.text();
       }
-      console.error('[LISTINGS_POST] Backend error:', errorMessage);
+      console.error("[LISTINGS_POST] Backend error:", errorMessage);
       return new NextResponse(errorMessage, { status: response.status });
     }
 

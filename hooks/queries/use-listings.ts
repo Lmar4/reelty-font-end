@@ -84,7 +84,7 @@ async function createListing(
   }
 
   const json = await response.json();
-  
+
   // Handle array response
   let listing;
   if (Array.isArray(json.data)) {
@@ -178,17 +178,17 @@ export function useCreateListing() {
         throw new Error("Invalid coordinates format");
       }
 
-      console.log('[CREATE_LISTING] Input:', input);
-      console.log('[CREATE_LISTING] Coordinates:', coordinates);
+      console.log("[CREATE_LISTING] Input:", input);
+      console.log("[CREATE_LISTING] Coordinates:", coordinates);
 
       const requestBody = {
         address: input.address,
         coordinates,
         photoLimit: input.photoLimit,
-        description: ""
+        description: "",
       };
 
-      console.log('[CREATE_LISTING] Request body:', requestBody);
+      console.log("[CREATE_LISTING] Request body:", requestBody);
 
       // Use the Next.js API route instead of calling backend directly
       const response = await fetch("/api/listings", {
@@ -208,7 +208,7 @@ export function useCreateListing() {
       }
 
       const result = await response.json();
-      
+
       // Extract listing from response
       let listing;
       if (Array.isArray(result.data)) {
