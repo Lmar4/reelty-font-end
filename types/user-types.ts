@@ -1,3 +1,4 @@
+import { JobStatus } from "./job-types";
 import type { User as PrismaUser } from "./prisma-types";
 
 export type SubscriptionStatus =
@@ -59,7 +60,7 @@ export interface VideoJob {
   id: string;
   userId: string;
   listingId: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: JobStatus;
   template: string;
   inputFiles: string[];
   outputFile?: string;

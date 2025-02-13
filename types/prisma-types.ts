@@ -207,14 +207,22 @@ export interface VideoJob {
   listingId: string;
   status: VideoGenerationStatus;
   progress: number;
-  template: string | null;
-  inputFiles: JsonValue | null;
-  outputFile: string | null;
-  error: string | null;
+  template?: string | null;
+  inputFiles?: any;
+  outputFile?: string | null;
+  error?: string | null;
   position: number;
   priority: number;
-  startedAt: Date | null;
-  completedAt: Date | null;
+  metadata?: {
+    stage?: "webp" | "runway" | "template" | "final";
+    currentFile?: number;
+    totalFiles?: number;
+    error?: string;
+    startTime?: string;
+    endTime?: string;
+  } | null;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 

@@ -1,6 +1,6 @@
 import type { User, Listing } from "./prisma-types";
 
-export type JobStatus = "pending" | "processing" | "completed" | "failed";
+export type JobStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED";
 
 export interface VideoJob {
   id: string;
