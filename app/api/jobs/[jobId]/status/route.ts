@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { headers } from "next/headers";
 
@@ -14,12 +14,10 @@ type VideoJobStatus = {
   };
 };
 
-type StreamController = ReadableStreamDefaultController;
-
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { jobId: string } }
-) {
+): Promise<Response> {
   const jobId = params.jobId;
   const headersList = await headers();
   const authHeader = headersList.get("authorization") || "";
@@ -36,43 +34,41 @@ export async function GET(
     let isStreamActive = true;
 
     const stream = new ReadableStream({
-      start(controller) {
-        (async () => {
-          while (isStreamActive) {
-            try {
-              const response = (await makeBackendRequest(`/api/jobs/${jobId}`, {
-                method: "GET",
-                sessionToken: authHeader,
-              })) as Response;
+      async start(controller) {
+        while (isStreamActive) {
+          try {
+            const response = (await makeBackendRequest(`/api/jobs/${jobId}`, {
+              method: "GET",
+              sessionToken: authHeader,
+            })) as unknown as Response;
 
-              if (!response || !response.ok) {
-                throw new Error("Failed to fetch job status");
-              }
+            if (!response?.ok) {
+              throw new Error("Failed to fetch job status");
+            }
 
-              const data = (await response.json()) as VideoJobStatus;
+            const data: VideoJobStatus = await response.json();
 
-              // Send the update
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
-              );
+            // Send the update
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+            );
 
-              // If job is complete or failed, close the stream
-              if (["COMPLETED", "FAILED"].includes(data.status)) {
-                controller.close();
-                isStreamActive = false;
-                break;
-              }
-
-              // Wait before next check
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-            } catch (error) {
-              console.error("[JOB_STATUS_ERROR]", error);
-              controller.error(error);
+            // If job is complete or failed, close the stream
+            if (["COMPLETED", "FAILED"].includes(data.status)) {
+              controller.close();
               isStreamActive = false;
               break;
             }
+
+            // Wait before next check
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          } catch (error) {
+            console.error("[JOB_STATUS_ERROR]", error);
+            controller.error(error);
+            isStreamActive = false;
+            break;
           }
-        })();
+        }
       },
       cancel() {
         isStreamActive = false;
