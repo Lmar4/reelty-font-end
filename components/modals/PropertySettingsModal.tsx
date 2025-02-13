@@ -1,26 +1,26 @@
-import { useState } from "react";
-import Image from "next/image";
 import { useToast } from "@/components/common/Toast";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import Image from "next/image";
+import { useState } from "react";
 
 interface PropertySettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  jobId: string;
   address: string;
   photos: Array<{
     id: string;
     url: string;
-    hasError?: boolean;
+    hasError: boolean;
+    status: "error" | "processing" | "completed";
   }>;
+  onRegenerateImage?: (photoId: string) => Promise<void>;
 }
 
 export function PropertySettingsModal({
   isOpen,
   onClose,
-  jobId,
   address,
   photos,
+  onRegenerateImage,
 }: PropertySettingsModalProps) {
   const { showToast } = useToast();
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
@@ -43,33 +43,20 @@ export function PropertySettingsModal({
 
     setIsRegenerating(true);
     try {
-      const response = await fetch(`/api/jobs/${jobId}/regenerate`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          photoIds: Array.from(selectedPhotos),
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Failed to regenerate videos");
+      // Regenerate photos directly without job ID
+      for (const photoId of selectedPhotos) {
+        if (onRegenerateImage) {
+          await onRegenerateImage(photoId);
+        }
       }
-
-      showToast("Videos are being regenerated", "success");
-      onClose();
+      showToast("Images regeneration started", "success");
     } catch (error) {
       console.error("[REGENERATE_ERROR]", error);
-      showToast(
-        error instanceof Error
-          ? error.message
-          : "Failed to regenerate videos. Please try again.",
-        "error"
-      );
+      showToast("Failed to regenerate images", "error");
     } finally {
       setIsRegenerating(false);
+      setSelectedPhotos(new Set());
+      onClose();
     }
   };
 
@@ -151,14 +138,14 @@ export function PropertySettingsModal({
                             </svg>
                           </div>
                         </div>
-                        {photo.hasError && (
-                          <div className='absolute top-2 left-2'>
-                            <div className='bg-red-500 text-white text-[11px] px-1.5 py-0.5 rounded-full'>
-                              Error
-                            </div>
-                          </div>
-                        )}
                       </>
+                    )}
+                    {photo.status === "error" && (
+                      <div className='absolute top-2 left-2'>
+                        <div className='bg-red-500 text-white text-[11px] font-medium px-2 py-0.5 rounded-md'>
+                          Error
+                        </div>
+                      </div>
                     )}
                   </div>
                 </button>
@@ -179,24 +166,44 @@ export function PropertySettingsModal({
             }`}
           >
             {isRegenerating ? (
-              <LoadingSpinner className='w-5 h-5' />
+              <>
+                <svg
+                  className='animate-spin h-4 w-4'
+                  xmlns='http://www.w3.org/2000/svg'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                >
+                  <circle
+                    className='opacity-25'
+                    cx='12'
+                    cy='12'
+                    r='10'
+                    stroke='currentColor'
+                    strokeWidth='4'
+                  ></circle>
+                  <path
+                    className='opacity-75'
+                    fill='currentColor'
+                    d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                  ></path>
+                </svg>
+                Regenerating...
+              </>
             ) : (
-              <svg
-                width='16'
-                height='16'
-                viewBox='0 0 24 24'
-                fill='white'
-                stroke='currentColor'
-                strokeWidth='1.5'
-              >
-                <path d='M12 3l1.5 3.5L17 8l-3.5 1.5L12 13l-1.5-3.5L7 8l3.5-1.5L12 3z' />
-                <path d='M5 17l1 2.5L8.5 21l-2.5 1L5 24l-1-2.5L1.5 21l2.5-1L5 17z' />
-                <path d='M18 17l1 2.5L21.5 21l-2.5 1L18 24l-1-2.5L14.5 21l2.5-1L18 17z' />
-              </svg>
+              <>
+                <svg
+                  width='16'
+                  height='16'
+                  viewBox='0 0 24 24'
+                  fill='none'
+                  stroke='currentColor'
+                  strokeWidth='2'
+                >
+                  <path d='M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3' />
+                </svg>
+                Regenerate Selected ({selectedPhotos.size})
+              </>
             )}
-            {isRegenerating
-              ? "Regenerating..."
-              : `Regenerate Selected (${selectedPhotos.size})`}
           </button>
         </div>
       </div>

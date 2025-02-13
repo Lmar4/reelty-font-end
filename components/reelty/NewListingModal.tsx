@@ -3,8 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useCreateListing, useUploadPhoto } from "@/hooks/queries/use-listings";
-import { useCreateJob } from "@/hooks/use-jobs";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useSignUp } from "@clerk/nextjs";
 import { Loader } from "@googlemaps/js-api-loader";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -59,15 +58,16 @@ export default function NewListingModal({
   onClose,
   initialFiles,
 }: NewListingModalProps) {
-  const { userId } = useAuth();
-  const createJob = useCreateJob();
+  const { userId, isSignedIn } = useAuth();
+
+  const router = useRouter();
+
   const createListing = useCreateListing();
   const uploadPhoto = useUploadPhoto();
+
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [uploadedPhotos, setUploadedPhotos] = useState<File[]>([]);
-  const [compressedUrls, setCompressedUrls] = useState<
-    { url: string; id: string }[]
-  >([]);
+
   const [address, setAddress] = useState("");
   const [coordinates, setCoordinates] = useState<{
     lat: number;
@@ -76,7 +76,6 @@ export default function NewListingModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("");
-  const router = useRouter();
   const [isLoaded, setIsLoaded] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
@@ -111,51 +110,8 @@ export default function NewListingModal({
       setSelectedPhotos(
         new Set(initialFiles.slice(0, 10).map((_, i) => String(i)))
       );
-
-      // Compress initial files
-      Promise.all(
-        initialFiles.map(async (file) => ({
-          url: await compressImage(file),
-          id: Math.random().toString(36).substring(7),
-        }))
-      ).then(setCompressedUrls);
     }
   }, [initialFiles]);
-
-  // Handle additional files compression
-  const handleAdditionalFiles = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      const totalFiles = [...uploadedPhotos, ...newFiles];
-
-      if (totalFiles.length > 60) {
-        alert("Maximum 60 photos allowed");
-        return;
-      }
-
-      const oversizedFiles = newFiles.filter(
-        (file) => file.size > 15 * 1024 * 1024
-      );
-      if (oversizedFiles.length > 0) {
-        alert("Some files are larger than 15MB. Please select smaller files.");
-        return;
-      }
-
-      setUploadedPhotos(totalFiles);
-
-      // Compress new files and add to existing
-      const newCompressedUrls = await Promise.all(
-        newFiles.map(async (file) => ({
-          url: await compressImage(file),
-          id: Math.random().toString(36).substring(7),
-        }))
-      );
-
-      setCompressedUrls((prev) => [...prev, ...newCompressedUrls]);
-    }
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -179,45 +135,83 @@ export default function NewListingModal({
     }
   };
 
-  // Handle photo reordering
-  const handlePhotoReorder = (reorderedPhotos: File[]) => {
-    setUploadedPhotos(reorderedPhotos);
-    // Update selected photos to maintain the same selections in new order
-    const newSelectedPhotos = new Set<string>();
-    reorderedPhotos.forEach((_, index) => {
-      if (selectedPhotos.has(String(index))) {
-        newSelectedPhotos.add(String(index));
-      }
-    });
-    setSelectedPhotos(newSelectedPhotos);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    try {
-      if (!userId) {
-        toast.error("Please sign in to create a listing");
-        return;
-      }
+    if (!address || !coordinates) {
+      toast.error("Please enter a valid address");
+      return;
+    }
 
+    if (selectedPhotos.size === 0) {
+      toast.error("Please select at least one photo");
+      return;
+    }
+
+    if (!userId || !isSignedIn) {
+      // Store the current state in sessionStorage (more reliable than localStorage for large data)
+      const sessionData = {
+        address,
+        coordinates,
+        selectedPhotos: Array.from(selectedPhotos),
+        uploadedPhotos: uploadedPhotos.map((file) => ({
+          name: file.name,
+          type: file.type,
+          lastModified: file.lastModified,
+        })),
+      };
+
+      sessionStorage.setItem("pendingListing", JSON.stringify(sessionData));
+
+      // Store files in IndexedDB for better storage handling
+      const dbName = "reeltyTemp";
+      const storeName = "pendingFiles";
+      const request = indexedDB.open(dbName, 1);
+
+      request.onerror = () => {
+        console.error("Error opening IndexedDB");
+        toast.error("Error saving files. Please try again.");
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.createObjectStore(storeName);
+        }
+      };
+
+      request.onsuccess = async (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = db.transaction([storeName], "readwrite");
+        const store = transaction.objectStore(storeName);
+
+        // Store each file
+        for (const file of uploadedPhotos) {
+          await store.put(file, file.name);
+        }
+
+        // Store the redirect path in sessionStorage
+        sessionStorage.setItem("postSignUpRedirect", "/dashboard/new-listing");
+
+        // Redirect to sign-up page
+        router.push("/sign-up");
+      };
+
+      return;
+    }
+
+    try {
       setIsSubmitting(true);
       setProgress(0);
       setStatus("Creating listing...");
 
-      if (!address || !coordinates) {
-        toast.error("Please enter a valid address");
-        return;
-      }
-
-      if (selectedPhotos.size === 0) {
-        toast.error("Please select at least one photo");
-        return;
-      }
-
       // Create listing first
+      console.log("[CREATE_LISTING] Creating listing with:", {
+        address,
+        coordinates,
+        photoLimit: selectedPhotos.size,
+      });
       const listing = await createListing.mutateAsync({
-        userId: userId as string,
         address,
         coordinates,
         photoLimit: selectedPhotos.size,
@@ -240,14 +234,13 @@ export default function NewListingModal({
         file: File,
         order: number,
         retries = 3
-      ): Promise<string> => {
+      ): Promise<void> => {
         try {
-          const result = await uploadPhoto.mutateAsync({
+          await uploadPhoto.mutateAsync({
             file,
             listingId: listing.id,
             order,
           });
-          return result.filePath;
         } catch (error) {
           if (retries > 0) {
             await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -259,31 +252,19 @@ export default function NewListingModal({
 
       setStatus("Uploading photos...");
       const totalPhotos = selectedPhotoFiles.length;
-      const uploadedPaths: string[] = [];
 
       for (let i = 0; i < selectedPhotoFiles.length; i++) {
         const file = selectedPhotoFiles[i];
         try {
           setStatus(`Uploading photo ${i + 1} of ${totalPhotos}...`);
-          const filePath = await uploadWithRetry(file, i);
-          uploadedPaths.push(filePath);
-          setProgress(30 + Math.floor(((i + 1) / totalPhotos) * 40));
+          await uploadWithRetry(file, i);
+          setProgress(30 + Math.floor(((i + 1) / totalPhotos) * 70));
         } catch (error) {
           console.error(`Failed to upload photo ${i + 1}:`, error);
           toast.error(`Failed to upload photo ${i + 1}. Please try again.`);
           throw error;
         }
       }
-
-      setProgress(60);
-      setStatus("Creating video...");
-
-      // Create video generation job with default template
-      await createJob.mutateAsync({
-        listingId: listing.id,
-        inputFiles: uploadedPaths,
-        template: "default",
-      });
 
       setProgress(100);
       setStatus("Complete!");
@@ -307,9 +288,48 @@ export default function NewListingModal({
     }
   };
 
+  // Handle photo reordering
+  const handlePhotoReorder = (reorderedPhotos: File[]) => {
+    setUploadedPhotos(reorderedPhotos);
+    // Update selected photos to maintain the same selections in new order
+    const newSelectedPhotos = new Set<string>();
+    reorderedPhotos.forEach((_, index) => {
+      if (selectedPhotos.has(String(index))) {
+        newSelectedPhotos.add(String(index));
+      }
+    });
+    setSelectedPhotos(newSelectedPhotos);
+  };
+
+  // Handle additional file uploads
+  const handleAdditionalFiles = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      const totalFiles = [...uploadedPhotos, ...newFiles];
+
+      if (totalFiles.length > 60) {
+        toast.error("Maximum 60 photos allowed");
+        return;
+      }
+
+      const oversizedFiles = newFiles.filter(
+        (file) => file.size > 15 * 1024 * 1024
+      );
+      if (oversizedFiles.length > 0) {
+        toast.error(
+          "Some files are larger than 15MB. Please select smaller files."
+        );
+        return;
+      }
+
+      setUploadedPhotos(totalFiles);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
-      // Prevent background scrolling when modal is open
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -405,7 +425,6 @@ export default function NewListingModal({
             {uploadedPhotos.length > 0 && (
               <PhotoManager
                 photos={uploadedPhotos}
-                onPhotosReorder={handlePhotoReorder}
                 onAddPhotos={handleAdditionalFiles}
                 maxPhotos={60}
               />
@@ -447,8 +466,12 @@ export default function NewListingModal({
         {/* Generate Button - Fixed to bottom */}
         <div className='bg-white pb-3 px-3 sm:px-4 sm:pb-4'>
           <button
+            type='button'
             className='w-full bg-black text-white rounded-lg h-10 sm:h-12 text-[16px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50'
-            onClick={handleSubmit}
+            onClick={(e) => {
+              e.preventDefault();
+              handleSubmit(e);
+            }}
             disabled={isSubmitting || selectedPhotos.size === 0 || !address}
           >
             {isSubmitting ? (

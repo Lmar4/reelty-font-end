@@ -21,15 +21,15 @@ export default function HomeHeader() {
   return (
     <>
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
-          isScrolled ? "bg-white/80 backdrop-blur-md border-b" : ""
+        className={`sticky top-0 z-40 transition-all duration-200 ${
+          isScrolled ? "bg-white/80 backdrop-blur-md border-b" : "bg-white"
         }`}
       >
         <div className='max-w-[1200px] mx-auto flex justify-between items-center px-4 md:px-6 py-4'>
           {/* Left side of header */}
           <div className='flex items-center gap-8'>
             {/* Logo */}
-            <div className='flex items-center'>
+            <Link href='/' className='flex items-center'>
               <Image
                 src='/images/logo.svg'
                 alt='Reelty Logo'
@@ -37,7 +37,7 @@ export default function HomeHeader() {
                 height={24}
                 className='flex-shrink-0 md:w-[100px] md:h-[27px]'
               />
-            </div>
+            </Link>
             {/* Pricing link - hidden on mobile */}
             <Link
               href='/pricing'
@@ -91,7 +91,7 @@ export default function HomeHeader() {
       </header>
 
       {/* Add padding to account for fixed header */}
-      <div className='h-[72px]'></div>
+      <div className='hidden md:block h-[72px]'></div>
     </>
   );
 }

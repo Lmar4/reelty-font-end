@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useJobs, useRegenerateJob } from "@/hooks/use-jobs";
 import { VideoJob } from "@/types/user-types";
+import { JobStatus } from "@/types/job-types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 interface JobListProps {
   listingId?: string;
-  status?: "pending" | "processing" | "completed" | "failed";
+  status?: JobStatus;
 }
 
 export const JobList = ({ listingId, status }: JobListProps) => {
@@ -68,10 +69,10 @@ export const JobList = ({ listingId, status }: JobListProps) => {
                 <span
                   className={cn(
                     "font-medium",
-                    job.status === "completed" && "text-green-500",
-                    job.status === "failed" && "text-red-500",
-                    job.status === "processing" && "text-yellow-500",
-                    job.status === "pending" && "text-blue-500"
+                    job.status === "COMPLETED" && "text-green-500",
+                    job.status === "FAILED" && "text-red-500",
+                    job.status === "PROCESSING" && "text-yellow-500",
+                    job.status === "QUEUED" && "text-blue-500"
                   )}
                 >
                   {job.status}

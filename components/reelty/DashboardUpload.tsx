@@ -12,7 +12,11 @@ interface FileData {
   type: string;
 }
 
-export function DashboardUpload() {
+interface DashboardUploadProps {
+  onFilesSelected?: (files: File[]) => Promise<void>;
+}
+
+export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { userId } = useAuth();
@@ -54,13 +58,13 @@ export function DashboardUpload() {
     }
   }, [userId]);
 
-  const handleFilesSelected = (files: File[]) => {
+  const handleFilesSelected = async (files: File[]) => {
     // Validate files first
     if (files.length === 0) {
       toast.error("Please select at least one photo");
       return;
     }
-
+    // TODO: you can only select 20 photos but you can upload more photos
     // Take first 10 files if more are selected
     const selectedFiles = files.slice(0, 10);
     if (files.length > 10) {
@@ -89,8 +93,12 @@ export function DashboardUpload() {
       return;
     }
 
-    setSelectedFiles(selectedFiles);
-    setIsModalOpen(true);
+    if (onFilesSelected) {
+      await onFilesSelected(selectedFiles);
+    } else {
+      setSelectedFiles(selectedFiles);
+      setIsModalOpen(true);
+    }
   };
 
   const handleModalClose = () => {

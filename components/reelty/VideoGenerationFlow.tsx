@@ -107,7 +107,6 @@ export default function VideoGenerationFlow({
       // Create listing
 
       const listing = await createListing.mutateAsync({
-        userId,
         address,
         coordinates,
         photoLimit: 10,
@@ -351,10 +350,7 @@ export default function VideoGenerationFlow({
                   <Progress value={(selectedPhotos.length / 10) * 100} />
                 </div>
 
-                <PhotoManager
-                  photos={selectedPhotos}
-                  onPhotosReorder={handlePhotoReorder}
-                />
+                <PhotoManager photos={selectedPhotos} />
               </>
             )}
 
