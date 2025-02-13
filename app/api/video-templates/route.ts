@@ -29,7 +29,7 @@ export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
 
     // Map templates to include the correct ID format
     const templates = response.data.map((template) => ({
-      id: template.name.toLowerCase().replace(/\s+/g, "_"),
+      id: template.name.toLowerCase().replace(/[\s-]+/g, ""),
       name: template.name,
       description: template.description,
       thumbnailUrl: template.thumbnailUrl,
