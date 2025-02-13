@@ -3,10 +3,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { User } from "@/types/prisma-types";
+import { UserResource, toPartialUser } from "@/types/api-types";
 
 const USER_QUERY_KEY = "user";
 
-async function fetchUserData(userId: string, token: string): Promise<User> {
+async function fetchUserData(userId: string, token: string): Promise<Partial<User>> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
     {
@@ -23,7 +24,8 @@ async function fetchUserData(userId: string, token: string): Promise<User> {
   }
 
   const result = await response.json();
-  return result.data;
+  const userResource = result.data as UserResource;
+  return toPartialUser(userResource);
 }
 
 async function updateUser(data: {
@@ -50,11 +52,13 @@ async function updateUser(data: {
 export function useUserData() {
   const { userId, getToken } = useAuth();
 
-  return useQuery({
+  const query = useQuery<Partial<User> | undefined>({
     queryKey: [USER_QUERY_KEY, userId],
     queryFn: async () => {
+      if (!userId) return undefined;
       const token = await getToken();
-      return fetchUserData(userId!, token!);
+      if (!token) return undefined;
+      return fetchUserData(userId, token);
     },
     enabled: !!userId,
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
@@ -77,6 +81,8 @@ export function useUserData() {
     // Structural sharing to prevent unnecessary rerenders
     structuralSharing: true,
   });
+
+  return query;
 }
 
 export function useUpdateUser() {

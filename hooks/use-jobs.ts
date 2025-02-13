@@ -4,13 +4,18 @@ import {
   RegenerateVideoInput,
   UpdateVideoJobInput,
 } from "@/types/user-types";
+import { JobStatus } from "@/types/job-types";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+
 const JOBS_QUERY_KEY = "jobs";
 
-export const useJobs = (params?: GetVideoJobsParams) => {
+export const useJobs = (params?: {
+  listingId?: string;
+  status?: JobStatus;
+}) => {
   const { getToken } = useAuth();
 
   return useQuery({
@@ -80,7 +85,8 @@ export const useCreateJob = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create job");
+        const error = await response.json();
+        throw new Error(error.error || "Failed to create job");
       }
 
       return response.json();

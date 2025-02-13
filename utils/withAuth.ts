@@ -101,6 +101,7 @@ export async function makeBackendRequest<T>(
     hasFormData: isFormData,
     contentType: headers.get("Content-Type") || "browser-handled",
     hasBody: !!requestOptions.body,
+    hasAuthHeader: headers.has("Authorization"),
   });
 
   try {
@@ -114,6 +115,7 @@ export async function makeBackendRequest<T>(
         statusText: response.statusText,
         errorText,
         contentType,
+        headers: Object.fromEntries(response.headers.entries()),
       });
       throw new Error(`Backend error: ${errorText || response.statusText}`);
     }

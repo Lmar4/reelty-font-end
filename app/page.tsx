@@ -7,6 +7,7 @@ import NewListingModal from "@/components/reelty/NewListingModal";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function Home() {
   const router = useRouter();
@@ -15,31 +16,16 @@ export default function Home() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const handleFilesSelected = (files: File[]) => {
-    // Store files in localStorage before redirecting
-    const sessionId = Math.random().toString(36).substring(7);
-    localStorage.setItem("pendingListingSession", sessionId);
-
-    // Store file data as base64
-    Promise.all(
-      files.map(async (file) => ({
-        name: file.name,
-        type: file.type,
-        data: await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        }),
-      }))
-    ).then((fileData) => {
-      localStorage.setItem(
-        `pendingFiles_${sessionId}`,
-        JSON.stringify({
-          files: fileData,
-          timestamp: Date.now(),
-        })
+    // Take first 10 files if more are selected
+    const filesToUse = files.slice(0, 10);
+    if (files.length > 10) {
+      toast.info(
+        `Selected the first 10 photos out of ${files.length} uploaded`
       );
-      router.push("/login?returnTo=/dashboard");
-    });
+    }
+
+    setSelectedFiles(filesToUse);
+    setIsModalOpen(true);
   };
 
   const handleModalClose = () => {
@@ -48,11 +34,11 @@ export default function Home() {
   };
 
   return (
-    <div className='min-h-screen bg-white'>
+    <div className='min-h-screen bg-white flex flex-col'>
       <HomeHeader />
 
       {/* Main Content */}
-      <main className='max-w-[1200px] mx-auto px-6 pt-16 md:pt-16 text-center'>
+      <main className='max-w-[1200px] mx-auto px-6 pt-16 md:pt-16 text-center flex-grow'>
         <div className='inline-flex items-center gap-3 mb-1 md:mb-2 bg-gray-50 px-4 py-2 rounded-full'>
           <div className='flex -space-x-1.5'>
             <div className='w-6 h-6 rounded-full bg-gray-200 border-2 border-white'></div>
@@ -207,7 +193,7 @@ export default function Home() {
         {/* Input Section */}
         <div className='max-w-[800px] mx-auto px-4'>
           <FileUpload
-            buttonText='Create Listing Reels'
+            buttonText='Select listing photos'
             onFilesSelected={handleFilesSelected}
             uploadUrl='' // Keep empty for new listings
             maxFiles={10}
@@ -226,7 +212,11 @@ export default function Home() {
         onClose={handleModalClose}
         initialFiles={selectedFiles}
       />
-      <Footer />
+
+      {/* Footer - Hidden on mobile, shown and stuck to bottom on desktop */}
+      <div className='hidden md:block mt-auto'>
+        <Footer />
+      </div>
     </div>
   );
 }

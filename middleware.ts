@@ -3,10 +3,14 @@ import { NextResponse } from "next/server";
 
 // Define route matchers
 const isPublicPath = createRouteMatcher([
+  "/",
   "/login",
   "/sign-up",
   "/reset-password",
   "/recovery-password",
+  "/pricing",
+  "/api/webhooks(.*)",
+  "/api/webhook(.*)",
 ]);
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
@@ -15,27 +19,24 @@ const ADMIN_TIER_ID = "550e8400-e29b-41d4-a716-446655440003";
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, getToken } = await auth();
+
   const isPublic = isPublicPath(req);
   const isAdmin = isAdminRoute(req);
-  const isWebhookPath = req.url.includes("/api/webhooks");
-  const isWebhookStripe = req.url.includes("/api/webhook");
-  const isHomePage = req.nextUrl.pathname === "/";
 
   // Handle homepage redirect for authenticated users
-  if (isHomePage && userId) {
+  if (req.nextUrl.pathname === "/" && userId) {
     const dashboardUrl = new URL("/dashboard", req.url);
     return NextResponse.redirect(dashboardUrl);
   }
 
-  // Allow public paths and webhook paths without authentication
-  if (isPublic || isWebhookPath || isHomePage || isWebhookStripe) {
+  // Allow public paths without authentication
+  if (isPublic) {
     return NextResponse.next();
   }
 
   // Require authentication for all other routes
   if (!userId) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("returnTo", req.url);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -60,7 +61,16 @@ export default clerkMiddleware(async (auth, req) => {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to fetch user data");
+        console.error("Failed to fetch user data:", {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+        });
+        const responseText = await response.text();
+        console.error("Response body:", responseText);
+        throw new Error(
+          `Failed to fetch user data: ${response.status} ${response.statusText}`
+        );
       }
 
       const userData = await response.json();
@@ -75,7 +85,12 @@ export default clerkMiddleware(async (auth, req) => {
         return NextResponse.redirect(homeUrl);
       }
     } catch (error) {
-      console.error("Error checking admin access:", error);
+      console.error("Error checking admin access:", {
+        error,
+        userId,
+        backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
+        hasToken: !!token,
+      });
       const homeUrl = new URL("/", req.url);
       return NextResponse.redirect(homeUrl);
     }
