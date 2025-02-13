@@ -1,171 +1,144 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { useClerk, useUser } from "@clerk/nextjs";
-import { Loader2, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
-import { toast } from "sonner";
 
 export default function AccountSettings() {
   const { user } = useUser();
-  const { signOut } = useClerk();
-  const router = useRouter();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [email, setEmail] = useState(
+    user?.emailAddresses[0]?.emailAddress || ""
+  );
+  const [notifications, setNotifications] = useState({
+    reelsReady: true,
+    exportReady: true,
+    productUpdates: true,
+  });
 
-  const handleDeleteAccount = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to delete your account? This action cannot be undone."
-      )
-    ) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      const response = await fetch("/api/users/delete", {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete account data");
-      }
-
-      await user?.delete();
-      await signOut();
-      toast.success("Account deleted successfully");
-      router.push("/");
-    } catch (error) {
-      console.error("Delete account error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete account"
-      );
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  const isGoogleUser = user?.externalAccounts.some(
+    (account) => account.provider === "google"
+  );
 
   return (
-    <div className='space-y-6'>
-      <div>
-        <h1 className='text-2xl font-bold tracking-tight'>Account Settings</h1>
-        <p className='text-muted-foreground'>
-          Manage your account security and preferences.
-        </p>
+    <div className='max-w-[800px] mx-auto px-4 py-16'>
+      <h1 className='text-[32px] font-semibold text-[#1c1c1c] mb-12'>
+        Account
+      </h1>
+
+      {/* Email Section */}
+      <div className='mb-12'>
+        <h2 className='text-[15px] font-medium text-[#1c1c1c] mb-4'>
+          Email address
+        </h2>
+        <div className='flex gap-4 items-start'>
+          <input
+            type='email'
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className='flex-1 px-4 py-2 rounded-lg border text-[15px] text-black outline-none focus:border-[#1c1c1c]'
+            disabled={isGoogleUser}
+          />
+          <button
+            className={`px-6 py-2 rounded-lg text-[14px] font-medium ${
+              isGoogleUser
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "bg-black text-white hover:bg-black/90"
+            }`}
+            disabled={isGoogleUser}
+          >
+            Save
+          </button>
+        </div>
+        {isGoogleUser && (
+          <p className='mt-2 text-[13px] text-[#1c1c1c]/60'>
+            Your email is managed by Google Sign-In
+          </p>
+        )}
       </div>
 
-      <div className='grid gap-6'>
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>
-              Your account details and information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='space-y-4'>
-            <div className='grid grid-cols-1 gap-x-4 gap-y-2'>
-              <div className='text-sm font-medium text-gray-500'>Name</div>
-              <div className='text-sm'>
-                {user?.firstName} {user?.lastName}
+      {/* Email Notifications */}
+      <div>
+        <h2 className='text-[22px] font-semibold text-[#1c1c1c] mb-4'>
+          Email notifications
+        </h2>
+        <div className='space-y-6'>
+          <div className='flex items-center justify-between'>
+            <div>
+              <div className='text-[15px] font-semibold text-[#1c1c1c]'>
+                Reels ready
               </div>
-              <div className='text-sm font-medium text-gray-500'>Email</div>
-              <div className='text-sm break-all'>
-                {user?.emailAddresses[0]?.emailAddress}
-              </div>
-              <div className='text-sm font-medium text-gray-500'>
-                Account Created
-              </div>
-              <div className='text-sm'>
-                {user?.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString()
-                  : "N/A"}
+              <div className='text-[14px] text-[#1c1c1c]/60'>
+                Get notified when your Shorts are ready
               </div>
             </div>
-          </CardContent>
-        </Card>
+            <label className='relative inline-flex items-center cursor-pointer'>
+              <input
+                aria-label='Reels ready'
+                type='checkbox'
+                className='sr-only peer'
+                checked={notifications.reelsReady}
+                onChange={(e) =>
+                  setNotifications((prev) => ({
+                    ...prev,
+                    reelsReady: e.target.checked,
+                  }))
+                }
+              />
+              <div className="w-11 h-6 bg-[#1c1c1c]/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0066FF]"></div>
+            </label>
+          </div>
 
-        {/* <Card>
-          <CardHeader>
-            <CardTitle>Security</CardTitle>
-            <CardDescription>
-              Manage your account security settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent className='space-y-4'>
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center space-x-4'>
-                <Key className='h-5 w-5 text-gray-400' />
-                <div>
-                  <h4 className='text-sm font-medium'>Password</h4>
-                  <p className='text-sm text-gray-500'>
-                    Change your account password
-                  </p>
-                </div>
+          <div className='flex items-center justify-between'>
+            <div>
+              <div className='text-[15px] font-semibold text-[#1c1c1c]'>
+                Export ready
               </div>
-              <Button variant='outline' size='sm'>
-                Change Password
-              </Button>
+              <div className='text-[14px] text-[#1c1c1c]/60'>
+                Get notified when your exports are ready
+              </div>
             </div>
+            <label className='relative inline-flex items-center cursor-pointer'>
+              <input
+                aria-label='Export ready'
+                type='checkbox'
+                className='sr-only peer'
+                checked={notifications.exportReady}
+                onChange={(e) =>
+                  setNotifications((prev) => ({
+                    ...prev,
+                    exportReady: e.target.checked,
+                  }))
+                }
+              />
+              <div className="w-11 h-6 bg-[#1c1c1c]/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0066FF]"></div>
+            </label>
+          </div>
 
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center space-x-4'>
-                <Shield className='h-5 w-5 text-gray-400' />
-                <div>
-                  <h4 className='text-sm font-medium'>
-                    Two-Factor Authentication
-                  </h4>
-                  <p className='text-sm text-gray-500'>
-                    Add an extra layer of security
-                  </p>
-                </div>
+          <div className='flex items-center justify-between'>
+            <div>
+              <div className='text-[15px] font-semibold text-[#1c1c1c]'>
+                Product updates
               </div>
-              <Button variant='outline' size='sm'>
-                Enable 2FA
-              </Button>
-            </div>
-          </CardContent>
-        </Card> */}
-
-        <Card>
-          <CardHeader>
-            <CardTitle className='text-red-600'>Danger Zone</CardTitle>
-            <CardDescription>
-              Irreversible and destructive actions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className='flex items-center justify-between'>
-              <div className='flex items-center space-x-4'>
-                <Trash2 className='h-5 w-5 text-red-500' />
-                <div>
-                  <h4 className='text-sm font-medium'>Delete Account</h4>
-                  <p className='text-sm text-gray-500'>
-                    Permanently delete your account and all data
-                  </p>
-                </div>
+              <div className='text-[14px] text-[#1c1c1c]/60'>
+                Get notified when we release new features
               </div>
-              <Button
-                variant='destructive'
-                size='sm'
-                onClick={handleDeleteAccount}
-                disabled={isDeleting}
-              >
-                {isDeleting && (
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                )}
-                Delete Account
-              </Button>
             </div>
-          </CardContent>
-        </Card>
+            <label className='relative inline-flex items-center cursor-pointer'>
+              <input
+                aria-label='Product updates'
+                type='checkbox'
+                className='sr-only peer'
+                checked={notifications.productUpdates}
+                onChange={(e) =>
+                  setNotifications((prev) => ({
+                    ...prev,
+                    productUpdates: e.target.checked,
+                  }))
+                }
+              />
+              <div className="w-11 h-6 bg-[#1c1c1c]/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0066FF]"></div>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   );

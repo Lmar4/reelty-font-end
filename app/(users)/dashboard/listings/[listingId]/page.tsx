@@ -1,4 +1,4 @@
-import { Listing, VideoJob } from "@/types/prisma-types";
+import type { Listing } from "@/types/prisma-types";
 import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { ListingClient } from "./ListingClient";
@@ -72,24 +72,7 @@ async function getListing(listingId: string): Promise<Listing> {
   return result.data;
 }
 
-async function getListingJobs(listingId: string): Promise<VideoJob[]> {
-  const headers = await getAuthHeaders();
-  const url = `${process.env.BACKEND_URL}/api/jobs?listingId=${listingId}`;
-  const response = await fetch(url, {
-    headers,
-    next: {
-      revalidate: 30, // Cache for 30 seconds
-      tags: [`jobs-${listingId}`], // Add cache tag for targeted revalidation
-    },
-  });
 
-  const result = await handleApiResponse<{
-    success: boolean;
-    data: VideoJob[];
-  }>(response, "Failed to fetch listing jobs");
-
-  return result.data;
-}
 
 export default async function ListingPage({
   params,
@@ -102,17 +85,10 @@ export default async function ListingPage({
   const resolvedSearchParams = await searchParams;
 
   try {
-    // Fetch listing and jobs in parallel for better performance
-    const [listing, jobs] = await Promise.all([
-      getListing(listingId).catch((error) => {
-        console.error("Error fetching listing:", error);
-        throw error;
-      }),
-      getListingJobs(listingId).catch((error) => {
-        console.error("Error fetching jobs:", error);
-        throw error;
-      }),
-    ]);
+    const listing = await getListing(listingId).catch((error) => {
+      console.error("Error fetching listing:", error);
+      throw error;
+    });
 
     return (
       <div>
@@ -120,7 +96,6 @@ export default async function ListingPage({
           listingId={listingId}
           searchParams={resolvedSearchParams}
           initialListing={listing}
-          initialJobs={jobs}
         />
       </div>
     );

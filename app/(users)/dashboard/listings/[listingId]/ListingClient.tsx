@@ -1,544 +1,522 @@
 "use client";
 
 import { useToast } from "@/components/common/Toast";
-import PricingModal from "@/components/modals/PricingModal";
 import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
+import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
+import { ListingHeader } from "./components/ListingHeader";
+import { JobStatusMessage } from "./components/JobStatusMessage";
 import { useListing } from "@/hooks/queries/use-listings";
-import { useUserData } from "@/hooks/queries/use-user";
-import { Listing, Photo, VideoJob } from "@/types/prisma-types";
-import { getBaseS3Url } from "@/utils/s3-url";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
+import type { Photo } from "@/types/listing-types";
+import type {
+  User,
+  SubscriptionStatus,
+  Listing,
+  VideoJob as PrismaVideoJob,
+  JsonValue,
+} from "@/types/prisma-types";
+import {
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import Image from "next/image";
 
-interface VideoTemplate {
-  id: string;
-  name: string;
-  description: string;
-  thumbnailUrl: string | null;
-  subscriptionTiers: Array<{ name: string }>;
-}
-
-const getPhotoUrl = (photo: Photo) => {
-  if (photo.processedFilePath) {
-    return getBaseS3Url(photo.processedFilePath);
-  }
-  return getBaseS3Url(photo.filePath);
-};
-
-async function fetchListingJobs(listingId: string): Promise<VideoJob[]> {
-  const response = await fetch(`/api/jobs?listingId=${listingId}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch listing jobs");
-  }
-  return response.json();
-}
-
-async function fetchVideoDownloadUrl(jobId: string): Promise<string> {
-  const response = await fetch(`/api/jobs/${jobId}/download`);
-  if (!response.ok) {
-    throw new Error("Failed to get video download URL");
-  }
-  const data = await response.json();
-  return data.url;
-}
-
-interface ListingClientProps {
-  listingId: string;
-  initialListing: Listing;
-  initialJobs: VideoJob[];
-  searchParams: { [key: string]: string | string[] | undefined };
-}
-
-const JobStatusMessage = ({ job }: { job?: VideoJob }) => {
-  if (!job) return null;
-
-  const isError = job.status === "FAILED" && job.error;
-
-  const statusConfig = {
-    pending: {
-      message: "Your video is queued for generation...",
-      icon: (
-        <svg
-          className='animate-spin -ml-1 mr-3 h-5 w-5'
-          xmlns='http://www.w3.org/2000/svg'
-          fill='none'
-          viewBox='0 0 24 24'
-        >
-          <circle
-            className='opacity-25'
-            cx='12'
-            cy='12'
-            r='10'
-            stroke='currentColor'
-            strokeWidth='4'
-          ></circle>
-          <path
-            className='opacity-75'
-            fill='currentColor'
-            d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
-          ></path>
-        </svg>
-      ),
-    },
-    processing: {
-      message: "Generating your video...",
-      icon: (
-        <svg
-          className='animate-spin -ml-1 mr-3 h-5 w-5'
-          xmlns='http://www.w3.org/2000/svg'
-          fill='none'
-          viewBox='0 0 24 24'
-        >
-          <circle
-            className='opacity-25'
-            cx='12'
-            cy='12'
-            r='10'
-            stroke='currentColor'
-            strokeWidth='4'
-          ></circle>
-          <path
-            className='opacity-75'
-            fill='currentColor'
-            d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
-          ></path>
-        </svg>
-      ),
-    },
-    completed: {
-      message: "Your video is ready to download!",
-      icon: (
-        <svg
-          className='-ml-1 mr-3 h-5 w-5 text-green-500'
-          fill='none'
-          viewBox='0 0 24 24'
-          stroke='currentColor'
-        >
-          <path
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            strokeWidth={2}
-            d='M5 13l4 4L19 7'
-          />
-        </svg>
-      ),
-    },
-    error: {
-      message:
-        job.error ||
-        "There was an error generating your video. Please try again.",
-      icon: (
-        <svg
-          className='-ml-1 mr-3 h-5 w-5 text-red-500'
-          fill='none'
-          viewBox='0 0 24 24'
-          stroke='currentColor'
-        >
-          <path
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            strokeWidth={2}
-            d='M6 18L18 6M6 6l12 12'
-          />
-        </svg>
-      ),
-    },
+// Extend the Prisma types with our runtime needs
+interface VideoJobStatus extends PrismaVideoJob {
+  progress: number;
+  metadata?: {
+    userMessage?: string;
+    error?: string;
   };
+}
 
-  if (job.status === "COMPLETED" && !isError) return null;
+interface ExtendedListing extends Listing {
+  currentJobId?: string;
+}
 
-  const config =
-    statusConfig[job.status as keyof typeof statusConfig] ||
-    statusConfig.pending;
+interface ListingData {
+  id: string;
+  currentJobId?: string;
+  userId: string;
+  address: string;
+  description: string | null;
+  coordinates: { lat: number; lng: number };
+  photos: Photo[];
+  videoJobs?: VideoJobStatus[];
+  createdAt: Date;
+  updatedAt: Date;
+  status: string;
+  photoLimit: number;
+}
 
-  return (
-    <div className='flex items-center justify-center bg-gray-50 rounded-lg p-4 mb-6'>
-      <div className='flex items-center text-gray-700'>
-        {config.icon}
-        <span className='text-[15px]'>
-          {config.message}
-          {job.status === "PROCESSING" && job.progress && (
-            <span className='ml-2 text-[13px] text-gray-500'>
-              ({Math.round(job.progress)}%)
-            </span>
-          )}
-        </span>
-      </div>
-    </div>
-  );
-};
+interface UserData
+  extends Pick<User, "id" | "currentTierId" | "subscriptionStatus"> {}
 
-const TemplateSkeleton = () => (
-  <div className='bg-white rounded-lg overflow-hidden shadow-sm animate-pulse'>
-    <div className='relative aspect-[9/16] bg-gray-200' />
-    <div className='p-3 md:p-4 bg-[#ebebeb]'>
-      <div className='flex items-center justify-between mb-3 md:mb-4'>
-        <div className='h-4 bg-gray-200 rounded w-24' />
-      </div>
-      <div className='h-8 bg-gray-200 rounded' />
-    </div>
-  </div>
-);
+interface Coordinates {
+  lat: number;
+  lng: number;
+}
 
-const ListingBreadcrumb: React.FC<{ address: string; listingId: string }> = ({
-  address,
-  listingId,
-}) => (
-  <div className='mb-8'>
-    <Link
-      href='/dashboard'
-      className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 mb-2 inline-block'
-    >
-      Dashboard
-    </Link>
-    <span className='text-[15px] text-[#1c1c1c]/60 mx-2'>
-      <svg
-        width='16'
-        height='16'
-        viewBox='0 0 24 24'
-        fill='none'
-        className='inline'
-      >
-        <path
-          d='M9 18L15 12L9 6'
-          stroke='currentColor'
-          strokeWidth='2'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
-      </svg>
-    </span>
-    <Link
-      href={`/dashboard/${listingId}`}
-      className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 inline-block'
-    >
-      Your Reels
-    </Link>
-    <div className='flex items-center justify-between'>
-      <h1 className='text-[24px] md:text-[32px] font-semibold text-[#1c1c1c] truncate max-w-[calc(100%-3rem)]'>
-        {address}
-      </h1>
-    </div>
-    <p className='text-[14px] text-[#1c1c1c]/60 mt-2'>
-      Video appear glitchy? Don't worry, it won't when you download it.
-    </p>
-  </div>
-);
-
-const TemplateGrid: React.FC<{
-  templates: VideoTemplate[];
-  isLoading: boolean;
-  userTier: string;
-  isRegenerating: boolean;
-  activeJob?: VideoJob;
-  onDownload: (jobId: string, templateId: string) => void;
-}> = ({
-  templates,
-  isLoading,
-  userTier,
-  isRegenerating,
-  activeJob,
-  onDownload,
-}) => {
-  if (isLoading) {
-    return (
-      <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 px-2 md:px-0'>
-        <TemplateSkeleton />
-        <TemplateSkeleton />
-        <TemplateSkeleton />
-      </div>
-    );
+function parseCoordinates(value: JsonValue | null): Coordinates | null {
+  if (!value || typeof value !== "object") return null;
+  const coords = value as Record<string, unknown>;
+  if (typeof coords.lat === "number" && typeof coords.lng === "number") {
+    return { lat: coords.lat, lng: coords.lng };
   }
+  return null;
+}
 
-  return (
-    <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 px-2 md:px-0'>
-      {templates.map((template) => {
-        const isTemplateAvailable = template.subscriptionTiers?.some(
-          (tier) => tier.name.toLowerCase() === userTier
-        );
+function useListingData(
+  listingId: string,
+  initialListing: ExtendedListing
+): {
+  currentUser: Partial<User> | undefined;
+  userData: UserData | undefined;
+  listing: ExtendedListing | undefined;
+  jobStatus: { status: string; message: string } | null;
+  isLoading: boolean;
+} {
+  const { user, isLoaded: isUserLoaded } = useUser();
 
-        return (
-          <div
-            key={template.id}
-            className='bg-white rounded-lg overflow-hidden shadow-sm'
-          >
-            <div className='relative aspect-[9/16] overflow-hidden'>
-              <Image
-                src={
-                  template.thumbnailUrl ||
-                  `/images/templates/${template.id}.jpg`
-                }
-                alt={template.name}
-                fill
-                className='object-cover'
-              />
-              <div className='absolute bottom-[20%] left-1/2 -translate-x-1/2 flex items-center'>
-                <Image
-                  src='/images/logo-cutout.svg'
-                  alt='Reelty'
-                  width={120}
-                  height={40}
-                  className='opacity-40 brightness-0 invert'
-                />
-              </div>
-              {(!isTemplateAvailable || isRegenerating) && (
-                <div className='absolute inset-0 bg-black/50 flex items-center justify-center'>
-                  {isRegenerating && (
-                    <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-white'></div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className='p-3 md:p-4 bg-[#ebebeb]'>
-              <div className='flex items-center justify-between mb-3 md:mb-4'>
-                <h3 className='text-[13px] md:text-[15px] font-bold text-[#1c1c1c]'>
-                  {template.name}
-                </h3>
-                {!isTemplateAvailable && (
-                  <span className='text-[11px] md:text-[13px] font-medium bg-black text-white px-2 py-0.5 rounded'>
-                    Pro
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={() =>
-                  isTemplateAvailable &&
-                  onDownload(activeJob?.id || "", template.id)
-                }
-                className={`w-full rounded-lg py-2 md:py-2.5 text-[13px] md:text-[14px] font-medium transition-colors ${
-                  !isTemplateAvailable ||
-                  isRegenerating ||
-                  !activeJob?.outputFile
-                    ? "bg-[#d1d1d1] text-[#1c1c1c]/40 cursor-not-allowed"
-                    : "bg-black text-white hover:bg-black/90"
-                }`}
-                disabled={
-                  !isTemplateAvailable ||
-                  isRegenerating ||
-                  !activeJob?.outputFile
-                }
-              >
-                {isRegenerating ? "Regenerating..." : "Download HD"}
-              </button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+  // Transform Clerk user to compatible Partial<User> type
+  const currentUser = user
+    ? {
+        id: user.id,
+        email: user.emailAddresses[0]?.emailAddress,
+        name: user.fullName,
+        image: user.imageUrl,
+        // Only include createdAt if it exists and convert to Date
+        ...(user.createdAt && { createdAt: new Date(user.createdAt) }),
+      }
+    : undefined;
 
-const useVideoDownload = () => {
-  const { showToast } = useToast();
-  const [downloadJobId, setDownloadJobId] = useState<string>("");
-
-  const { refetch: refetchDownloadUrl } = useQuery({
-    queryKey: ["videoDownload", downloadJobId],
-    queryFn: () => fetchVideoDownloadUrl(downloadJobId),
-    enabled: false,
+  // Get user data from backend
+  const { data: userData, isLoading: isUserDataLoading } = useQuery<UserData>({
+    queryKey: ["user", currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser?.id) {
+        throw new Error("User ID is required");
+      }
+      const response = await fetch(`/api/users/${currentUser.id}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to fetch user data");
+      }
+      const data = await response.json();
+      if (!data.data) {
+        throw new Error("No user data returned from API");
+      }
+      return data.data as UserData;
+    },
+    enabled: !!currentUser?.id,
+    retry: 1, // Solo intentar una vez más si falla
+    retryDelay: 1000, // Esperar 1 segundo entre intentos
   });
 
-  const handleDownload = async (
-    jobId: string,
-    templateId: string,
-    isTemplateAvailable: boolean
-  ) => {
-    if (!isTemplateAvailable) {
-      return false;
-    }
-
-    try {
-      setDownloadJobId(jobId);
-      const { data: downloadUrl } = await refetchDownloadUrl();
-      if (downloadUrl) {
-        window.open(downloadUrl, "_blank");
-      }
-      return true;
-    } catch {
-      showToast("Failed to download video", "error");
-      return false;
-    }
-  };
-
-  return { handleDownload };
-};
-
-const useListingData = (
-  listingId: string,
-  initialListing: Listing,
-  initialJobs: VideoJob[]
-) => {
-  const { data: currentUser, isLoading: isCurrentUserLoading } = useUserData();
-  const { data: userData, isLoading: isUserLoading } = useUserData();
-  const { data: listing, isLoading: isListingLoading } = useListing(listingId, {
+  const { data: listing } = useListing(listingId, {
     initialData: initialListing,
   });
 
-  const { data: videoJobs = initialJobs, isLoading: isJobsLoading } = useQuery({
-    queryKey: ["listingJobs", listingId],
-    queryFn: () => fetchListingJobs(listingId),
-    enabled: !!listingId,
-    initialData: initialJobs,
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      const latestJob = data?.[0];
-      return latestJob?.status === "PROCESSING" ||
-        latestJob?.status === "QUEUED"
-        ? 5000
-        : false;
-    },
-    retry: 3,
-  });
+  // Get job status from the listing's photos
+  const jobStatus = useMemo(() => {
+    if (!listing?.photos?.length) return null;
 
-  const { data: templates = [], isLoading: isTemplatesLoading } = useQuery<
-    VideoTemplate[]
-  >({
-    queryKey: ["videoTemplates"],
-    queryFn: async () => {
-      const response = await fetch(`/api/video-templates`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch video templates");
-      }
-      return response.json();
-    },
-  });
+    const processingPhotos = listing.photos.filter(
+      (p) => !p.processedFilePath && !p.error
+    );
+    const failedPhotos = listing.photos.filter((p) => p.error);
+
+    if (processingPhotos.length > 0) {
+      return {
+        status: "PROCESSING",
+        message: `Processing ${processingPhotos.length} photos...`,
+      };
+    }
+    if (failedPhotos.length > 0) {
+      return {
+        status: "ERROR",
+        message: `${failedPhotos.length} photos failed to process`,
+      };
+    }
+    return {
+      status: "COMPLETED",
+      message: "All photos processed successfully",
+    };
+  }, [listing?.photos]);
+
+  const isLoading = !isUserLoaded || isUserDataLoading || !listing;
 
   return {
     currentUser,
     userData,
     listing,
-    videoJobs,
-    templates,
-    isLoading:
-      isCurrentUserLoading ||
-      isUserLoading ||
-      isListingLoading ||
-      isJobsLoading ||
-      isTemplatesLoading,
+    jobStatus,
+    isLoading,
   };
+}
+
+async function handleRegenerateImages(photoIds: string[]) {
+  try {
+    const response = await fetch(`/api/photos/regenerate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ photoIds }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return { error: error.message || "Failed to regenerate images" };
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[REGENERATE_ERROR]", error);
+    return { error: "Failed to regenerate images" };
+  }
+}
+
+const transformPhotos = (photos: Photo[] | undefined) => {
+  if (!photos) return [];
+
+  return photos.map((photo) => ({
+    id: photo.id,
+    url: photo.processedFilePath || photo.filePath,
+    hasError: !!photo.error,
+    status: photo.error
+      ? ("error" as const)
+      : photo.processedFilePath
+      ? ("completed" as const)
+      : ("processing" as const),
+  }));
 };
+
+const useVideoJobStatus = (jobId?: string) => {
+  const [jobStatus, setJobStatus] = useState<VideoJobStatus | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!jobId) return;
+
+    const eventSource = new EventSource(`/api/jobs/${jobId}/status`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setJobStatus(data);
+
+        // Close connection when job is completed or failed
+        if (data.status === "COMPLETED" || data.status === "FAILED") {
+          eventSource.close();
+        }
+      } catch (err) {
+        console.error("[SSE_ERROR]", err);
+        setError(
+          err instanceof Error ? err : new Error("Failed to parse job status")
+        );
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("[SSE_CONNECTION_ERROR]", err);
+      setError(new Error("Failed to connect to status stream"));
+      eventSource.close();
+    };
+
+    // Cleanup on unmount
+    return () => {
+      eventSource.close();
+    };
+  }, [jobId]);
+
+  return { data: jobStatus, error, isLoading: !jobStatus && !error };
+};
+
+const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
+  const { data: jobStatus, error } = useVideoJobStatus(jobId);
+
+  if (!jobStatus) return null;
+
+  return (
+    <div className='space-y-4 p-4 bg-gray-50 rounded-lg'>
+      <div className='flex items-center justify-between'>
+        <span className='text-sm font-medium text-gray-700'>
+          {jobStatus.metadata?.userMessage || "Processing..."}
+        </span>
+        <span className='text-sm text-gray-500'>{jobStatus.progress}%</span>
+      </div>
+      <div className='w-full bg-gray-200 rounded-full h-2'>
+        <div
+          className='bg-blue-600 h-2 rounded-full transition-all duration-500'
+          style={{ width: `${jobStatus.progress}%` }}
+        />
+      </div>
+      {(error || jobStatus.metadata?.error) && (
+        <p className='text-sm text-red-600'>
+          {error instanceof Error ? error.message : jobStatus.metadata?.error}
+        </p>
+      )}
+    </div>
+  );
+};
+
+// Add template type definition
+interface Template {
+  id: string;
+  name: string;
+  image: string;
+  isPro?: boolean;
+}
+
+// Add mock templates (we'll replace this with real data later)
+const templates: Template[] = [
+  {
+    id: "classic",
+    name: "Classic",
+    image: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750",
+  },
+  {
+    id: "modern",
+    name: "Modern Minimalist",
+    image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9",
+  },
+  {
+    id: "warm",
+    name: "Warm & Inviting",
+    image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6",
+  },
+  {
+    id: "google-earth",
+    name: "Google Earth",
+    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa",
+    isPro: true,
+  },
+  {
+    id: "x-city",
+    name: "$X in Y City",
+    image: "https://images.unsplash.com/photo-1545156521-77bd85671d30",
+    isPro: true,
+  },
+  {
+    id: "reelty-core",
+    name: "Reelty Core",
+    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c",
+    isPro: true,
+  },
+];
+
+interface ListingClientProps {
+  listingId: string;
+  searchParams: { [key: string]: string | string[] | undefined };
+  initialListing: ExtendedListing;
+}
 
 export function ListingClient({
   listingId,
   searchParams,
   initialListing,
-  initialJobs,
 }: ListingClientProps) {
-  const queryClient = useQueryClient();
-  const router = useRouter();
-
-  // State
-  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
   // Custom hooks
-  const { handleDownload } = useVideoDownload();
-  const { currentUser, userData, listing, videoJobs, templates, isLoading } =
-    useListingData(listingId, initialListing, initialJobs);
+  const { currentUser, userData, listing, jobStatus, isLoading } =
+    useListingData(listingId, initialListing);
 
-  // Derived state
-  const activeJob = videoJobs[0];
-  const isRegenerating =
-    activeJob?.status === "PROCESSING" || activeJob?.status === "QUEUED";
-  const userTier = userData?.currentTier?.name?.toLowerCase() || "free";
-  const photos = (listing && listing.photos) || [];
+  // Transform photos for the settings modal
+  const transformedPhotos = useMemo(
+    () => transformPhotos(listing?.photos),
+    [listing?.photos]
+  );
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-        <LoadingState text='Loading data...' size='lg' />
-      </div>
-    );
-  }
+  // Parse coordinates when needed
+  const coordinates = useMemo(
+    () => (listing ? parseCoordinates(listing.coordinates) : null),
+    [listing]
+  );
 
-  // Error state
-  if (!currentUser || !userData) {
-    return (
-      <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-        <div className='text-center'>
-          <p className='text-red-500 mb-4'>Failed to load user data</p>
-          <button
-            onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ["user"] });
-              router.push(`/login?returnTo=/dashboard/listings/${listingId}`);
-            }}
-            className='bg-black text-white px-4 py-2 rounded-lg hover:bg-black/90'
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const handleImageRegeneration = async (photoIds: string | string[]) => {
+    const idsArray = Array.isArray(photoIds) ? photoIds : [photoIds];
+    const result = await handleRegenerateImages(idsArray);
 
-  if (!initialListing || !initialListing.photos) {
-    return (
-      <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-        <LoadingState text='Loading property details...' size='lg' />
-      </div>
-    );
-  }
-
-  const handleTemplateDownload = async (jobId: string, templateId: string) => {
-    const template = templates.find((t) => t.id === templateId);
-    const isTemplateAvailable = template?.subscriptionTiers?.some(
-      (tier) => tier.name.toLowerCase() === userTier
-    );
-
-    if (!isTemplateAvailable) {
-      setIsPricingModalOpen(true);
-      return;
+    if (result === true) {
+      showToast(
+        `Image regeneration started for ${idsArray.length} photos`,
+        "success"
+      );
+      queryClient.invalidateQueries({ queryKey: ["listing", listingId] });
+    } else {
+      showToast(result.error || "Failed to regenerate images", "error");
     }
-
-    await handleDownload(jobId, templateId, isTemplateAvailable);
   };
 
   return (
     <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-      <ListingBreadcrumb
-        address={initialListing.address}
-        listingId={listingId}
-      />
-      <JobStatusMessage job={activeJob} />
-
-      <div className='-mx-2 md:mx-0'>
-        <TemplateGrid
-          templates={templates}
-          isLoading={isLoading}
-          userTier={userTier}
-          isRegenerating={isRegenerating}
-          activeJob={activeJob}
-          onDownload={handleTemplateDownload}
-        />
+      {/* Header Section */}
+      <div className='mb-8'>
+        <Link
+          href='/dashboard'
+          className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 mb-2 inline-block'
+        >
+          Dashboard
+        </Link>
+        <span className='text-[15px] text-[#1c1c1c]/60 mx-2'>
+          <svg
+            width='16'
+            height='16'
+            viewBox='0 0 24 24'
+            fill='none'
+            className='inline'
+          >
+            <path
+              d='M9 18L15 12L9 6'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+            />
+          </svg>
+        </span>
+        <Link
+          href={`/dashboard/${listingId}`}
+          className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 inline-block'
+        >
+          Your Reels
+        </Link>
+        <div className='flex items-center justify-between'>
+          <h1 className='text-[24px] md:text-[32px] font-semibold text-[#1c1c1c] truncate max-w-[calc(100%-3rem)]'>
+            {listing?.address || initialListing.address}
+          </h1>
+          <button
+            onClick={() => setIsSettingsModalOpen(true)}
+            className='w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[#f7f7f7] transition-colors flex-shrink-0'
+          >
+            <svg
+              width='20'
+              height='20'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+            >
+              <path d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z' />
+              <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z' />
+            </svg>
+          </button>
+        </div>
+        <p className='text-[14px] text-[#1c1c1c]/60 mt-2'>
+          Video appear glitchy? Don't worry, it won't when you download it.
+        </p>
       </div>
 
-      <PropertySettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        jobId={activeJob?.id || ""}
-        address={initialListing.address}
-        photos={photos.map((photo) => ({
-          id: photo.id,
-          url: getPhotoUrl(photo),
-          hasError: photo.status === "error",
-        }))}
-      />
+      {isLoading ? (
+        <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
+          <LoadingState text='Loading data...' size='lg' />
+        </div>
+      ) : (
+        <>
+          {jobStatus && <JobStatusMessage status={jobStatus} />}
 
-      <PricingModal
-        isOpen={isPricingModalOpen}
-        onClose={() => setIsPricingModalOpen(false)}
-        listingId={listingId}
-        onUpgradeComplete={() => {
-          setIsPricingModalOpen(false);
-          queryClient.invalidateQueries({ queryKey: ["user"] });
-          queryClient.invalidateQueries({ queryKey: ["templates"] });
-        }}
-      />
+          {/* Templates Grid */}
+          <div className='-mx-2 md:mx-0'>
+            <div className='grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6 px-2 md:px-0'>
+              {templates.map((template) => (
+                <div
+                  key={template.id}
+                  className='bg-white rounded-lg overflow-hidden shadow-sm'
+                >
+                  <div className='relative aspect-[9/16] overflow-hidden'>
+                    <Image
+                      src={template.image}
+                      alt={template.name}
+                      fill
+                      className='object-cover'
+                    />
+                    {/* Reelty Watermark */}
+                    <div className='absolute bottom-[20%] left-1/2 -translate-x-1/2 flex items-center'>
+                      <Image
+                        src='/images/logo-cutout.svg'
+                        alt='Reelty'
+                        width={120}
+                        height={40}
+                        className='opacity-40 brightness-0 invert'
+                      />
+                    </div>
+                    {template.isPro && (
+                      <div className='absolute inset-0 bg-black/50' />
+                    )}
+                  </div>
+                  <div className='p-3 md:p-4 bg-[#ebebeb]'>
+                    <div className='flex items-center justify-between mb-3 md:mb-4'>
+                      <h3 className='text-[13px] md:text-[15px] font-bold text-[#1c1c1c]'>
+                        {template.name}
+                      </h3>
+                      {template.isPro && (
+                        <span className='text-[11px] md:text-[13px] font-medium bg-black text-white px-2 py-0.5 rounded'>
+                          Pro
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      className={`w-full rounded-lg py-2 md:py-2.5 text-[13px] md:text-[14px] font-medium transition-colors ${
+                        template.isPro
+                          ? "bg-[#d1d1d1] text-[#1c1c1c]/40 cursor-not-allowed"
+                          : "bg-black text-white hover:bg-black/90"
+                      }`}
+                      disabled={template.isPro}
+                    >
+                      Download HD
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Video Jobs Section */}
+          {listing?.videoJobs && listing.videoJobs.length > 0 && (
+            <div className='space-y-4 mt-8'>
+              <h3 className='text-lg font-semibold'>Processing Videos</h3>
+              {listing.videoJobs.map((job) => (
+                <div key={job.id} className='rounded-lg border p-4'>
+                  {job.status === "PROCESSING" ? (
+                    <VideoGenerationProgress jobId={job.id} />
+                  ) : job.status === "COMPLETED" && job.outputFile ? (
+                    <video
+                      className='w-full rounded-lg'
+                      controls
+                      src={job.outputFile}
+                      poster={
+                        listing.photos?.[0]?.processedFilePath || undefined
+                      }
+                    />
+                  ) : job.status === "FAILED" ? (
+                    <div className='text-red-600 text-sm'>
+                      Video generation failed. Please try again.
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <PropertySettingsModal
+            isOpen={isSettingsModalOpen}
+            onClose={() => setIsSettingsModalOpen(false)}
+            address={initialListing.address}
+            photos={transformedPhotos}
+            onRegenerateImage={handleImageRegeneration}
+          />
+        </>
+      )}
     </div>
   );
 }
