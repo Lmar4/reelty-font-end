@@ -2,31 +2,25 @@
 
 import { useToast } from "@/components/common/Toast";
 import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
-import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
-import { ListingHeader } from "./components/ListingHeader";
-import { JobStatusMessage } from "./components/JobStatusMessage";
 import { useListing } from "@/hooks/queries/use-listings";
-import type { Photo } from "@/types/listing-types";
-import type {
-  User,
-  SubscriptionStatus,
-  Listing,
-  VideoJob as PrismaVideoJob,
-  JsonValue,
-  Template,
-} from "@/types/prisma-types";
-import {
-  useQuery,
-  useQueryClient,
-  type UseQueryResult,
-} from "@tanstack/react-query";
-import { useState, useMemo, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
-import Link from "next/link";
-import Image from "next/image";
 import { useTemplates } from "@/hooks/queries/use-templates";
 import { useCreateJob } from "@/hooks/use-jobs";
+import type { Photo, VideoJob, VideoTemplate } from "@/types/listing-types";
+import type {
+  JsonValue,
+  Listing,
+  VideoJob as PrismaVideoJob,
+  Template,
+  User,
+} from "@/types/prisma-types";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { JobStatusMessage } from "./components/JobStatusMessage";
+import { TemplateGrid } from "./components/TemplateGrid";
+import { VideoJobCard } from "./components/VideoJobCard";
 
 // Extend the Prisma types with our runtime needs
 interface VideoJobStatus extends PrismaVideoJob {
@@ -129,9 +123,11 @@ function useListingData(
     if (!listing?.photos?.length) return null;
 
     const processingPhotos = listing.photos.filter(
-      (p) => !p.processedFilePath && !p.error
+      (p) => p.status === "processing" || (!p.processedFilePath && !p.error)
     );
-    const failedPhotos = listing.photos.filter((p) => p.error);
+    const failedPhotos = listing.photos.filter(
+      (p) => p.error || p.status === "error"
+    );
 
     if (processingPhotos.length > 0) {
       return {
@@ -187,61 +183,130 @@ async function handleRegenerateImages(photoIds: string[]) {
 const transformPhotos = (photos: Photo[] | undefined) => {
   if (!photos) return [];
 
-  return photos.map((photo) => ({
-    id: photo.id,
-    url: photo.processedFilePath || photo.filePath,
-    hasError: !!photo.error,
-    status: photo.error
-      ? ("error" as const)
-      : photo.processedFilePath
-      ? ("completed" as const)
-      : ("processing" as const),
-  }));
+  return photos.map((photo) => {
+    // Always prefer processedFilePath if available
+    const url = photo.processedFilePath || photo.filePath;
+
+    // If the URL is a full S3 URL with query parameters, extract just the base path
+    const cleanUrl = url.includes("?") ? url.split("?")[0] : url;
+
+    return {
+      id: photo.id,
+      url: cleanUrl,
+      hasError: !!photo.error,
+      status: photo.error
+        ? ("error" as const)
+        : photo.processedFilePath
+        ? ("completed" as const)
+        : ("processing" as const),
+    };
+  });
 };
 
 const useVideoJobStatus = (jobId?: string) => {
   const [jobStatus, setJobStatus] = useState<VideoJobStatus | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const { getToken } = useAuth();
 
   useEffect(() => {
     if (!jobId) return;
 
-    const eventSource = new EventSource(`/api/jobs/${jobId}/status`);
+    let eventSource: EventSource | null = null;
 
-    eventSource.onmessage = (event) => {
+    const connectToStream = async () => {
       try {
-        const data = JSON.parse(event.data);
-        setJobStatus(data);
-
-        // Close connection when job is completed or failed
-        if (data.status === "COMPLETED" || data.status === "FAILED") {
-          eventSource.close();
+        // Get fresh token
+        const token = await getToken();
+        if (!token) {
+          setError(new Error("No authentication token available"));
+          return;
         }
+
+        // Create EventSource connection
+        eventSource = new EventSource(`/api/jobs/${jobId}/status`, {
+          withCredentials: true,
+        });
+
+        // Handle incoming messages
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            setJobStatus(data);
+
+            // Close connection if job is completed or failed
+            if (["COMPLETED", "FAILED"].includes(data.status)) {
+              eventSource?.close();
+            }
+          } catch (err) {
+            console.error("[STREAM_PARSE_ERROR]", err);
+            setError(
+              err instanceof Error
+                ? err
+                : new Error("Failed to parse job status")
+            );
+          }
+        };
+
+        // Handle connection errors
+        eventSource.onerror = (event) => {
+          console.error("[STREAM_ERROR]", event);
+          setError(new Error("Failed to connect to status stream"));
+          eventSource?.close();
+        };
       } catch (err) {
-        console.error("[SSE_ERROR]", err);
+        console.error("[STREAM_CONNECTION_ERROR]", err);
         setError(
-          err instanceof Error ? err : new Error("Failed to parse job status")
+          err instanceof Error
+            ? err
+            : new Error("Failed to connect to status stream")
         );
       }
     };
 
-    eventSource.onerror = (err) => {
-      console.error("[SSE_CONNECTION_ERROR]", err);
-      setError(new Error("Failed to connect to status stream"));
-      eventSource.close();
-    };
+    // Initial connection
+    connectToStream();
 
-    // Cleanup on unmount
+    // Cleanup
     return () => {
-      eventSource.close();
+      if (eventSource) {
+        eventSource.close();
+      }
     };
-  }, [jobId]);
+  }, [jobId, getToken]);
 
-  return { data: jobStatus, error, isLoading: !jobStatus && !error };
+  return {
+    data: jobStatus,
+    error,
+    isLoading: !jobStatus && !error,
+    isError: !!error,
+  };
 };
 
 const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
-  const { data: jobStatus, error } = useVideoJobStatus(jobId);
+  const {
+    data: jobStatus,
+    error,
+    isLoading,
+    isError,
+  } = useVideoJobStatus(jobId);
+
+  if (isLoading) {
+    return (
+      <div className='p-4 bg-gray-50 rounded-lg'>
+        <LoadingState text='Connecting to status stream...' size='sm' />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className='p-4 bg-red-50 rounded-lg'>
+        <p className='text-sm text-red-600'>
+          {error?.message || "Failed to load job status"}
+        </p>
+      </div>
+    );
+  }
 
   if (!jobStatus) return null;
 
@@ -259,10 +324,8 @@ const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
           style={{ width: `${jobStatus.progress}%` }}
         />
       </div>
-      {(error || jobStatus.metadata?.error) && (
-        <p className='text-sm text-red-600'>
-          {error instanceof Error ? error.message : jobStatus.metadata?.error}
-        </p>
+      {jobStatus.metadata?.error && (
+        <p className='text-sm text-red-600'>{jobStatus.metadata.error}</p>
       )}
     </div>
   );
@@ -273,6 +336,28 @@ interface ListingClientProps {
   searchParams: { [key: string]: string | string[] | undefined };
   initialListing: ExtendedListing;
 }
+
+// Transform Prisma Template to VideoTemplate
+const transformTemplate = (template: Template): VideoTemplate => ({
+  ...template,
+  thumbnailUrl: template.thumbnailUrl || undefined,
+  tiers: template.tiers || [],
+});
+
+// Transform Prisma VideoJob to VideoJob
+const transformVideoJob = (job: any): VideoJob => ({
+  id: job.id,
+  listingId: job.listingId,
+  status: job.status,
+  progress: job.progress,
+  template: job.template,
+  inputFiles: job.inputFiles,
+  outputFile: job.outputFile || null,
+  thumbnailUrl: job.thumbnailUrl || null,
+  error: job.error || null,
+  createdAt: job.createdAt,
+  updatedAt: job.updatedAt,
+});
 
 export function ListingClient({
   listingId,
@@ -286,6 +371,22 @@ export function ListingClient({
   // Custom hooks
   const { currentUser, userData, listing, jobStatus, isLoading } =
     useListingData(listingId, initialListing);
+  const { data: prismaTemplates, isLoading: isLoadingTemplates } =
+    useTemplates();
+
+  // Transform templates and video jobs
+  const templates = useMemo(
+    () => prismaTemplates?.map(transformTemplate),
+    [prismaTemplates]
+  );
+
+  const videoJobs = useMemo(
+    () =>
+      listing?.videoJobs
+        ?.filter((job) => job.status === "COMPLETED")
+        ?.map(transformVideoJob),
+    [listing?.videoJobs]
+  );
 
   // Video generation mutation
   const { mutate: createVideoJob, isPending: isGeneratingVideo } =
@@ -427,56 +528,39 @@ export function ListingClient({
         <>
           {jobStatus && <JobStatusMessage status={jobStatus} />}
 
-          {/* Video Jobs Section */}
-          {listing?.videoJobs && listing.videoJobs.length > 0 && (
-            <div className='space-y-4 mt-8'>
-              <h3 className='text-lg font-semibold'>Processing Videos</h3>
-              {listing.videoJobs.map((job) => (
-                <div key={job.id} className='rounded-lg border p-4'>
-                  {job.status === "PROCESSING" ? (
-                    <VideoGenerationProgress jobId={job.id} />
-                  ) : job.status === "COMPLETED" && job.outputFile ? (
-                    <div className='space-y-4'>
-                      <video
-                        className='w-full rounded-lg'
-                        controls
-                        src={job.outputFile}
-                        poster={
-                          listing.photos?.[0]?.processedFilePath || undefined
-                        }
-                      />
-                      <div className='flex justify-end'>
-                        <a
-                          href={job.outputFile}
-                          download
-                          className='inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-black rounded-lg hover:bg-black/90'
-                        >
-                          <svg
-                            className='w-4 h-4 mr-2'
-                            fill='none'
-                            stroke='currentColor'
-                            viewBox='0 0 24 24'
-                          >
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              strokeWidth={2}
-                              d='M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4'
-                            />
-                          </svg>
-                          Download HD
-                        </a>
-                      </div>
-                    </div>
-                  ) : job.status === "FAILED" ? (
-                    <div className='text-red-600 text-sm'>
-                      Video generation failed. Please try again.
-                    </div>
-                  ) : null}
-                </div>
+          {/* Templates and Videos Section */}
+          <div className='space-y-8'>
+            <div className='grid grid-cols-2 md:grid-cols-3 gap-6'>
+              {/* Templates */}
+              <TemplateGrid
+                templates={templates}
+                photos={listing?.photos}
+                isLoading={isLoadingTemplates}
+                userTier={userData?.currentTierId || "free"}
+                activeJobs={videoJobs}
+                onGenerateVideo={handleVideoGeneration}
+              />
+
+              {/* Video Jobs */}
+              {videoJobs?.map((job) => (
+                <VideoJobCard
+                  key={job.id}
+                  job={job}
+                  isPaidUser={userData?.currentTierId !== "free"}
+                  onDownload={(jobId: string) => {
+                    if (job.outputFile) {
+                      window.open(job.outputFile, "_blank");
+                    }
+                  }}
+                  onRegenerate={() => {
+                    if (job.template) {
+                      handleVideoGeneration(job.template);
+                    }
+                  }}
+                />
               ))}
             </div>
-          )}
+          </div>
 
           <PropertySettingsModal
             isOpen={isSettingsModalOpen}

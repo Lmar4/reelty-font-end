@@ -1,8 +1,11 @@
 "use client";
 
 import { LoadingState } from "@/components/ui/loading-state";
-import { VideoJob } from "@/types/prisma-types";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import type { VideoJob } from "@/types/listing-types";
 import { RefreshCw } from "lucide-react";
+import Image from "next/image";
 
 interface VideoJobCardProps {
   job: VideoJob;
@@ -21,74 +24,94 @@ export function VideoJobCard({
   const isPremiumLocked = !isPaidUser && !isBasicTemplate;
 
   return (
-    <div
-      className={`relative rounded-lg overflow-hidden ${
-        isPremiumLocked ? "opacity-50 cursor-not-allowed" : ""
-      }`}
-    >
-      {job.status === "PROCESSING" ? (
-        <div className='w-full aspect-video bg-gray-100 flex items-center justify-center'>
-          <LoadingState
-            text='Processing video...'
-            size='sm'
-            className='min-h-0'
-          />
-        </div>
-      ) : (
-        <video
-          src={job.outputFile || undefined}
-          className='w-full aspect-video object-cover'
-          controls
-          poster={job.listing?.photos?.[0]?.filePath}
-        />
-      )}
-      <div className='p-4 bg-white'>
-        <h3 className='text-lg font-semibold mb-2'>
-          {job.template
-            ? job.template.charAt(0).toUpperCase() + job.template.slice(1)
-            : "Basic"}
-        </h3>
-        <div className='flex justify-between items-center'>
-          <div className='flex items-center gap-2'>
-            <span className='text-sm text-gray-500'>
-              {job.status === "COMPLETED"
-                ? "Ready"
-                : job.status === "FAILED"
-                ? "Failed"
-                : "Processing..."}
-            </span>
-            {job.status === "FAILED" && (
-              <button
-                onClick={onRegenerate}
-                className='text-sm text-blue-600 hover:text-blue-700 inline-flex items-center gap-1'
-              >
-                <RefreshCw className='w-3 h-3' />
-                Regenerate
-              </button>
-            )}
+    <Card className='overflow-hidden group'>
+      <div className='relative aspect-[9/16] bg-gray-100'>
+        {job.status === "PROCESSING" ? (
+          <div className='absolute inset-0 flex items-center justify-center'>
+            <LoadingState
+              text='Processing video...'
+              size='sm'
+              className='min-h-0'
+            />
           </div>
-          {job.status === "COMPLETED" && (
-            <button
-              onClick={() => onDownload(job.id)}
-              disabled={isPremiumLocked}
-              className={`px-4 py-2 rounded-lg ${
-                isPremiumLocked
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-blue-500 hover:bg-blue-600 text-white"
-              }`}
-            >
-              Download
-            </button>
-          )}
-        </div>
+        ) : (
+          <>
+            {/* Show thumbnail when available */}
+            {job.thumbnailUrl && (
+              <Image
+                src={job.thumbnailUrl}
+                alt={`${job.template || "Video"} thumbnail`}
+                fill
+                className='object-cover'
+                sizes='(max-width: 768px) 50vw, 25vw'
+              />
+            )}
+            {/* Video element with poster */}
+            <video
+              src={job.outputFile || undefined}
+              className='absolute inset-0 w-full h-full object-cover'
+              controls
+              poster={job.thumbnailUrl || job.inputFiles?.[0]}
+            />
+          </>
+        )}
         {isPremiumLocked && (
-          <div className='absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center'>
-            <span className='text-white text-lg font-semibold'>
-              Premium Template
+          <div className='absolute inset-0 bg-black/50 flex items-center justify-center'>
+            <span className='text-white text-sm font-medium px-3 py-1 bg-black/70 rounded-full'>
+              Pro
             </span>
           </div>
         )}
       </div>
-    </div>
+      <div className='p-4'>
+        <h3 className='text-base font-medium'>
+          {job.template
+            ? job.template.charAt(0).toUpperCase() + job.template.slice(1)
+            : "Basic"}
+        </h3>
+        <div className='flex items-center gap-2 mt-1'>
+          <span className='text-sm text-muted-foreground'>
+            {job.status === "COMPLETED"
+              ? "Ready to download"
+              : job.status === "FAILED"
+              ? "Failed to generate"
+              : "Processing..."}
+          </span>
+        </div>
+        {job.status === "PROCESSING" ? (
+          <div className='mt-4 space-y-2'>
+            <div className='flex items-center justify-between text-sm'>
+              <span className='text-muted-foreground'>Processing...</span>
+              <span className='text-muted-foreground'>{job.progress}%</span>
+            </div>
+            <div className='w-full bg-gray-100 rounded-full h-1.5'>
+              <div
+                className='bg-blue-600 h-1.5 rounded-full transition-all duration-300'
+                style={{ width: `${job.progress}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <Button
+            className='w-full mt-4'
+            variant={job.status === "COMPLETED" ? "outline" : "default"}
+            disabled={isPremiumLocked}
+            onClick={() => {
+              if (job.status === "COMPLETED") {
+                onDownload(job.id);
+              } else if (job.status === "FAILED") {
+                onRegenerate();
+              }
+            }}
+          >
+            {job.status === "COMPLETED"
+              ? "Download HD"
+              : job.status === "FAILED"
+              ? "Try Again"
+              : "Processing..."}
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
