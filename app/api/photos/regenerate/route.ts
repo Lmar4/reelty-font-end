@@ -1,16 +1,16 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { makeBackendRequest } from "@/utils/withAuth";
+import {
+  makeBackendRequest,
+  withAuth,
+  AuthenticatedRequest,
+} from "@/utils/withAuth";
 
 const MAX_BATCH_SIZE = 20; // Reasonable limit for batch processing
 
-export async function POST(request: Request) {
+export const POST = withAuth(async function POST(
+  request: AuthenticatedRequest
+) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const body = await request.json();
     const { photoIds } = body;
 
@@ -28,18 +28,28 @@ export async function POST(request: Request) {
     const response = await makeBackendRequest<{
       success: boolean;
       message: string;
-      data: {
-        jobs: Array<{ id: string; listingId: string }>;
-      };
+      jobs: Array<{ id: string; listingId: string }>;
+      inaccessiblePhotoIds?: string[];
     }>("/api/photos/regenerate", {
       method: "POST",
+      sessionToken: request.auth.sessionToken,
       body: { photoIds },
     });
+
+    // Check if response has the expected structure
+    if (!response || !Array.isArray(response.jobs)) {
+      console.error(
+        "[PHOTOS_REGENERATE] Invalid response structure:",
+        response
+      );
+      throw new Error("Invalid response from backend");
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        jobs: response.data.jobs,
+        jobs: response.jobs,
+        inaccessiblePhotoIds: response.inaccessiblePhotoIds || [],
         message: response.message || "Photos regeneration started successfully",
       },
     });
@@ -53,4 +63,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});
