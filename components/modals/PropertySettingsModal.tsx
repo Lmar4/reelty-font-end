@@ -12,7 +12,7 @@ interface PropertySettingsModalProps {
     hasError: boolean;
     status: "error" | "processing" | "completed";
   }>;
-  onRegenerateImage?: (photoId: string) => Promise<void>;
+  onRegenerateImage?: (photoId: string | string[]) => Promise<void>;
 }
 
 export function PropertySettingsModal({
@@ -43,13 +43,12 @@ export function PropertySettingsModal({
 
     setIsRegenerating(true);
     try {
-      // Regenerate photos directly without job ID
-      for (const photoId of selectedPhotos) {
-        if (onRegenerateImage) {
-          await onRegenerateImage(photoId);
-        }
+      // Convert Set to Array and regenerate all photos in one call
+      const photoIdsArray = Array.from(selectedPhotos);
+      if (onRegenerateImage) {
+        await onRegenerateImage(photoIdsArray);
       }
-      showToast("Images regeneration started", "success");
+      // Toast is now handled in the parent component
     } catch (error) {
       console.error("[REGENERATE_ERROR]", error);
       showToast("Failed to regenerate images", "error");

@@ -1,6 +1,11 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +28,8 @@ export const RegenerateModal = ({
   onSuccess,
 }: RegenerateModalProps) => {
   const [template, setTemplate] = useState("");
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   const regenerateJob = useRegenerateJob(jobId);
 
@@ -31,9 +37,33 @@ export const RegenerateModal = ({
     e.preventDefault();
 
     try {
+      setIsUploading(true);
+
+      let inputFiles: string[] | undefined;
+
+      if (files.length > 0) {
+        // Upload files first
+        const formData = new FormData();
+        files.forEach((file) => {
+          formData.append("files", file);
+        });
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to upload files");
+        }
+
+        const { paths } = await response.json();
+        inputFiles = paths;
+      }
+
       await regenerateJob.mutateAsync({
         template: template || undefined,
-        inputFiles: files.length > 0 ? files : undefined,
+        inputFiles,
       });
 
       toast.success("Video regeneration started");
@@ -41,7 +71,11 @@ export const RegenerateModal = ({
       onClose();
     } catch (error) {
       console.error("[REGENERATE_ERROR]", error);
-      toast.error("Failed to regenerate video");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to regenerate video"
+      );
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -52,44 +86,47 @@ export const RegenerateModal = ({
           <DialogTitle>Regenerate Video</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className='space-y-4'>
           <div>
-            <Label htmlFor="template">Template (Optional)</Label>
+            <Label htmlFor='template'>Template (Optional)</Label>
             <Input
-              id="template"
+              id='template'
               value={template}
               onChange={(e) => setTemplate(e.target.value)}
-              placeholder="Leave empty to use the same template"
+              placeholder='Leave empty to use the same template'
             />
           </div>
 
           <div>
-            <Label htmlFor="files">Files (Optional)</Label>
+            <Label htmlFor='files'>Files (Optional)</Label>
             <Input
-              id="files"
-              type="file"
+              id='files'
+              type='file'
               multiple
               onChange={(e) => {
                 const fileList = e.target.files;
                 if (fileList) {
-                  setFiles(Array.from(fileList).map((file) => file.name));
+                  setFiles(Array.from(fileList));
                 }
               }}
             />
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className='text-sm text-muted-foreground mt-1'>
               Leave empty to use the same files
             </p>
           </div>
 
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose} type="button">
+          <div className='flex justify-end space-x-2'>
+            <Button variant='outline' onClick={onClose} type='button'>
               Cancel
             </Button>
-            <Button type="submit" disabled={regenerateJob.isPending}>
-              {regenerateJob.isPending ? (
+            <Button
+              type='submit'
+              disabled={regenerateJob.isPending || isUploading}
+            >
+              {regenerateJob.isPending || isUploading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Regenerating...
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                  {isUploading ? "Uploading..." : "Regenerating..."}
                 </>
               ) : (
                 "Regenerate"
