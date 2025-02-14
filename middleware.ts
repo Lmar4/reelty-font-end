@@ -17,6 +17,47 @@ const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
 const ADMIN_TIER_ID = "550e8400-e29b-41d4-a716-446655440003";
 
+// Cache for user tier checks (5 minutes)
+const userTierCache = new Map<string, { tierId: string; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getUserTier(userId: string, token: string) {
+  // Check cache first
+  const cachedData = userTierCache.get(userId);
+  const now = Date.now();
+
+  if (cachedData && now - cachedData.timestamp < CACHE_TTL) {
+    return cachedData.tierId;
+  }
+
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user data: ${response.status}`);
+    }
+
+    const userData = await response.json();
+    const tierId = userData?.data?.currentTierId;
+
+    // Update cache
+    userTierCache.set(userId, { tierId, timestamp: now });
+
+    return tierId;
+  } catch (error) {
+    console.error("Error fetching user tier:", error);
+    return null;
+  }
+}
+
 export default clerkMiddleware(async (auth, req) => {
   const { userId, getToken } = await auth();
 
@@ -49,48 +90,19 @@ export default clerkMiddleware(async (auth, req) => {
     }
 
     try {
-      // Fetch user data to check admin status
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        console.error("Failed to fetch user data:", {
-          status: response.status,
-          statusText: response.statusText,
-          url: response.url,
-        });
-        const responseText = await response.text();
-        console.error("Response body:", responseText);
-        throw new Error(
-          `Failed to fetch user data: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const userData = await response.json();
+      const tierId = await getUserTier(userId, token);
 
       // Check if user has admin tier
-      if (userData?.data?.currentTierId !== ADMIN_TIER_ID) {
+      if (tierId !== ADMIN_TIER_ID) {
         console.log("Unauthorized admin access attempt:", {
           userId,
-          currentTier: userData?.data?.currentTierId,
+          currentTier: tierId,
         });
         const homeUrl = new URL("/", req.url);
         return NextResponse.redirect(homeUrl);
       }
     } catch (error) {
-      console.error("Error checking admin access:", {
-        error,
-        userId,
-        backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
-        hasToken: !!token,
-      });
+      console.error("Error checking admin access:", error);
       const homeUrl = new URL("/", req.url);
       return NextResponse.redirect(homeUrl);
     }
