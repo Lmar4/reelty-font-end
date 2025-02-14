@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "@/providers/query-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/components/providers/Providers";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -104,16 +105,18 @@ export default function RootLayout({
   return (
     <html lang='en'>
       <body className={`${geist.variable} min-h-screen flex flex-col`}>
-        <ClerkProvider afterSignOutUrl='/'>
-          <QueryProvider>
-            <AuthProvider>
-              <Providers>
-                <main className='flex-grow flex flex-col'>{children}</main>
-                <Toaster />
-              </Providers>
-            </AuthProvider>
-          </QueryProvider>
-        </ClerkProvider>
+        <ErrorBoundary>
+          <ClerkProvider afterSignOutUrl='/'>
+            <QueryProvider>
+              <AuthProvider>
+                <Providers>
+                  <main className='flex-grow flex flex-col'>{children}</main>
+                  <Toaster />
+                </Providers>
+              </AuthProvider>
+            </QueryProvider>
+          </ClerkProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

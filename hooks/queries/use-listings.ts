@@ -147,6 +147,39 @@ export function useListing(id: string, options?: { initialData?: Listing }) {
     },
     enabled: !!id,
     initialData: options?.initialData,
+    refetchInterval: (query) => {
+      const data = query.state.data as Listing | undefined;
+      // If we have data and any photos are still processing, refetch every 5 seconds
+      if (
+        data?.photos?.some(
+          (p: {
+            status: string;
+            processedFilePath: string | null;
+            error: string | null;
+          }) => p.status === "processing" || (!p.processedFilePath && !p.error)
+        )
+      ) {
+        return 5000; // Increased from 2s to 5s
+      }
+      // Otherwise, don't refetch automatically
+      return false;
+    },
+    // Add retry and backoff logic
+    retry: (failureCount, error) => {
+      if (error instanceof Error && error.message.includes("429")) {
+        return failureCount < 3; // Retry up to 3 times for rate limit errors
+      }
+      return failureCount < 2; // Default to 2 retries for other errors
+    },
+    retryDelay: (attemptIndex) => {
+      // Exponential backoff: 2s, 4s, 8s...
+      return Math.min(1000 * Math.pow(2, attemptIndex), 10000);
+    },
+    // Refetch settings
+    refetchOnWindowFocus: false, // Changed to false to reduce requests
+    refetchOnReconnect: true,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 }
 
@@ -285,40 +318,19 @@ export function useUploadPhoto() {
           );
         }
 
-        console.log("[UPLOAD_RESPONSE]", {
-          status: response.status,
-          ok: response.ok,
-          contentType,
-          data: responseData,
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            responseData.error || `Upload failed with status ${response.status}`
-          );
-        }
-
-        if (!responseData?.data?.filePath) {
-          throw new Error("Invalid response: missing file path");
-        }
-
         return responseData;
       } catch (error) {
-        console.error("[UPLOAD_ERROR]", {
-          error: error instanceof Error ? error.message : "Unknown error",
-          fullError: error,
-        });
-        throw error;
+        throw new Error("Failed to upload photo");
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
+      toast.success("Photo uploaded successfully!");
+      return data;
     },
-    onError: (error) => {
-      console.error("[UPLOAD_MUTATION_ERROR]", {
-        error: error instanceof Error ? error.message : "Unknown error",
-        fullError: error,
-      });
+    onError: (error: Error) => {
+      console.error("[UPLOAD_PHOTO_ERROR]", error);
+      toast.error(error.message || "Failed to upload photo");
     },
   });
 }
