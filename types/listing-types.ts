@@ -33,6 +33,7 @@ export interface VideoJob {
   template?: string | null;
   inputFiles?: any;
   outputFile: string | null;
+  thumbnailUrl: string | null;
   error: string | null;
   createdAt: Date;
   updatedAt: Date;
