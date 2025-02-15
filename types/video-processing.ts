@@ -1,4 +1,4 @@
-import { VideoGenerationStatus } from "@prisma/client";
+import { VideoGenerationStatus } from "./prisma-types";
 
 export type ProcessingStatus = VideoGenerationStatus;
 
