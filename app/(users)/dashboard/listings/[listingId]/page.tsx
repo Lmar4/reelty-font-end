@@ -76,10 +76,11 @@ export default async function ListingPage({
   params,
   searchParams,
 }: {
-  params: { listingId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ listingId: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { listingId } = params;
+  const { listingId } = await params;
+  const resolvedSearchParams = await searchParams;
 
   try {
     const listing = await getListing(listingId).catch((error) => {
@@ -91,7 +92,7 @@ export default async function ListingPage({
       <div>
         <ListingClient
           listingId={listingId}
-          searchParams={searchParams}
+          searchParams={resolvedSearchParams}
           initialListing={listing}
         />
       </div>

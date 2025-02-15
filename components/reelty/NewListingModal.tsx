@@ -27,32 +27,6 @@ interface NewListingModalProps {
   initialFiles: File[];
 }
 
-// Utility function to compress image
-const compressImage = async (file: File): Promise<string> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = document.createElement("img");
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        // Calculate new dimensions (max 400px width for thumbnails)
-        const maxWidth = 400;
-        const scale = maxWidth / img.width;
-        canvas.width = maxWidth;
-        canvas.height = img.height * scale;
-
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        // Convert to WebP with low quality for thumbnails
-        resolve(canvas.toDataURL("image/webp", 0.3));
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-};
-
 export default function NewListingModal({
   isOpen,
   onClose,
@@ -67,6 +41,7 @@ export default function NewListingModal({
 
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [uploadedPhotos, setUploadedPhotos] = useState<File[]>([]);
+  const [currentListingId, setCurrentListingId] = useState<string>("");
 
   const [address, setAddress] = useState("");
   const [coordinates, setCoordinates] = useState<{
@@ -221,6 +196,7 @@ export default function NewListingModal({
         throw new Error("Failed to create listing - no listing ID returned");
       }
 
+      setCurrentListingId(listing.id);
       setProgress(30);
       setStatus("Uploading photos...");
 
@@ -286,19 +262,6 @@ export default function NewListingModal({
       setProgress(0);
       setStatus("");
     }
-  };
-
-  // Handle photo reordering
-  const handlePhotoReorder = (reorderedPhotos: File[]) => {
-    setUploadedPhotos(reorderedPhotos);
-    // Update selected photos to maintain the same selections in new order
-    const newSelectedPhotos = new Set<string>();
-    reorderedPhotos.forEach((_, index) => {
-      if (selectedPhotos.has(String(index))) {
-        newSelectedPhotos.add(String(index));
-      }
-    });
-    setSelectedPhotos(newSelectedPhotos);
   };
 
   // Handle additional file uploads
@@ -427,6 +390,7 @@ export default function NewListingModal({
                 photos={uploadedPhotos}
                 onAddPhotos={handleAdditionalFiles}
                 maxPhotos={60}
+                listingId={currentListingId}
               />
             )}
             {uploadedPhotos.length === 0 && (

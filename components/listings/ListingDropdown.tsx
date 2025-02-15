@@ -19,6 +19,26 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
   const { user } = useUser();
 
   const handleDelete = async () => {
+    // Store the previous data for rollback
+    const previousData = queryClient.getQueryData([
+      LISTINGS_QUERY_KEY,
+      user?.id,
+    ]);
+
+    // Optimistically update the UI
+    queryClient.setQueryData([LISTINGS_QUERY_KEY, user?.id], (oldData: any) => {
+      if (!oldData) return oldData;
+      const listings = Array.isArray(oldData) ? oldData : oldData?.data;
+      if (!listings) return oldData;
+
+      const updatedListings = listings.filter(
+        (listing: any) => listing.id !== listingId
+      );
+      return Array.isArray(oldData)
+        ? updatedListings
+        : { ...oldData, data: updatedListings };
+    });
+
     try {
       const response = await fetch(`/api/listings/${listingId}`, {
         method: "DELETE",
@@ -28,28 +48,12 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
         throw new Error("Failed to delete listing");
       }
 
-      // Update the cache directly instead of invalidating
-      queryClient.setQueryData(
-        [LISTINGS_QUERY_KEY, user?.id],
-        (oldData: any) => {
-          if (!oldData) return oldData;
-          // Since we're getting the raw data from the cache, we need to handle the data property
-          const listings = Array.isArray(oldData) ? oldData : oldData?.data;
-          if (!listings) return oldData;
-
-          const updatedListings = listings.filter(
-            (listing: any) => listing.id !== listingId
-          );
-          return Array.isArray(oldData)
-            ? updatedListings
-            : { ...oldData, data: updatedListings };
-        }
-      );
-
-      // Also remove the individual listing from cache if it exists
+      // Remove the individual listing from cache if it exists
       queryClient.removeQueries({ queryKey: [LISTINGS_QUERY_KEY, listingId] });
       showToast("Listing deleted successfully", "success");
     } catch (error) {
+      // Rollback on error
+      queryClient.setQueryData([LISTINGS_QUERY_KEY, user?.id], previousData);
       console.error("[DELETE_ERROR]", error);
       showToast("Failed to delete listing", "error");
     }

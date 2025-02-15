@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
+import { AdditionalPhotosModal } from "@/components/modals/AdditionalPhotosModal";
 
 interface PhotoManagerProps {
   photos: File[];
   onAddPhotos?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   maxPhotos?: number;
+  listingId?: string;
 }
 
 interface PhotoWithPreview {
@@ -17,8 +19,10 @@ export default function PhotoManager({
   photos,
   onAddPhotos,
   maxPhotos = 60,
+  listingId,
 }: PhotoManagerProps) {
   const [items, setItems] = useState<PhotoWithPreview[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const previewUrlsRef = useRef<Map<string, string>>(new Map());
 
   // Initialize or update items when photos change, reusing existing previews
@@ -63,6 +67,11 @@ export default function PhotoManager({
     };
   }, []);
 
+  const handleModalSuccess = (newListingId: string) => {
+    setIsModalOpen(false);
+    // You might want to trigger a refresh of the parent component here
+  };
+
   return (
     <div className='space-y-4'>
       <Card className='p-4'>
@@ -79,8 +88,11 @@ export default function PhotoManager({
               </div>
             </div>
           ))}
-          {onAddPhotos && photos.length < maxPhotos && (
-            <label className='relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-gray-400 transition-colors'>
+          {photos.length < maxPhotos && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className='relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-gray-400 transition-colors'
+            >
               <div className='flex flex-col items-center gap-2'>
                 <svg
                   width='20'
@@ -96,21 +108,17 @@ export default function PhotoManager({
                 </svg>
                 <span className='text-[13px] text-gray-600'>Upload More</span>
               </div>
-              <input
-                type='file'
-                multiple
-                onClick={(e) => {
-                  e.preventDefault();
-                  (e.target as HTMLInputElement).value = "";
-                }}
-                accept='image/*'
-                className='hidden'
-                onChange={onAddPhotos}
-              />
-            </label>
+            </button>
           )}
         </div>
       </Card>
+
+      <AdditionalPhotosModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        listingId={listingId}
+        onSuccess={handleModalSuccess}
+      />
     </div>
   );
 }
