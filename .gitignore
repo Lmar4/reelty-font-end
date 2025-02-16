@@ -48,4 +48,10 @@ next-env.d.ts
 !.elasticbeanstalk/*.global.yml
 .aider*
 .windsurfrules
+<<<<<<< HEAD
 .cursor/*
+=======
+.cursor/*
+# clerk configuration (can include secrets)
+/.clerk/
+>>>>>>> 8a13445 (first commit)

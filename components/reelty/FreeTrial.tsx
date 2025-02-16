@@ -12,7 +12,11 @@ export default function FreeTrial() {
         <div className='bg-[#1c1c1c] text-white px-4 py-2 text-[14px] flex items-center justify-between'>
           <div>
             <span className='text-white font-semibold'>
+<<<<<<< HEAD
               You're in free trial.
+=======
+              You're in a free trial.
+>>>>>>> 8a13445 (first commit)
             </span>{" "}
             <span className='text-white/40'>
               Some features are limited. Upgrade to unlock.

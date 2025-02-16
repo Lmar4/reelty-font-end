@@ -1,6 +1,9 @@
 import PricingCards from "./PricingCards";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+<<<<<<< HEAD
 import { Check } from "lucide-react";
+=======
+>>>>>>> 8a13445 (first commit)
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -17,6 +20,7 @@ export default function PricingModal({
 }: PricingModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
+<<<<<<< HEAD
       <DialogContent className='sm:max-w-md fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-2rem)] max-h-[calc(100vh-4rem)] overflow-y-auto bg-white rounded-lg shadow-xl z-[100] p-0'>
         <div className='p-6 space-y-6'>
           <div className='text-center space-y-2'>
@@ -82,6 +86,13 @@ export default function PricingModal({
             </div>
           </div>
         </div>
+=======
+      <DialogContent className='sm:max-w-[1200px] p-6 border border-gray-200 fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 mx-auto w-[calc(100%-2rem)] max-h-[80vh] sm:max-h-[85vh] overflow-y-auto bg-white rounded-lg'>
+        <DialogTitle className='text-xl font-semibold text-center mb-6'>
+          Choose a plan to continue and unlock Premium features!
+        </DialogTitle>
+        <PricingCards isModal={true} />
+>>>>>>> 8a13445 (first commit)
       </DialogContent>
     </Dialog>
   );

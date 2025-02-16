@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 "use client";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -126,3 +127,6 @@ export default function PricingModal({
     </Dialog>
   );
 }
+=======
+
+>>>>>>> 8a13445 (first commit)

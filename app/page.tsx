@@ -34,12 +34,21 @@ export default function Home() {
   };
 
   return (
+<<<<<<< HEAD
     <div className='min-h-screen bg-white flex flex-col'>
       <HomeHeader />
 
       {/* Main Content */}
       <main className='max-w-[1200px] mx-auto px-6 pt-16 md:pt-16 text-center flex-grow'>
         <div className='inline-flex items-center gap-3 mb-1 md:mb-2 bg-gray-50 px-4 py-2 rounded-full'>
+=======
+    <div className='min-h-screen bg-white flex flex-col overflow-x-hidden'>
+      <HomeHeader />
+
+      {/* Main Content */}
+      <main className='max-w-[1200px] mx-auto px-6 pt-[84px] md:pt-[72px] text-center flex-grow'>
+        <div className='inline-flex items-center gap-3 mb-1 md:mb-2 bg-gray-50 px-4 py-2 rounded-full mt-8 md:mt-16'>
+>>>>>>> 8a13445 (first commit)
           <div className='flex -space-x-1.5'>
             <div className='w-6 h-6 rounded-full bg-gray-200 border-2 border-white'></div>
             <div className='w-6 h-6 rounded-full bg-gray-300 border-2 border-white'></div>
@@ -47,7 +56,11 @@ export default function Home() {
           </div>
           <p className='text-[13px] md:text-[15px] text-[#1c1c1c]'>
             Coming soon to{" "}
+<<<<<<< HEAD
             <span className='font-semibold'>950k+ happy realtors</span>
+=======
+            <span className='font-semibold'>150k+ happy users</span>
+>>>>>>> 8a13445 (first commit)
           </p>
         </div>
 
@@ -200,7 +213,11 @@ export default function Home() {
             maxSize={15}
             accept='image/*'
           />
+<<<<<<< HEAD
           <p className='text-[14px] text-[#6B7280] mt-3 md:mt-8 text-center'>
+=======
+          <p className='text-[16px] text-[#9CA3AF] mt-3 md:mt-8 mb-24 md:mb-12 text-center'>
+>>>>>>> 8a13445 (first commit)
             Try for free. No credit card required.
           </p>
         </div>
@@ -213,10 +230,15 @@ export default function Home() {
         initialFiles={selectedFiles}
       />
 
+<<<<<<< HEAD
       {/* Footer - Hidden on mobile, shown and stuck to bottom on desktop */}
       <div className='hidden md:block mt-auto'>
         <Footer />
       </div>
+=======
+      {/* Footer */}
+      <Footer />
+>>>>>>> 8a13445 (first commit)
     </div>
   );
 }

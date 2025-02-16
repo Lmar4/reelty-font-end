@@ -11,7 +11,12 @@ export default function MarketingLayout({
 }) {
   const { data: userData, isLoading } = useUserData();
   const isPaidMember = userData?.subscriptionStatus === "ACTIVE";
+<<<<<<< HEAD
   const showBanner = !isLoading && !isPaidMember;
+=======
+  // Only show banner if user is logged in AND not a paid member
+  const showBanner = !isLoading && userData && !isPaidMember;
+>>>>>>> 8a13445 (first commit)
 
   return (
     <div className='flex flex-col min-h-screen'>
