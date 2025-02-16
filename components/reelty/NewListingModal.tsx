@@ -42,7 +42,12 @@ const loader = new Loader({
 interface NewListingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialFiles: File[];
+  initialFiles?: File[];
+  initialAddress?: string;
+  initialCoordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 interface StoredPhoto {
@@ -54,7 +59,9 @@ interface StoredPhoto {
 export default function NewListingModal({
   isOpen,
   onClose,
-  initialFiles,
+  initialFiles = [],
+  initialAddress = "",
+  initialCoordinates,
 }: NewListingModalProps) {
   const { userId, isSignedIn } = useAuth();
   const router = useRouter();
@@ -85,10 +92,14 @@ export default function NewListingModal({
   const form = useForm<ListingFormData>({
     resolver: zodResolver(listingFormSchema),
     defaultValues: {
-      address: "",
-      coordinates: null,
+      address: initialAddress || "",
+      coordinates: initialCoordinates || {
+        lat: 0,
+        lng: 0,
+      },
       photoLimit: 1,
     },
+    mode: "onChange",
   });
 
   // Load Google Maps
@@ -121,7 +132,7 @@ export default function NewListingModal({
 
   // Process initial files
   useEffect(() => {
-    if (initialFiles.length > 0) {
+    if (initialFiles?.length > 0) {
       // Just create preview URLs initially without processing
       Promise.all(
         initialFiles.map(async (file) => ({
@@ -141,16 +152,34 @@ export default function NewListingModal({
     }
   }, [initialFiles]);
 
-  // Cleanup on unmount
+  // Handle modal state
   useEffect(() => {
-    return () => {
-      cleanup(processedPhotos);
+    const resetForm = () => {
+      form.reset({
+        address: "",
+        coordinates: undefined,
+      });
+      setInputValue("");
     };
-  }, [cleanup, processedPhotos]);
 
-  // Restore session if exists
+    if (!isOpen) {
+      // Cleanup when closing
+      cleanup(processedPhotos);
+      setProcessedPhotos([]);
+      setSelectedPhotos(new Set());
+      resetForm();
+    } else if (!initialFiles?.length) {
+      // Clear everything when opening a new modal
+      clearSession();
+      setProcessedPhotos([]);
+      setSelectedPhotos(new Set());
+      resetForm();
+    }
+  }, [isOpen, initialFiles?.length]);
+
+  // Handle session restoration
   useEffect(() => {
-    if (!sessionData) {
+    if (!isOpen || !sessionData || processedPhotos.length > 0) {
       return;
     }
 
@@ -175,23 +204,20 @@ export default function NewListingModal({
       setProcessedPhotos(restoredPhotos);
       setSelectedPhotos(new Set(restoredPhotos.map((p) => p.id)));
 
-      if (typeof sessionData.address === "string") {
+      // Restore form values
+      if (sessionData.address) {
         setInputValue(sessionData.address);
         form.setValue("address", sessionData.address);
       }
 
-      if (
-        sessionData.coordinates &&
-        typeof sessionData.coordinates.lat === "number" &&
-        typeof sessionData.coordinates.lng === "number"
-      ) {
+      if (sessionData.coordinates) {
         form.setValue("coordinates", sessionData.coordinates);
       }
     } catch (error) {
       console.error("Error restoring session:", error);
       clearSession();
     }
-  }, [sessionData, form, clearSession]);
+  }, [isOpen, sessionData, processedPhotos.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -265,84 +291,93 @@ export default function NewListingModal({
   };
 
   const handleSubmit = async (data: ListingFormData) => {
-    if (selectedPhotos.size === 0) {
-      toast.error("Please select at least one photo");
-      return;
-    }
-
-    if (!userId || !isSignedIn) {
-      // Filter and sort selected photos
-      const selectedPhotoFiles = Array.from(selectedPhotos)
-        .map((id) => processedPhotos.find((p) => p.id === id))
-        .filter((p): p is ProcessedPhoto => p !== undefined);
-
-      // Save photos to temporary storage
-      const uploadResults = await uploadToS3(selectedPhotoFiles, true);
-
-      // Save session data
-      savePhotos(
-        uploadResults.map((result) => ({
-          id: result.id,
-          s3Key: result.s3Key,
-          url: result.url,
-        }))
-      );
-
-      // Save address data
-      if (data.address && data.coordinates) {
-        saveAddress(data.address, data.coordinates);
+    try {
+      if (selectedPhotos.size === 0) {
+        toast.error("Please select at least one photo");
+        return;
       }
 
-      sessionStorage.setItem("postSignUpRedirect", "/dashboard/new-listing");
-      router.push("/sign-up");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
+      if (!data.address || !data.coordinates) {
+        toast.error("Please enter a valid address");
+        return;
+      }
+      // Reset progress and status
       setProgress(0);
-      setStatus("Processing photos...");
+      setIsSubmitting(true);
+      // If not signed in, save redirect info first
+      if (!userId || !isSignedIn) {
+        // Save the redirect path before any async operations
+        sessionStorage.setItem("postSignUpRedirect", "/dashboard/new-listing");
+
+        // Save form data
+        if (data.address && data.coordinates) {
+          saveAddress(data.address, data.coordinates);
+        }
+      }
 
       // Filter and sort selected photos
       const selectedPhotoFiles = Array.from(selectedPhotos)
         .map((id) => processedPhotos.find((p) => p.id === id))
         .filter((p): p is ProcessedPhoto => p !== undefined);
 
-      let processedResults: ProcessedPhoto[] = [];
+      let uploadResults;
 
-      // If we have a session, use the already uploaded photos
-      if (sessionData) {
-        processedResults = selectedPhotoFiles;
+      // If we have a session with already uploaded photos, use those
+      if (
+        sessionData &&
+        Array.isArray(sessionData.photos) &&
+        sessionData.photos.length > 0
+      ) {
+        uploadResults = sessionData.photos;
         setProgress(30);
       } else {
-        // Process photos
-        const totalPhotos = selectedPhotoFiles.length;
-        for (let i = 0; i < selectedPhotoFiles.length; i++) {
-          setStatus(`Processing photo ${i + 1} of ${totalPhotos}`);
-          const photo = selectedPhotoFiles[i];
-          try {
-            const processedPhoto = await processPhotos([photo.originalFile]);
-            processedResults.push(processedPhoto[0]);
-          } catch (error) {
-            console.error(`Error processing photo ${i + 1}:`, error);
-            toast.error(`Failed to process photo ${i + 1}`);
-          }
-          setProgress(Math.floor(((i + 1) / totalPhotos) * 30));
-        }
+        // Process photos to webp (20%)
+        setStatus("Processing photos...");
+        setProgress(10);
+        const files = selectedPhotoFiles.map((p) => p.originalFile);
+        const processedFiles = await processPhotos(files);
+        setProgress(20);
 
-        // Upload photos to S3
-        setStatus("Uploading photos to S3...");
-        const uploadResults = await uploadToS3(processedResults);
+        // Upload to S3 (20% -> 40%)
+        setStatus("Uploading photos...");
+        const uploadStartProgress = 20;
+        const uploadEndProgress = 40;
 
-        // Update processed results with S3 keys
-        processedResults = processedResults.map((photo, index) => ({
-          ...photo,
-          s3Key: uploadResults[index].s3Key,
-        }));
+        // Create progress callback
+        const onUploadProgress = (progress: number) => {
+          const scaledProgress =
+            uploadStartProgress +
+            (progress * (uploadEndProgress - uploadStartProgress)) / 100;
+          setProgress(Math.round(scaledProgress));
+        };
+
+        uploadResults = await uploadToS3(
+          processedFiles,
+          true,
+          onUploadProgress
+        );
+
+        // Save metadata to session
+        savePhotos(
+          uploadResults.map((result) => ({
+            id: result.id,
+            s3Key: result.s3Key,
+            url: result.url,
+          }))
+        );
       }
 
-      setProgress(60);
+      // If not signed in, redirect now that everything is saved
+      if (!userId || !isSignedIn) {
+        router.push("/sign-up");
+        return;
+      }
+
+      // Continue with listing creation
+
+      // Create listing (60% -> 80%)
       setStatus("Creating listing...");
+      setProgress(60);
 
       // Create listing with photo references
       const listing = await createListing.mutateAsync({
@@ -351,31 +386,54 @@ export default function NewListingModal({
       });
 
       if (!listing?.id) {
-        throw new Error("Failed to create listing - no listing ID returned");
+        throw new Error("Failed to create listing");
       }
+
+      setProgress(80);
 
       // Link photos to listing
       setStatus("Linking photos to listing...");
-      for (let i = 0; i < processedResults.length; i++) {
-        const photo = processedResults[i];
-        if (!photo.s3Key) {
-          throw new Error(`Missing S3 key for photo ${i + 1}`);
+      try {
+        // Validate we have all necessary data
+        if (uploadResults.length !== selectedPhotoFiles.length) {
+          throw new Error("Mismatch between upload results and selected files");
         }
 
-        await uploadPhoto.mutateAsync({
-          file: photo.originalFile,
-          listingId: listing.id,
-          order: i,
-          s3Key: photo.s3Key,
-        });
-        setProgress(60 + Math.floor(((i + 1) / processedResults.length) * 40));
+        for (let i = 0; i < uploadResults.length; i++) {
+          const photo = uploadResults[i];
+          const selectedPhoto = selectedPhotoFiles[i];
+
+          if (!selectedPhoto?.originalFile) {
+            throw new Error(`Missing original file for photo ${i + 1}`);
+          }
+
+          if (!photo?.s3Key) {
+            throw new Error(`Missing S3 key for photo ${i + 1}`);
+          }
+
+          await uploadPhoto.mutateAsync({
+            file: selectedPhoto.originalFile,
+            listingId: listing.id,
+            order: i,
+            s3Key: photo.s3Key,
+          });
+          setProgress(60 + Math.floor(((i + 1) / uploadResults.length) * 40));
+        }
+      } catch (error) {
+        // Keep the session data if photo linking fails
+        console.error("Error linking photos:", error);
+        throw error;
       }
 
       setProgress(100);
       setStatus("Complete!");
 
-      // Clear the session if it exists
+      // Clear all form and session data
       clearSession();
+      form.reset();
+      setInputValue("");
+      setProcessedPhotos([]);
+      setSelectedPhotos(new Set());
 
       toast.success("Listing created successfully!");
       onClose();
@@ -390,11 +448,19 @@ export default function NewListingModal({
         error instanceof Error ? error.message : "Failed to create listing"
       );
 
-      if (error instanceof Error && error.message.includes("address")) {
-        form.setError("address", {
-          type: "manual",
-          message: error.message,
-        });
+      if (error instanceof Error) {
+        if (error.message.includes("address")) {
+          form.setError("address", {
+            type: "manual",
+            message: error.message,
+          });
+        } else {
+          // Set a generic form error
+          form.setError("root", {
+            type: "manual",
+            message: "Failed to create listing",
+          });
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -429,7 +495,11 @@ export default function NewListingModal({
     >
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(handleSubmit)}
+          onSubmit={(e) => {
+            e.preventDefault();
+            form.handleSubmit(handleSubmit)(e);
+          }}
+          method="POST"
           className='bg-white rounded-lg max-w-[900px] w-[calc(100%-2rem)] max-h-[80vh] sm:max-h-[90vh] relative mx-auto flex flex-col overflow-hidden'
         >
           {/* Close button - Floating */}
@@ -520,15 +590,23 @@ export default function NewListingModal({
                             )}
                             {autocompleteStatus === "OK" && (
                               <ul className='absolute z-10 w-full bg-white border rounded-md mt-1 shadow-lg max-h-60 overflow-auto'>
-                                {data.map(({ place_id, description }) => (
-                                  <li
-                                    key={place_id}
-                                    onClick={() => handleSelect(description)}
-                                    className='px-4 py-2 hover:bg-gray-100 cursor-pointer'
-                                  >
-                                    {description}
-                                  </li>
-                                ))}
+                                {data.map(
+                                  ({
+                                    place_id,
+                                    description,
+                                  }: {
+                                    place_id: string;
+                                    description: string;
+                                  }) => (
+                                    <li
+                                      key={place_id}
+                                      onClick={() => handleSelect(description)}
+                                      className='px-4 py-2 hover:bg-gray-100 cursor-pointer'
+                                    >
+                                      {description}
+                                    </li>
+                                  )
+                                )}
                               </ul>
                             )}
                           </div>

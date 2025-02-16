@@ -20,13 +20,17 @@ export default function PhotoManager({
   selectedIds,
 }: PhotoManagerProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // Only update internal state when selectedIds prop changes
   const [selected, setSelected] = useState<Set<string>>(
     new Set(selectedIds || [])
   );
 
+  // Sync with parent when selectedIds changes
   useEffect(() => {
-    if (selectedIds) {
-      setSelected(new Set(selectedIds));
+    const newSelected = new Set(selectedIds || []);
+    // Only update if the sets are different
+    if (JSON.stringify([...selected]) !== JSON.stringify([...newSelected])) {
+      setSelected(newSelected);
     }
   }, [selectedIds]);
 
