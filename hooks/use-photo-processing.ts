@@ -26,8 +26,9 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
 
   const defaultOptions = {
     maxSizeMB: 15,
-    maxWidthOrHeight: 1280,
-    quality: 0.8,
+    width: 768,
+    height: 1280,
+    quality: 0.9, // 90% quality
     ...options,
   };
 
@@ -40,7 +41,7 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
       // First compress the image
       const compressedFile = await imageCompression(file, {
         maxSizeMB: defaultOptions.maxSizeMB,
-        maxWidthOrHeight: defaultOptions.maxWidthOrHeight,
+        maxWidthOrHeight: Math.max(defaultOptions.width, defaultOptions.height),
         useWebWorker: true,
       });
 
@@ -56,12 +57,23 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
       // Create a promise to handle image loading
       return new Promise((resolve, reject) => {
         img.onload = () => {
-          // Set canvas dimensions
-          canvas.width = img.width;
-          canvas.height = img.height;
+          // Set canvas dimensions to match backend requirements
+          canvas.width = defaultOptions.width;
+          canvas.height = defaultOptions.height;
 
-          // Draw image to canvas
-          ctx.drawImage(img, 0, 0);
+          // Draw image with cover fit (centered and cropped)
+          const scale = Math.max(
+            canvas.width / img.width,
+            canvas.height / img.height
+          );
+          const x = (canvas.width - img.width * scale) * 0.5;
+          const y = (canvas.height - img.height * scale) * 0.5;
+          ctx.drawImage(
+            img,
+            x, y,
+            img.width * scale,
+            img.height * scale
+          );
 
           // Convert to WebP
           canvas.toBlob(

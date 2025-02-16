@@ -54,6 +54,8 @@ interface CreateListingInput {
   address: string;
   coordinates: { lat: number; lng: number } | null;
   photoLimit: number;
+  id?: string; // Optional ID for updating existing listings
+  tempId?: string; // Optional ID for temp listings
 }
 
 async function createListing(
@@ -105,13 +107,20 @@ interface UploadPhotoInput {
   file: File;
   listingId: string;
   order?: number;
-  s3Key?: string;
+  s3Key: string;
 }
 
 interface UploadResponse {
-  success?: boolean;
-  data?: any;
-  photoId?: string;
+  success: boolean;
+  data: {
+    id: string;
+    listingId: string;
+    userId: string;
+    filePath: string;
+    s3Key: string;
+    order: number;
+    status: string;
+  };
 }
 
 export function useListings(userId: string) {
@@ -292,14 +301,10 @@ export function useUploadPhoto() {
         throw new Error("Authentication token not found");
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
-      if (order !== undefined) {
-        formData.append("order", String(order));
-      }
-      if (s3Key) {
-        formData.append("s3Key", s3Key);
-      }
+      const body = {
+        s3Key,
+        order: order !== undefined ? String(order) : undefined,
+      };
 
       try {
         const result = await makeBackendRequest<UploadResponse>(
@@ -307,7 +312,10 @@ export function useUploadPhoto() {
           {
             method: "POST",
             sessionToken: token,
-            body: formData,
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body,
           }
         );
 
@@ -315,8 +323,9 @@ export function useUploadPhoto() {
           throw new Error("Invalid response from server");
         }
 
-        // Ensure we have the expected data structure
-        if (!result.success && !result.data && !result.photoId) {
+        // makeBackendRequest already validates success and returns the data
+        // so we just need to check if we have the expected fields
+        if (!result) {
           throw new Error("Unexpected response format from server");
         }
 

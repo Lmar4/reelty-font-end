@@ -199,7 +199,7 @@ export const useS3Upload = () => {
                   results.push({
                     id: photo.id,
                     s3Key,
-                    url: `https://${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.amazonaws.com/${s3Key}`,
+                    url: s3Key, // Just pass the key, backend will construct full URL
                     sessionId: newSessionId,
                   });
                   resolve();

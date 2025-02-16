@@ -14,25 +14,28 @@ interface ListingSessionData {
 }
 
 export const useListingSession = () => {
-  const [sessionData, setSessionData] = useState<ListingSessionData | null>(
-    null
-  );
+  const [sessionData, setSessionData] = useState<ListingSessionData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load session data on mount
   useEffect(() => {
-    const uploadSessionId = localStorage.getItem("upload_session_id");
-    const savedData = localStorage.getItem("listing_session");
+    try {
+      const savedData = localStorage.getItem("listing_session");
+      console.log('Checking for listing session:', savedData ? 'Found' : 'Not found');
 
-    if (uploadSessionId && savedData) {
-      try {
-        setSessionData(JSON.parse(savedData));
-      } catch (e) {
-        console.error("Failed to parse listing session data:", e);
-        clearSession();
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        console.log('Parsed session data:', parsedData);
+        setSessionData(parsedData);
+      } else {
+        console.log('No listing session found');
+        setSessionData(null);
       }
-    } else {
-      // Initialize with empty photos array if no session exists
-      setSessionData({ photos: [] });
+    } catch (e) {
+      console.error("Failed to parse listing session data:", e);
+      clearSession();
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -84,6 +87,7 @@ export const useListingSession = () => {
 
   return {
     sessionData,
+    isLoading,
     savePhotos,
     saveAddress,
     clearSession,
