@@ -5,11 +5,20 @@ interface UploadProgress {
   [key: string]: number;
 }
 
-export interface UploadResult {
+interface UploadResult {
   id: string;
   s3Key: string;
   url: string;
-  sessionId?: string;
+}
+
+interface UseS3UploadReturn {
+  uploadToS3: (
+    files: File[],
+    isListing?: boolean,
+    onProgress?: (progress: number) => void
+  ) => Promise<UploadResult[]>;
+  isUploading: boolean;
+  uploadProgress: number;
 }
 
 interface PresignedUrlResponse {
@@ -18,16 +27,59 @@ interface PresignedUrlResponse {
   sessionId?: string;
 }
 
-export const useS3Upload = () => {
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
+export function useS3Upload() {
+  return async function uploadToS3(
+    files: File[],
+    isListing: boolean = false,
+    onProgress?: (progress: number) => void
+  ) {
+    const results = [];
+
+    for (const [index, file] of files.entries()) {
+      // Generate a unique ID for this upload
+      const uploadId = crypto.randomUUID();
+
+      // Determine the temp path
+      const tempKey = `temp/${uploadId}/${file.name}`;
+
+      // Get presigned URL for upload
+      const presignedUrl = await fetch("/api/s3/presigned-url", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type,
+          tempKey,
+        }),
+      }).then((r) => r.json());
+
+      // Upload file
+      await fetch(presignedUrl.url, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      // Track progress
+      if (onProgress) {
+        onProgress((index + 1) * (100 / files.length));
+      }
+
+      results.push({
+        id: uploadId,
+        s3Key: tempKey,
+        url: `https://${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.amazonaws.com/${tempKey}`,
+      });
+    }
+
+    return results;
+  };
+}
+
+export const useS3UploadOld = (): UseS3UploadReturn => {
   const [isUploading, setIsUploading] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return (
-      sessionStorage.getItem("upload_session_id") ||
-      localStorage.getItem("upload_session_id")
-    );
-  });
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const getPresignedUrl = async (
     filename: string,
@@ -39,7 +91,6 @@ export const useS3Upload = () => {
         filename,
         contentType,
         isTemporary,
-        sessionId,
       });
 
       const response = await fetch("/api/storage/presigned-url", {
@@ -52,7 +103,6 @@ export const useS3Upload = () => {
           filename,
           contentType,
           isTemporary,
-          ...(isTemporary && sessionId && { sessionId }), // Only include sessionId if it exists and isTemporary is true
         }),
       });
 
@@ -63,7 +113,6 @@ export const useS3Upload = () => {
         headers: Object.fromEntries(response.headers.entries()),
         body: responseText,
         isTemporary,
-        sessionId,
         url: response.url,
       });
 
@@ -104,18 +153,9 @@ export const useS3Upload = () => {
         throw new Error("Invalid response: missing url or key");
       }
 
-      // Store the session ID if this is a temporary upload
-      if (isTemporary && data.sessionId) {
-        setSessionId(data.sessionId);
-        const sessionId = data.sessionId;
-        localStorage.setItem("upload_session_id", sessionId);
-        sessionStorage.setItem("upload_session_id", sessionId);
-      }
-
       console.log("[PRESIGNED_URL] Successfully got URL:", {
         key: data.key,
         hasUrl: !!data.url,
-        sessionId: data.sessionId,
       });
 
       return data;
@@ -128,198 +168,162 @@ export const useS3Upload = () => {
     }
   };
 
-  const uploadToS3 = useCallback(
-    async (
-      photos: ProcessedPhoto[],
-      isTemporary: boolean = !sessionId, // Default to temporary if no session
-      onProgress?: (progress: number) => void
-    ): Promise<UploadResult[]> => {
-      try {
-        setIsUploading(true);
-        setUploadProgress({});
+  const uploadToS3 = async (
+    files: File[],
+    isListing?: boolean,
+    onProgress?: (progress: number) => void
+  ): Promise<UploadResult[]> => {
+    setIsUploading(true);
+    try {
+      const results: UploadResult[] = [];
+      const uploadErrors: Array<{ id: string; error: string }> = [];
 
-        const results: UploadResult[] = [];
-        const uploadErrors: Array<{ id: string; error: string }> = [];
+      for (const [index, file] of files.entries()) {
+        try {
+          console.log("[S3_UPLOAD] Starting upload for file:", {
+            index,
+            fileName: file.name,
+            contentType: file.type,
+          });
 
-        for (const photo of photos) {
-          try {
-            console.log("[S3_UPLOAD] Starting upload for photo:", {
-              id: photo.id,
-              contentType: "image/webp",
-              isTemporary,
-              sessionId,
+          // Get presigned URL for this file
+          const { url: presignedUrl, key: s3Key } = await getPresignedUrl(
+            file.name,
+            file.type,
+            isListing
+          );
+
+          console.log("[S3_UPLOAD] Got presigned URL:", {
+            presignedUrl,
+            s3Key,
+          });
+
+          // Upload to S3 with progress tracking
+          const xhr = new XMLHttpRequest();
+
+          await new Promise<void>((resolve, reject) => {
+            xhr.upload.addEventListener("progress", (event) => {
+              if (event.lengthComputable) {
+                const progress = (event.loaded / event.total) * 100;
+                setUploadProgress(progress);
+                onProgress?.(progress);
+              }
             });
 
-            // Get presigned URL for this photo
-            const {
-              url: presignedUrl,
-              key: s3Key,
-              sessionId: newSessionId,
-            } = await getPresignedUrl(
-              `${photo.id}.webp`,
-              "image/webp",
-              isTemporary
-            );
+            xhr.addEventListener("load", () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                console.log("[S3_UPLOAD] Upload successful:", {
+                  id: file.name,
+                  s3Key,
+                  status: xhr.status,
+                });
 
-            console.log("[S3_UPLOAD] Got presigned URL:", {
-              presignedUrl,
-              s3Key,
-              sessionId: newSessionId,
-            });
-
-            // Upload to S3 with progress tracking
-            const xhr = new XMLHttpRequest();
-
-            await new Promise<void>((resolve, reject) => {
-              xhr.upload.addEventListener("progress", (event) => {
-                if (event.lengthComputable) {
-                  const progress = (event.loaded / event.total) * 100;
-                  setUploadProgress((prev) => ({
-                    ...prev,
-                    [photo.id]: progress,
-                  }));
-
-                  // Calculate overall progress
-                  const progressValues = Object.values(uploadProgress);
-                  const overallProgress = progressValues.length > 0
-                    ? progressValues.reduce((a, b) => a + b, 0) / (photos.length * 100) * 100
-                    : 0;
-                  onProgress?.(overallProgress);
-                }
-              });
-
-              xhr.addEventListener("load", () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  console.log("[S3_UPLOAD] Upload successful:", {
-                    id: photo.id,
-                    s3Key,
-                    status: xhr.status,
-                  });
-
-                  results.push({
-                    id: photo.id,
-                    s3Key,
-                    url: s3Key, // Just pass the key, backend will construct full URL
-                    sessionId: newSessionId,
-                  });
-                  resolve();
-                } else {
-                  console.error("[S3_UPLOAD] Upload failed:", {
-                    id: photo.id,
-                    status: xhr.status,
-                    response: xhr.responseText,
-                  });
-                  reject(
-                    new Error(
-                      `Upload failed with status ${xhr.status}: ${xhr.responseText}`
-                    )
-                  );
-                }
-              });
-
-              xhr.addEventListener("error", () => {
-                console.error("[S3_UPLOAD] Network error:", {
-                  id: photo.id,
+                results.push({
+                  id: file.name,
+                  s3Key,
+                  url: s3Key, // Just pass the key, backend will construct full URL
+                });
+                resolve();
+              } else {
+                console.error("[S3_UPLOAD] Upload failed:", {
+                  id: file.name,
                   status: xhr.status,
                   response: xhr.responseText,
                 });
+                reject(
+                  new Error(
+                    `Upload failed with status ${xhr.status}: ${xhr.responseText}`
+                  )
+                );
+              }
+            });
 
-                uploadErrors.push({
-                  id: photo.id,
-                  error: "Network error during upload",
-                });
-                reject(new Error("Network error during upload"));
+            xhr.addEventListener("error", () => {
+              console.error("[S3_UPLOAD] Network error:", {
+                id: file.name,
+                status: xhr.status,
+                response: xhr.responseText,
               });
 
-              xhr.open("PUT", presignedUrl);
-              xhr.setRequestHeader("Content-Type", "image/webp");
-              xhr.send(photo.webpBlob);
-            });
-          } catch (error) {
-            console.error("[S3_UPLOAD] Error uploading photo:", {
-              id: photo.id,
-              error: error instanceof Error ? error.message : "Unknown error",
+              uploadErrors.push({
+                id: file.name,
+                error: "Network error during upload",
+              });
+              reject(new Error("Network error during upload"));
             });
 
-            uploadErrors.push({
-              id: photo.id,
-              error: error instanceof Error ? error.message : "Upload failed",
-            });
-            continue; // Continue with next photo instead of throwing
-          }
-        }
-
-        // After all uploads are complete, update the backend with the status
-        if (results.length > 0) {
-          console.log("[S3_UPLOAD] Updating photo statuses:", {
-            successful: results.length,
-            failed: uploadErrors.length,
-            sessionId,
+            xhr.open("PUT", presignedUrl);
+            xhr.setRequestHeader("Content-Type", file.type);
+            xhr.send(file);
+          });
+        } catch (error) {
+          console.error("[S3_UPLOAD] Error uploading file:", {
+            id: file.name,
+            error: error instanceof Error ? error.message : "Unknown error",
           });
 
-          await Promise.all(
-            results.map((result) =>
-              fetch(`/api/photos/${result.id}/status`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  s3Key: result.s3Key,
-                  status: "completed",
-                  sessionId: result.sessionId,
-                }),
-              })
-            )
-          );
+          uploadErrors.push({
+            id: file.name,
+            error: error instanceof Error ? error.message : "Upload failed",
+          });
+          continue; // Continue with next file instead of throwing
         }
-
-        // Update failed photos if any
-        if (uploadErrors.length > 0) {
-          await Promise.all(
-            uploadErrors.map((error) =>
-              fetch(`/api/photos/${error.id}/status`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  status: "error",
-                  error: error.error,
-                  sessionId,
-                }),
-              })
-            )
-          );
-        }
-
-        if (uploadErrors.length === photos.length) {
-          throw new Error("All photo uploads failed");
-        }
-
-        return results;
-      } catch (error) {
-        console.error("[S3_UPLOAD] Fatal error:", error);
-        throw error;
-      } finally {
-        setIsUploading(false);
       }
-    },
-    [sessionId]
-  );
 
-  const getUploadProgress = useCallback(
-    (photoId: string) => {
-      return uploadProgress[photoId] || 0;
-    },
-    [uploadProgress]
-  );
+      // After all uploads are complete, update the backend with the status
+      if (results.length > 0) {
+        console.log("[S3_UPLOAD] Updating file statuses:", {
+          successful: results.length,
+          failed: uploadErrors.length,
+        });
+
+        await Promise.all(
+          results.map((result) =>
+            fetch(`/api/files/${result.id}/status`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                s3Key: result.s3Key,
+                status: "completed",
+              }),
+            })
+          )
+        );
+      }
+
+      // Update failed files if any
+      if (uploadErrors.length > 0) {
+        await Promise.all(
+          uploadErrors.map((error) =>
+            fetch(`/api/files/${error.id}/status`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                status: "error",
+                error: error.error,
+              }),
+            })
+          )
+        );
+      }
+
+      if (uploadErrors.length === files.length) {
+        throw new Error("All file uploads failed");
+      }
+
+      return results;
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return {
     uploadToS3,
-    getUploadProgress,
     isUploading,
     uploadProgress,
-    sessionId,
   };
 };

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import imageCompression from "browser-image-compression";
+import { v4 as uuidv4 } from "uuid";
 
 export interface ProcessedPhoto {
   id: string;
@@ -33,7 +34,7 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
   };
 
   const generateUniqueId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+    return uuidv4();
   };
 
   const createWebPFromFile = async (file: File): Promise<Blob> => {
@@ -68,12 +69,7 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
           );
           const x = (canvas.width - img.width * scale) * 0.5;
           const y = (canvas.height - img.height * scale) * 0.5;
-          ctx.drawImage(
-            img,
-            x, y,
-            img.width * scale,
-            img.height * scale
-          );
+          ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
 
           // Convert to WebP
           canvas.toBlob(
