@@ -11,15 +11,21 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
   const [billingType, setBillingType] = useState<'credits' | 'monthly'>('monthly');
 
   const prices = {
-    basic: billingType === 'credits' ? 49 : 39,
-    pro: billingType === 'credits' ? 79 : 149,
-    proPlus: billingType === 'credits' ? 189 : 299,
+    basic: billingType === 'credits' ? 59 : 39,
+    pro: billingType === 'credits' ? 236 : 129,
+    proPlus: billingType === 'credits' ? 590 : 249,
   };
 
   const credits = {
     basic: billingType === 'credits' ? 1 : 1,
-    pro: billingType === 'credits' ? 2 : 5,
-    proPlus: billingType === 'credits' ? 5 : 12,
+    pro: billingType === 'credits' ? 4 : 4,
+    proPlus: billingType === 'credits' ? 10 : 10,
+  };
+
+  // Update video limits constant name
+  const reelLimits = {
+    payg: 3,
+    subscription: 6
   };
 
   return (
@@ -29,7 +35,7 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
         <div className="bg-[#F3F4F6] rounded-full p-1 inline-flex">
           <button
             onClick={() => setBillingType('credits')}
-            className={`px-6 py-2 rounded-full text-[15px] font-medium transition-all ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-[13px] sm:text-[15px] font-medium transition-all ${
               billingType === 'credits' 
                 ? 'bg-white text-[#1c1c1c] shadow-sm' 
                 : 'text-[#6B7280]'
@@ -39,15 +45,15 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
           </button>
           <button
             onClick={() => setBillingType('monthly')}
-            className={`px-6 py-2 rounded-full text-[15px] font-medium flex items-center gap-2 transition-all ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-[13px] sm:text-[15px] font-medium flex items-center gap-2 transition-all ${
               billingType === 'monthly' 
                 ? 'bg-white text-[#1c1c1c] shadow-sm' 
                 : 'text-[#6B7280]'
             }`}
           >
             Monthly
-            <span className="px-2 py-0.5 bg-[#22C55E]/10 text-[#22C55E] text-[13px] rounded-full">
-              Save 20%
+            <span className="px-2 py-0.5 bg-[#22C55E]/10 text-[#22C55E] text-[11px] sm:text-[13px] rounded-full">
+              Save 34%
             </span>
           </button>
         </div>
@@ -67,7 +73,7 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
                 className="flex-shrink-0"
               />
             ) : (
-              <div className="text-[28px] font-black text-[#1c1c1c] tracking-tight">
+              <div className="text-[24px] sm:text-[28px] font-black text-[#1c1c1c] tracking-tight">
                 1 Credit
               </div>
             )}
@@ -75,29 +81,29 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
           
           <div className="mb-6 text-center">
             <div className="flex items-end gap-1 mb-6 justify-center">
-              <span className="text-[52px] font-semibold text-[#1c1c1c]">${prices.basic}</span>
-              {billingType === 'monthly' && <span className="text-[15px] font-bold text-[#6B7280] mb-3">/month</span>}
+              <span className="text-[42px] sm:text-[52px] font-semibold text-[#1c1c1c]">${prices.basic}</span>
+              {billingType === 'monthly' && <span className="text-[13px] sm:text-[15px] font-bold text-[#6B7280] mb-3">/month</span>}
             </div>
-            <button className="w-full py-3 rounded-lg border text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]">
+            <button className="w-full py-3 rounded-lg border text-[13px] sm:text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]">
               Get Started
             </button>
-            <div className="text-[13px] text-center text-[#6B7280] mt-2">
+            <div className="text-[11px] sm:text-[13px] text-center text-[#6B7280] mt-2">
               Secured by Stripe
             </div>
           </div>
 
+          {/* Basic Plan Features */}
           <div className="space-y-3 text-[#1c1c1c]">
             {billingType === 'monthly' && (
               <Feature text={`${credits.basic} Credit per month`} />
             )}
             <Feature text="Up to 20 Photos per Listing" />
-            <Feature text="Unlimited Reel Downloads" />
+            <Feature text={`${billingType === 'monthly' ? reelLimits.subscription : reelLimits.payg} Reels per Listing`} />
             <Feature text="No Watermark" />
-            <Feature text="Access to Premium Templates" />
             {billingType === 'monthly' && (
               <>
+                <Feature text="Premium Templates" />
                 <Feature text="Credits Roll Over (up to 3 months)" />
-                <Feature text="Priority Support" />
               </>
             )}
           </div>
@@ -119,7 +125,7 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
               </div>
             ) : (
               <div className="text-[28px] font-black text-white tracking-tight">
-                2 Credits
+                4 Credits
               </div>
             )}
           </div>
@@ -137,17 +143,18 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
             </div>
           </div>
 
+          {/* Pro Plan Features */}
           <div className="space-y-3">
             {billingType === 'monthly' && (
               <Feature text={`${credits.pro} Credits per month`} light />
             )}
             <Feature text="Up to 20 Photos per Listing" light />
-            <Feature text="Unlimited Reel Downloads" light />
+            <Feature text={`${billingType === 'monthly' ? reelLimits.subscription : reelLimits.payg} Reels per Listing`} light />
             <Feature text="No Watermark" light />
-            <Feature text="Access to Premium Templates" light />
             {billingType === 'monthly' && (
               <>
-                <Feature text="Credits Roll Over (up to 3 months)" light />
+                <Feature text="Premium Templates" light />
+                <Feature text="Credits Roll Over (up to 6 months)" light />
                 <Feature text="Priority Support" light />
               </>
             )}
@@ -170,7 +177,7 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
               </div>
             ) : (
               <div className="text-[28px] font-black text-[#1c1c1c] tracking-tight">
-                5 Credits
+                10 Credits
               </div>
             )}
           </div>
@@ -188,18 +195,20 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
             </div>
           </div>
 
+          {/* Pro+ Plan Features */}
           <div className="space-y-3 text-[#1c1c1c]">
             {billingType === 'monthly' && (
               <Feature text={`${credits.proPlus} Credits per month`} />
             )}
             <Feature text="Up to 20 Photos per Listing" />
-            <Feature text="Unlimited Reel Downloads" />
+            <Feature text={`${billingType === 'monthly' ? reelLimits.subscription : reelLimits.payg} Reels per Listing`} />
             <Feature text="No Watermark" />
-            <Feature text="Access to Premium Templates" />
             {billingType === 'monthly' && (
               <>
-                <Feature text="Credits Roll Over (up to 3 months)" />
+                <Feature text="Premium Templates" />
+                <Feature text="Credits Roll Over (unlimited)" />
                 <Feature text="Priority Support" />
+                <Feature text="Dedicated Account Manager" />
               </>
             )}
           </div>
@@ -237,7 +246,7 @@ function Feature({ text, light = false }: { text: string; light?: boolean }) {
         <circle cx="12" cy="12" r="10"/>
         <path d="M8 12l3 3 6-6"/>
       </svg>
-      <span className={`text-[15px] ${light ? "text-white" : ""}`}>{text}</span>
+      <span className={`text-[13px] sm:text-[15px] ${light ? "text-white" : ""}`}>{text}</span>
     </div>
   );
 }
