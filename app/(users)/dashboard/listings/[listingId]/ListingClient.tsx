@@ -79,7 +79,6 @@ function useListingData(
   currentUser: Partial<User> | undefined;
   userData: UserData | undefined;
   listing: ExtendedListing | undefined;
-  jobStatus: { status: string; message: string } | null;
   isLoading: boolean;
 } {
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -123,42 +122,12 @@ function useListingData(
     initialData: initialListing,
   });
 
-  // Get job status from the listing's photos
-  const jobStatus = useMemo(() => {
-    if (!listing?.photos?.length) return null;
-
-    const processingPhotos = listing.photos.filter(
-      (p) => p.status === "processing" || (!p.processedFilePath && !p.error)
-    );
-    const failedPhotos = listing.photos.filter(
-      (p) => p.error || p.status === "error"
-    );
-
-    if (processingPhotos.length > 0) {
-      return {
-        status: "PROCESSING",
-        message: `Processing ${processingPhotos.length} photos...`,
-      };
-    }
-    if (failedPhotos.length > 0) {
-      return {
-        status: "ERROR",
-        message: `${failedPhotos.length} photos failed to process`,
-      };
-    }
-    return {
-      status: "COMPLETED",
-      message: "All photos processed successfully",
-    };
-  }, [listing?.photos]);
-
   const isLoading = !isUserLoaded || isUserDataLoading || !listing;
 
   return {
     currentUser,
     userData,
     listing,
-    jobStatus,
     isLoading,
   };
 }
@@ -288,50 +257,70 @@ const useVideoJobStatus = (jobId?: string) => {
 };
 
 const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
-  const {
-    data: jobStatus,
-    error,
-    isLoading,
-    isError,
-  } = useVideoJobStatus(jobId);
+  const { data: jobStatus, error, isLoading } = useVideoJobStatus(jobId);
 
   if (isLoading) {
     return (
-      <div className='p-4 bg-gray-50 rounded-lg'>
-        <LoadingState text='Connecting to status stream...' size='sm' />
+      <div className='flex items-center space-x-3'>
+        <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
+        <p className='text-sm font-medium'>Connecting to video service...</p>
       </div>
     );
   }
 
-  if (isError) {
+  if (error) {
     return (
-      <div className='p-4 bg-red-50 rounded-lg'>
-        <p className='text-sm text-red-600'>
-          {error?.message || "Failed to load job status"}
-        </p>
+      <div className='text-sm text-red-600'>
+        Failed to connect to video service. Please try again.
       </div>
     );
   }
 
   if (!jobStatus) return null;
 
+  // Get stage-specific message
+  const getMessage = () => {
+    const stage = jobStatus.metadata?.stage;
+    switch (stage) {
+      case "webp":
+        return "Optimizing photos...";
+      case "runway":
+        return "Applying AI enhancements...";
+      case "template":
+        return "Applying video template...";
+      case "final":
+        return "Finalizing video...";
+      default:
+        return "Processing video...";
+    }
+  };
+
+  // Get detailed progress info
+  const getDetailedProgress = () => {
+    const { currentFile, totalFiles } = jobStatus.metadata || {};
+    if (currentFile && totalFiles) {
+      return `File ${currentFile} of ${totalFiles}`;
+    }
+    return `${jobStatus.progress}% complete`;
+  };
+
   return (
-    <div className='space-y-4 p-4 bg-gray-50 rounded-lg'>
+    <div className='space-y-2'>
       <div className='flex items-center justify-between'>
-        <span className='text-sm font-medium text-gray-700'>
-          {jobStatus.metadata?.userMessage || "Processing..."}
-        </span>
-        <span className='text-sm text-gray-500'>{jobStatus.progress}%</span>
+        <div className='flex items-center space-x-3'>
+          <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
+          <div>
+            <p className='text-sm font-medium'>{getMessage()}</p>
+            <p className='text-xs text-gray-500'>{getDetailedProgress()}</p>
+          </div>
+        </div>
       </div>
-      <div className='w-full bg-gray-200 rounded-full h-2'>
+      <div className='w-full bg-gray-200 rounded-full h-1.5'>
         <div
-          className='bg-blue-600 h-2 rounded-full transition-all duration-500'
+          className='bg-blue-500 h-1.5 rounded-full transition-all duration-500'
           style={{ width: `${jobStatus.progress}%` }}
         />
       </div>
-      {jobStatus.metadata?.error && (
-        <p className='text-sm text-red-600'>{jobStatus.metadata.error}</p>
-      )}
     </div>
   );
 };
@@ -364,6 +353,75 @@ const transformVideoJob = (job: any): VideoJob => ({
   updatedAt: job.updatedAt,
 });
 
+interface PhotoStatusResponse {
+  processingCount: number;
+  failedCount: number;
+  totalCount: number;
+  photos: {
+    id: string;
+    url: string;
+    hasError: boolean;
+    status: "error" | "processing" | "completed";
+    order: number;
+  }[];
+}
+
+const usePhotoProcessingStatus = (listingId: string) => {
+  const [status, setStatus] = useState<{
+    status: "PROCESSING" | "ERROR" | "COMPLETED" | null;
+    message: string;
+    photos?: PhotoStatusResponse["photos"];
+  } | null>(null);
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const response = await fetch(
+          `/api/listings/${listingId}/photos/status`
+        );
+        if (!response.ok) throw new Error("Failed to fetch status");
+
+        const data: PhotoStatusResponse = await response.json();
+
+        if (data.processingCount > 0) {
+          setStatus({
+            status: "PROCESSING",
+            message: `Processing ${data.processingCount} of ${data.totalCount} photos...`,
+            photos: data.photos,
+          });
+        } else if (data.failedCount > 0) {
+          setStatus({
+            status: "ERROR",
+            message: `${data.failedCount} photos failed to process`,
+            photos: data.photos,
+          });
+        } else if (data.totalCount > 0) {
+          setStatus({
+            status: "COMPLETED",
+            message: "All photos processed successfully",
+            photos: data.photos,
+          });
+        } else {
+          setStatus(null);
+        }
+      } catch (error) {
+        console.error("[PHOTO_STATUS_ERROR]", error);
+        setStatus({
+          status: "ERROR",
+          message: "Failed to check photo status",
+        });
+      }
+    };
+
+    const interval = setInterval(checkStatus, 5000); // Poll every 5 seconds
+    checkStatus(); // Initial check
+
+    return () => clearInterval(interval);
+  }, [listingId]);
+
+  return status;
+};
+
 export function ListingClient({
   listingId,
   searchParams,
@@ -374,8 +432,10 @@ export function ListingClient({
   const queryClient = useQueryClient();
 
   // Custom hooks
-  const { currentUser, userData, listing, jobStatus, isLoading } =
-    useListingData(listingId, initialListing);
+  const { currentUser, userData, listing, isLoading } = useListingData(
+    listingId,
+    initialListing
+  );
   const { data: prismaTemplates, isLoading: isLoadingTemplates } =
     useTemplates();
 
@@ -408,6 +468,16 @@ export function ListingClient({
     () => (listing ? parseCoordinates(listing.coordinates) : null),
     [listing]
   );
+
+  // Get video job status if there's an active job
+  const {
+    data: videoStatus,
+    error: videoStatusError,
+    isLoading: isLoadingVideoStatus,
+  } = useVideoJobStatus(listing?.currentJobId);
+
+  // Replace the memoized jobStatus with the streaming version
+  const photoStatus = usePhotoProcessingStatus(listingId);
 
   const handleImageRegeneration = async (photoIds: string | string[]) => {
     const idsArray = Array.isArray(photoIds) ? photoIds : [photoIds];
@@ -464,40 +534,6 @@ export function ListingClient({
     );
   };
 
-  const [videoStatus, setVideoStatus] = useState<VideoJobStatus | null>(null);
-
-  // Monitor video generation if there's an active job
-  useEffect(() => {
-    if (!listing?.videoJobId) return;
-
-    const eventSource = new EventSource(
-      `/api/jobs/${listing.videoJobId}/status`
-    );
-
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setVideoStatus(data);
-
-      if (data.status === "COMPLETED") {
-        eventSource.close();
-        queryClient.invalidateQueries({ queryKey: ["listing", listingId] });
-      }
-
-      // Close connection if failed
-      if (data.status === "FAILED") {
-        eventSource.close();
-      }
-    };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [listing?.videoJobId, listingId, queryClient]);
-
   return (
     <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
       {/* Header Section */}
@@ -526,7 +562,7 @@ export function ListingClient({
           </svg>
         </span>
         <Link
-          href={`/dashboard/${listingId}`}
+          href={`/dashboard`}
           className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 inline-block'
         >
           Your Reels
@@ -560,13 +596,9 @@ export function ListingClient({
       </div>
 
       {isLoading ? (
-        <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-          <LoadingState text='Loading data...' size='lg' />
-        </div>
+        <LoadingState />
       ) : (
         <>
-          {jobStatus && <JobStatusMessage status={jobStatus} />}
-
           {/* Templates and Videos Section */}
           <div className='space-y-8'>
             <div className='grid grid-cols-2 md:grid-cols-3 gap-6'>
@@ -605,32 +637,24 @@ export function ListingClient({
             isOpen={isSettingsModalOpen}
             onClose={() => setIsSettingsModalOpen(false)}
             address={initialListing.address}
-            photos={transformedPhotos}
+            photos={photoStatus?.photos || []}
             onRegenerateImage={handleImageRegeneration}
           />
 
-          {/* If video is processing, show a subtle indicator */}
+          {/* Video generation progress indicator */}
           {videoStatus &&
             !["COMPLETED", "FAILED"].includes(videoStatus.status) && (
               <div className='fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 max-w-sm animate-fade-in'>
-                <div className='flex items-center space-x-3'>
-                  <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
-                  <div>
-                    <p className='text-sm font-medium'>Generating Video</p>
-                    <p className='text-xs text-gray-500'>
-                      {videoStatus.metadata?.stage ||
-                        `${videoStatus.progress}% complete`}
-                    </p>
-                  </div>
-                </div>
+                <VideoGenerationProgress jobId={listing?.currentJobId!} />
               </div>
             )}
 
-          {/* If video generation failed, show a subtle error */}
+          {/* Video generation error indicator */}
           {videoStatus?.status === "FAILED" && (
             <div className='fixed bottom-4 right-4 bg-red-50 border border-red-100 rounded-lg p-4 max-w-sm'>
               <p className='text-sm text-red-600'>
-                Video generation failed. Please try again.
+                {videoStatus.metadata?.error ||
+                  "Video generation failed. Please try again."}
               </p>
             </div>
           )}
