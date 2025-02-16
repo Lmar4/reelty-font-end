@@ -11,6 +11,9 @@ const isPublicPath = createRouteMatcher([
   "/pricing",
   "/api/webhooks(.*)",
   "/api/webhook(.*)",
+  "/api/storage/presigned-url",  // Allow S3 presigned URL generation
+  "/api/storage/upload",         // Allow direct S3 uploads
+  "/api/storage/migrate",        // Allow migration of temporary files
 ]);
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
@@ -59,10 +62,16 @@ async function getUserTier(userId: string, token: string) {
 }
 
 export default clerkMiddleware(async (auth, req) => {
-  const { userId, getToken } = await auth();
-
   const isPublic = isPublicPath(req);
   const isAdmin = isAdminRoute(req);
+
+  // Don't run auth for public paths
+  if (isPublic) {
+    return NextResponse.next();
+  }
+
+  // Now we can safely run auth
+  const { userId, getToken } = await auth();
 
   // Handle homepage redirect for authenticated users
   if (req.nextUrl.pathname === "/" && userId) {
