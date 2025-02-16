@@ -104,6 +104,7 @@ interface UploadPhotoInput {
   file: File;
   listingId: string;
   order?: number;
+  s3Key?: string;
 }
 
 export function useListings(userId: string) {
@@ -198,32 +199,18 @@ export function useCreateListing() {
         throw new Error("Authentication token not found");
       }
 
-      // Format coordinates to ensure they are numbers
-      const coordinates = input.coordinates
-        ? {
-            lat: Number(input.coordinates.lat),
-            lng: Number(input.coordinates.lng),
-          }
-        : null;
-
-      // Validate coordinates are valid numbers if they exist
-      if (coordinates && (isNaN(coordinates.lat) || isNaN(coordinates.lng))) {
-        throw new Error("Invalid coordinates format");
-      }
-
-      console.log("[CREATE_LISTING] Input:", input);
-      console.log("[CREATE_LISTING] Coordinates:", coordinates);
-
       const requestBody = {
         address: input.address,
-        coordinates,
+        coordinates: input.coordinates
+          ? {
+              lat: Number(input.coordinates.lat),
+              lng: Number(input.coordinates.lng),
+            }
+          : null,
         photoLimit: input.photoLimit,
         description: "",
       };
 
-      console.log("[CREATE_LISTING] Request body:", requestBody);
-
-      // Use the Next.js API route instead of calling backend directly
       const response = await fetch("/api/listings", {
         method: "POST",
         headers: {
@@ -241,8 +228,6 @@ export function useCreateListing() {
       }
 
       const result = await response.json();
-
-      // Extract listing from response
       let listing;
       if (Array.isArray(result.data)) {
         listing = result.data[0];
@@ -256,18 +241,46 @@ export function useCreateListing() {
 
       return listing;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
-      toast.success("Listing created successfully!");
-      return data;
+    onMutate: async (newListing) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [LISTINGS_QUERY_KEY] });
+
+      // Snapshot the previous value
+      const previousListings = queryClient.getQueryData([LISTINGS_QUERY_KEY]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData([LISTINGS_QUERY_KEY], (old: any) => {
+        const optimisticListing = {
+          id: "temp-" + Date.now(),
+          address: newListing.address,
+          coordinates: newListing.coordinates,
+          status: "creating",
+          createdAt: new Date().toISOString(),
+          photos: [],
+        };
+        return old ? [...old, optimisticListing] : [optimisticListing];
+      });
+
+      return { previousListings };
     },
-    onError: (error: Error) => {
-      console.error("[CREATE_LISTING_ERROR]", error);
+    onError: (error: Error, variables, context) => {
+      // Revert back to the previous value if there's an error
+      if (context?.previousListings) {
+        queryClient.setQueryData(
+          [LISTINGS_QUERY_KEY],
+          context.previousListings
+        );
+      }
+
       if (error.message === "User not authenticated") {
         toast.error("Please sign in to create a listing");
       } else {
         toast.error(error.message || "Failed to create listing");
       }
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
+      toast.success("Listing created successfully!");
     },
   });
 }
@@ -277,7 +290,7 @@ export function useUploadPhoto() {
   const { getToken } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ listingId, file, order }: UploadPhotoInput) => {
+    mutationFn: async ({ listingId, file, order, s3Key }: UploadPhotoInput) => {
       const token = await getToken();
       if (!token) {
         throw new Error("Authentication token not found");
@@ -288,17 +301,11 @@ export function useUploadPhoto() {
       if (order !== undefined) {
         formData.append("order", String(order));
       }
-
-      console.log("[UPLOAD_REQUEST]", {
-        listingId,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        order,
-      });
+      if (s3Key) {
+        formData.append("s3Key", s3Key);
+      }
 
       try {
-        // Use the correct Next.js API route
         const response = await fetch(`/api/listings/${listingId}/photos`, {
           method: "POST",
           headers: {
@@ -307,30 +314,72 @@ export function useUploadPhoto() {
           body: formData,
         });
 
-        let responseData;
-        const contentType = response.headers.get("content-type");
-        if (contentType?.includes("application/json")) {
-          responseData = await response.json();
-        } else {
-          const text = await response.text();
-          throw new Error(
-            `Unexpected response type: ${contentType}, body: ${text}`
-          );
+        if (!response.ok) {
+          const error = await response
+            .json()
+            .catch(() => ({ error: response.statusText }));
+          throw new Error(error.error || "Failed to upload photo");
         }
 
-        return responseData;
+        const contentType = response.headers.get("content-type");
+        if (contentType?.includes("application/json")) {
+          return response.json();
+        }
+
+        throw new Error("Invalid response format");
       } catch (error) {
-        throw new Error("Failed to upload photo");
+        throw new Error(
+          error instanceof Error ? error.message : "Failed to upload photo"
+        );
       }
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
-      toast.success("Photo uploaded successfully!");
-      return data;
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({
+        queryKey: [LISTINGS_QUERY_KEY, variables.listingId],
+      });
+
+      const previousListing = queryClient.getQueryData([
+        LISTINGS_QUERY_KEY,
+        variables.listingId,
+      ]);
+
+      // Optimistically update the listing with the new photo
+      queryClient.setQueryData(
+        [LISTINGS_QUERY_KEY, variables.listingId],
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            photos: [
+              ...(old.photos || []),
+              {
+                id: "temp-" + Date.now(),
+                listingId: variables.listingId,
+                order: variables.order,
+                status: "uploading",
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          };
+        }
+      );
+
+      return { previousListing };
     },
-    onError: (error: Error) => {
-      console.error("[UPLOAD_PHOTO_ERROR]", error);
+    onError: (error: Error, variables, context) => {
+      if (context?.previousListing) {
+        queryClient.setQueryData(
+          [LISTINGS_QUERY_KEY, variables.listingId],
+          context.previousListing
+        );
+      }
       toast.error(error.message || "Failed to upload photo");
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [LISTINGS_QUERY_KEY, variables.listingId],
+      });
+      toast.success("Photo uploaded successfully!");
     },
   });
 }
