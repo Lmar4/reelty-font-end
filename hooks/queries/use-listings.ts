@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listing } from "@/types/prisma-types";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
+import { makeBackendRequest } from "@/utils/api";
 
 export const LISTINGS_QUERY_KEY = "listings";
 
@@ -105,6 +106,12 @@ interface UploadPhotoInput {
   listingId: string;
   order?: number;
   s3Key?: string;
+}
+
+interface UploadResponse {
+  success?: boolean;
+  data?: any;
+  photoId?: string;
 }
 
 export function useListings(userId: string) {
@@ -211,35 +218,24 @@ export function useCreateListing() {
         description: "",
       };
 
-      const response = await fetch("/api/listings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestBody),
-      });
+      try {
+        const listing = await makeBackendRequest<Listing>("/api/listings", {
+          method: "POST",
+          body: requestBody,
+          sessionToken: token,
+        });
 
-      if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ error: response.statusText }));
-        throw new Error(error.error || "Failed to create listing");
+        if (!listing?.id) {
+          throw new Error("Invalid response: missing listing ID");
+        }
+
+        return listing;
+      } catch (error) {
+        console.error("[CREATE_LISTING_ERROR]", error);
+        throw new Error(
+          error instanceof Error ? error.message : "Failed to create listing"
+        );
       }
-
-      const result = await response.json();
-      let listing;
-      if (Array.isArray(result.data)) {
-        listing = result.data[0];
-      } else {
-        listing = result.data ?? result;
-      }
-
-      if (!listing?.id) {
-        throw new Error("Invalid response: missing listing ID");
-      }
-
-      return listing;
     },
     onMutate: async (newListing) => {
       // Cancel any outgoing refetches
@@ -306,27 +302,25 @@ export function useUploadPhoto() {
       }
 
       try {
-        const response = await fetch(`/api/listings/${listingId}/photos`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
+        const result = await makeBackendRequest<UploadResponse>(
+          `/api/listings/${listingId}/photos`,
+          {
+            method: "POST",
+            sessionToken: token,
+            body: formData,
+          }
+        );
 
-        if (!response.ok) {
-          const error = await response
-            .json()
-            .catch(() => ({ error: response.statusText }));
-          throw new Error(error.error || "Failed to upload photo");
+        if (!result || typeof result !== "object") {
+          throw new Error("Invalid response from server");
         }
 
-        const contentType = response.headers.get("content-type");
-        if (contentType?.includes("application/json")) {
-          return response.json();
+        // Ensure we have the expected data structure
+        if (!result.success && !result.data && !result.photoId) {
+          throw new Error("Unexpected response format from server");
         }
 
-        throw new Error("Invalid response format");
+        return result;
       } catch (error) {
         throw new Error(
           error instanceof Error ? error.message : "Failed to upload photo"

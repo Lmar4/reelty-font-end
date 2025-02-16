@@ -83,12 +83,14 @@ export interface SubscriptionTier {
   stripeProductId: string;
   features: string[];
   monthlyPrice: number;
-  creditExpirationDays: number;
-  creditRolloverMonths: number;
+  planType: "PAY_AS_YOU_GO" | "MONTHLY";
+  creditsPerInterval: number;
   hasWatermark: boolean;
   maxPhotosPerListing: number;
   maxReelDownloads: number | null;
   maxActiveListings: number;
+  premiumTemplatesEnabled: boolean;
+  metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 

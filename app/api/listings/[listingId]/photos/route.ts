@@ -46,19 +46,34 @@ export async function POST(
       }
     );
 
-    const contentType = response.headers.get("content-type");
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Backend error: ${errorText || response.statusText}`);
+      const contentType = response.headers.get("content-type");
+      let errorMessage;
+
+      try {
+        if (contentType?.includes("application/json")) {
+          const errorData = await response.json();
+          errorMessage =
+            errorData.error || errorData.message || response.statusText;
+        } else {
+          errorMessage = await response.text();
+        }
+      } catch (parseError) {
+        errorMessage = response.statusText;
+      }
+
+      throw new Error(`Backend error: ${errorMessage}`);
     }
 
-    // Only try to parse JSON if the response is JSON
+    const contentType = response.headers.get("content-type");
     if (contentType?.includes("application/json")) {
       const data = await response.json();
-      return NextResponse.json({ data: data.data });
+      // Avoid double wrapping the data
+      return NextResponse.json(data);
     }
 
-    return NextResponse.json({ data: response });
+    // If not JSON, return a simple success response
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[PHOTO_UPLOAD_ERROR]", error);
     return new NextResponse(

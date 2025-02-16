@@ -2,15 +2,41 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useAuth } from "@clerk/nextjs";
+
+type SubscriptionStatus =
+  | "ACTIVE"
+  | "CANCELED"
+  | "INCOMPLETE"
+  | "INCOMPLETE_EXPIRED"
+  | "PAST_DUE"
+  | "TRIALING"
+  | "UNPAID"
+  | "INACTIVE";
 
 interface PricingCardsProps {
   isModal?: boolean;
+  currentTier?: string;
+  onUpgradeComplete?: () => void;
+  currentStatus?: SubscriptionStatus;
 }
 
-export default function PricingCards({ isModal = false }: PricingCardsProps) {
+export default function PricingCards({
+  isModal = false,
+  currentTier,
+  onUpgradeComplete,
+  currentStatus,
+}: PricingCardsProps) {
   const [billingType, setBillingType] = useState<"credits" | "monthly">(
     "monthly"
   );
+  const [loading, setLoading] = useState<string | null>(null);
+  const router = useRouter();
+  const { userId } = useAuth();
 
   const prices = {
     basic: billingType === "credits" ? 49 : 39,
@@ -22,6 +48,81 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
     basic: billingType === "credits" ? 1 : 1,
     pro: billingType === "credits" ? 2 : 5,
     proPlus: billingType === "credits" ? 5 : 12,
+  };
+
+  const handleSubscribe = async (plan: string) => {
+    try {
+      if (!userId) {
+        toast.error("Please sign in to subscribe");
+        return;
+      }
+
+      setLoading(plan);
+
+      // If user is already subscribed and trying to change plan
+      if (currentTier && currentStatus === "ACTIVE") {
+        const response = await fetch("/api/stripe/update-subscription", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userId,
+            newPlan: plan,
+            billingType,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update subscription");
+        }
+
+        const data = await response.json();
+        window.location.href = data.url;
+        return;
+      }
+
+      // New subscription
+      const response = await fetch("/api/stripe/create-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          plan,
+          billingType,
+          returnUrl: window.location.href,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create checkout session");
+      }
+
+      const data = await response.json();
+
+      // If in modal, call the completion handler
+      if (isModal && onUpgradeComplete) {
+        onUpgradeComplete();
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Subscription error:", error);
+      toast.error("Failed to process subscription. Please try again.");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const getButtonText = (plan: string) => {
+    if (loading === plan) return "Processing...";
+    if (currentTier === plan) return "Current Plan";
+    if (currentTier && currentStatus === "ACTIVE") {
+      return plan > currentTier ? "Upgrade Plan" : "Downgrade Plan";
+    }
+    return "Get Started";
   };
 
   return (
@@ -86,9 +187,17 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
                 </span>
               )}
             </div>
-            <button className='w-full py-3 rounded-lg border text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]'>
-              Get Started
-            </button>
+            <Button
+              onClick={() => handleSubscribe("basic")}
+              disabled={loading === "basic" || currentTier === "basic"}
+              className='w-full py-6 rounded-lg border text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]'
+            >
+              {loading === "basic" ? (
+                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+              ) : (
+                getButtonText("basic")
+              )}
+            </Button>
             <div className='text-[13px] text-center text-[#6B7280] mt-2'>
               Secured by Stripe
             </div>
@@ -143,9 +252,17 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
                 </span>
               )}
             </div>
-            <button className='w-full py-3 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90'>
-              Get Started
-            </button>
+            <Button
+              onClick={() => handleSubscribe("pro")}
+              disabled={loading === "pro" || currentTier === "pro"}
+              className='w-full py-6 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90'
+            >
+              {loading === "pro" ? (
+                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+              ) : (
+                getButtonText("pro")
+              )}
+            </Button>
             <div className='text-[13px] text-center text-white/60 mt-2'>
               Secured by Stripe
             </div>
@@ -202,9 +319,17 @@ export default function PricingCards({ isModal = false }: PricingCardsProps) {
                 </span>
               )}
             </div>
-            <button className='w-full py-3 rounded-lg bg-[#1c1c1c] text-white text-[15px] font-semibold hover:bg-black'>
-              Get Started
-            </button>
+            <Button
+              onClick={() => handleSubscribe("proPlus")}
+              disabled={loading === "proPlus" || currentTier === "proPlus"}
+              className='w-full py-6 rounded-lg bg-[#1c1c1c] text-white text-[15px] font-semibold hover:bg-black'
+            >
+              {loading === "proPlus" ? (
+                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+              ) : (
+                getButtonText("proPlus")
+              )}
+            </Button>
             <div className='text-[13px] text-center text-[#6B7280] mt-2'>
               Secured by Stripe
             </div>
@@ -248,18 +373,25 @@ function Feature({ text, light = false }: { text: string; light?: boolean }) {
   return (
     <div className='flex items-center gap-3'>
       <svg
-        width='18'
-        height='18'
-        viewBox='0 0 24 24'
+        width='16'
+        height='16'
+        viewBox='0 0 16 16'
         fill='none'
-        stroke={light ? "white" : "#1c1c1c"}
-        strokeWidth='1.5'
-        className={light ? "" : ""}
+        xmlns='http://www.w3.org/2000/svg'
       >
-        <circle cx='12' cy='12' r='10' />
-        <path d='M8 12l3 3 6-6' />
+        <path
+          d='M13.3332 4L5.99984 11.3333L2.6665 8'
+          stroke={light ? "#fff" : "#1c1c1c"}
+          strokeWidth='2'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        />
       </svg>
-      <span className={`text-[15px] ${light ? "text-white" : ""}`}>{text}</span>
+      <span
+        className={`text-[15px] ${light ? "text-white" : "text-[#1c1c1c]"}`}
+      >
+        {text}
+      </span>
     </div>
   );
 }

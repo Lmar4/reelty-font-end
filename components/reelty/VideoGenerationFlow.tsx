@@ -20,6 +20,7 @@ import {
   TIER_ORDER,
   getTierDisplayName,
 } from "@/types";
+import { ProcessedPhoto } from "@/hooks/use-photo-processing";
 
 interface VideoGenerationFlowProps {
   onComplete: () => void;
@@ -32,6 +33,7 @@ const STEPS = {
   UPLOAD: "upload",
   PROCESSING: "processing",
   COMPLETE: "complete",
+  PHOTOS: "photos",
 } as const;
 
 type Step = (typeof STEPS)[keyof typeof STEPS];
@@ -43,6 +45,7 @@ const STEP_ORDER = {
   [STEPS.UPLOAD]: 2,
   [STEPS.PROCESSING]: 3,
   [STEPS.COMPLETE]: 4,
+  [STEPS.PHOTOS]: 5,
 } as const;
 
 export default function VideoGenerationFlow({
@@ -53,6 +56,7 @@ export default function VideoGenerationFlow({
   const [currentStep, setCurrentStep] = useState<Step>(STEPS.TEMPLATE);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [processedPhotos, setProcessedPhotos] = useState<ProcessedPhoto[]>([]);
   const [address, setAddress] = useState("");
   const [coordinates, setCoordinates] = useState<{
     lat: number;
@@ -67,12 +71,29 @@ export default function VideoGenerationFlow({
   const { data: templates, isLoading: isLoadingTemplates } =
     useTemplates(userTier);
 
-  const handlePhotoSelect = (files: File[]) => {
+  const processPhotos = async (files: File[]): Promise<ProcessedPhoto[]> => {
+    return Promise.all(
+      files.map(async (file) => {
+        const previewUrl = URL.createObjectURL(file);
+        return {
+          id: crypto.randomUUID(),
+          originalFile: file,
+          webpBlob: file, // For now, we're using the original file as webpBlob
+          previewUrl,
+          status: "processing" as const,
+        };
+      })
+    );
+  };
+
+  const handlePhotoSelect = async (files: File[]) => {
     if (files.length > 10) {
       toast.error("Maximum 10 photos allowed");
       return;
     }
     setSelectedPhotos(files);
+    const processed = await processPhotos(files);
+    setProcessedPhotos(processed);
   };
 
   const handleAddressSelect = (
@@ -350,7 +371,7 @@ export default function VideoGenerationFlow({
                   <Progress value={(selectedPhotos.length / 10) * 100} />
                 </div>
 
-                <PhotoManager photos={selectedPhotos} />
+                <PhotoManager photos={processedPhotos} />
               </>
             )}
 

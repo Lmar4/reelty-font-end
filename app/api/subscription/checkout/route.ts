@@ -1,17 +1,43 @@
-import { AuthenticatedRequest, withAuth } from "@/utils/withAuth";
+import { withAuth, AuthenticatedRequest } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/api";
 import { NextResponse } from "next/server";
+
+interface CheckoutRequest {
+  userId: string;
+  plan: string;
+  billingType: "credits" | "monthly";
+  returnUrl: string;
+}
 
 export const POST = withAuth(async function POST(
   request: AuthenticatedRequest
 ) {
   try {
-    const { priceId, successUrl, cancelUrl } = await request.json();
+    const body: CheckoutRequest = await request.json();
+    const { userId, plan, billingType, returnUrl } = body;
 
-    // Placeholder response for future Stripe configuration
-    return new NextResponse(
-      "Stripe configuration is pending.",
-      { status: 501 } // Not Implemented
+    // Users can only create checkout sessions for themselves
+    if (request.auth.userId !== userId) {
+      return new NextResponse("Forbidden", { status: 403 });
+    }
+
+    // Create checkout session through backend
+    const response = await makeBackendRequest<{ url: string }>(
+      "/api/subscription/checkout",
+      {
+        method: "POST",
+        sessionToken: request.auth.sessionToken,
+        body: {
+          userId,
+          plan,
+          billingType,
+          successUrl: `${returnUrl}?session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: returnUrl,
+        },
+      }
     );
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("[SUBSCRIPTION_CHECKOUT_ERROR]", error);
     return new NextResponse(

@@ -5,13 +5,11 @@ import Footer from "@/components/reelty/Footer";
 import HomeHeader from "@/components/reelty/HomeHeader";
 import NewListingModal from "@/components/reelty/NewListingModal";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function Home() {
-  const router = useRouter();
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 

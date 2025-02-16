@@ -1,126 +1,83 @@
-import { useCallback, useEffect, useState } from "react";
-import { ProcessedPhoto } from "./use-photo-processing";
-import { Coordinates } from "@/lib/validations/listing";
+import { useState, useEffect } from "react";
 
-export interface ListingSession {
-  id: string;
-  photos: ProcessedPhoto[];
-  address: string;
-  coordinates: Coordinates | null;
-  createdAt: Date;
+interface ListingSessionData {
+  photos: Array<{
+    id: string;
+    s3Key: string;
+    url: string;
+  }>;
+  address?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
 }
 
-const SESSION_KEY = "reelty_pending_listing";
-
 export const useListingSession = () => {
-  const [session, setSession] = useState<ListingSession | null>(null);
+  const [sessionData, setSessionData] = useState<ListingSessionData | null>(
+    null
+  );
 
-  // Load session on mount
+  // Load session data on mount
   useEffect(() => {
-    const savedSession = sessionStorage.getItem(SESSION_KEY);
-    if (savedSession) {
+    const uploadSessionId = localStorage.getItem("upload_session_id");
+    const savedData = localStorage.getItem("listing_session");
+
+    if (uploadSessionId && savedData) {
       try {
-        const parsed = JSON.parse(savedSession);
-        // Reconstruct Blobs and URLs from the stored data
-        const reconstructedPhotos = parsed.photos.map(
-          (photo: ProcessedPhoto) => ({
-            ...photo,
-            webpBlob: new Blob([photo.webpBlob], { type: "image/webp" }),
-            previewUrl: URL.createObjectURL(
-              new Blob([photo.webpBlob], { type: "image/webp" })
-            ),
-          })
-        );
-        setSession({
-          ...parsed,
-          photos: reconstructedPhotos,
-          createdAt: new Date(parsed.createdAt),
-        });
-      } catch (error) {
-        console.error("Error parsing session:", error);
-        sessionStorage.removeItem(SESSION_KEY);
+        setSessionData(JSON.parse(savedData));
+      } catch (e) {
+        console.error("Failed to parse listing session data:", e);
+        clearSession();
       }
+    } else {
+      // Initialize with empty photos array if no session exists
+      setSessionData({ photos: [] });
     }
   }, []);
 
-  const saveSession = useCallback(
-    async (data: Omit<ListingSession, "id" | "createdAt">) => {
-      const newSession: ListingSession = {
-        ...data,
-        id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-        createdAt: new Date(),
-      };
+  const savePhotos = (
+    photos: Array<{ id: string; s3Key: string; url: string }>
+  ) => {
+    const newData: ListingSessionData = {
+      photos,
+      ...(sessionData?.address ? { address: sessionData.address } : {}),
+      ...(sessionData?.coordinates
+        ? { coordinates: sessionData.coordinates }
+        : {}),
+    };
+    setSessionData(newData);
+    localStorage.setItem("listing_session", JSON.stringify(newData));
+  };
 
-      // Convert Blobs to array buffers for storage
-      const photosForStorage = await Promise.all(
-        newSession.photos.map(async (photo) => {
-          const buffer = await photo.webpBlob.arrayBuffer();
-          return {
-            ...photo,
-            webpBlob: Array.from(new Uint8Array(buffer)),
-          };
-        })
-      );
+  const saveAddress = (
+    address: string,
+    coordinates: { lat: number; lng: number }
+  ) => {
+    const newData: ListingSessionData = {
+      photos: sessionData?.photos || [],
+      address,
+      coordinates,
+    };
+    setSessionData(newData);
+    localStorage.setItem("listing_session", JSON.stringify(newData));
+  };
 
-      const sessionData = {
-        ...newSession,
-        photos: photosForStorage,
-      };
+  const clearSession = () => {
+    localStorage.removeItem("upload_session_id");
+    localStorage.removeItem("listing_session");
+    setSessionData({ photos: [] });
+  };
 
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
-      setSession(newSession);
-      return newSession;
-    },
-    []
-  );
-
-  const clearSession = useCallback(() => {
-    sessionStorage.removeItem(SESSION_KEY);
-    setSession(null);
-  }, []);
-
-  const updateSession = useCallback(
-    async (updates: Partial<Omit<ListingSession, "id" | "createdAt">>) => {
-      if (!session) return null;
-
-      const updatedSession = {
-        ...session,
-        ...updates,
-      };
-
-      // If photos are being updated, convert Blobs to array buffers
-      if (updates.photos) {
-        const photosForStorage = await Promise.all(
-          updatedSession.photos.map(async (photo) => {
-            const buffer = await photo.webpBlob.arrayBuffer();
-            return {
-              ...photo,
-              webpBlob: Array.from(new Uint8Array(buffer)),
-            };
-          })
-        );
-
-        sessionStorage.setItem(
-          SESSION_KEY,
-          JSON.stringify({
-            ...updatedSession,
-            photos: photosForStorage,
-          })
-        );
-      } else {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(updatedSession));
-      }
-
-      setSession(updatedSession);
-      return updatedSession;
-    },
-    [session]
-  );
+  const hasSession = () => {
+    return !!sessionData && !!localStorage.getItem("upload_session_id");
+  };
 
   return {
-    session,
-    saveSession,
-    updateSession,
+    sessionData,
+    savePhotos,
+    saveAddress,
     clearSession,
+    hasSession,
   };
 };

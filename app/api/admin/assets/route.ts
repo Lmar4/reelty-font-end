@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { withAuth, AuthenticatedRequest } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/api";
 import { Asset } from "@/types/prisma-types";
 
 export const dynamic = "force-dynamic";

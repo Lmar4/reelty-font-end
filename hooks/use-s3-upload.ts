@@ -9,36 +9,114 @@ interface UploadResult {
   id: string;
   s3Key: string;
   url: string;
+  sessionId?: string;
+}
+
+interface PresignedUrlResponse {
+  url: string;
+  key: string;
+  sessionId?: string;
 }
 
 export const useS3Upload = () => {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem("upload_session_id") || localStorage.getItem("upload_session_id");
+  });
 
   const getPresignedUrl = async (
     filename: string,
-    contentType: string
-  ): Promise<{ url: string; key: string }> => {
-    const response = await fetch("/api/storage/presigned-url", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    contentType: string,
+    isTemporary: boolean = false
+  ): Promise<PresignedUrlResponse> => {
+    try {
+      console.log("[PRESIGNED_URL] Requesting URL:", {
         filename,
         contentType,
-      }),
-    });
+        isTemporary,
+        sessionId,
+      });
 
-    if (!response.ok) {
-      throw new Error("Failed to get presigned URL");
+      const response = await fetch("/api/storage/presigned-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          filename,
+          contentType,
+          isTemporary,
+          sessionId: isTemporary ? sessionId : undefined,
+        }),
+      });
+
+      const responseText = await response.text();
+      console.log("[PRESIGNED_URL] Raw response:", {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: responseText,
+      });
+
+      // Check if the response is HTML (indicating a redirect to login)
+      if (responseText.trim().startsWith("<!DOCTYPE html>") || response.status === 401) {
+        throw new Error("AUTH_REQUIRED");
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("[PRESIGNED_URL_ERROR] Failed to parse JSON response:", {
+          error: e instanceof Error ? e.message : "Unknown error",
+          responseText,
+        });
+        throw new Error("Invalid JSON response from server");
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || `Failed to get presigned URL: ${response.statusText}`
+        );
+      }
+
+      if (!data.url || !data.key) {
+        console.error("[PRESIGNED_URL_ERROR] Invalid response data:", data);
+        throw new Error("Invalid response: missing url or key");
+      }
+
+      // Store the session ID if this is a temporary upload
+      if (isTemporary && data.sessionId) {
+        setSessionId(data.sessionId);
+        const sessionId = data.sessionId;
+        localStorage.setItem("upload_session_id", sessionId);
+        sessionStorage.setItem("upload_session_id", sessionId);
+      }
+
+      console.log("[PRESIGNED_URL] Successfully got URL:", {
+        key: data.key,
+        hasUrl: !!data.url,
+        sessionId: data.sessionId,
+      });
+
+      return data;
+    } catch (error) {
+      console.error("[PRESIGNED_URL_ERROR]", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
     }
-
-    return response.json();
   };
 
   const uploadToS3 = useCallback(
-    async (photos: ProcessedPhoto[]): Promise<UploadResult[]> => {
+    async (
+      photos: ProcessedPhoto[],
+      isTemporary: boolean = !sessionId // Default to temporary if no session
+    ): Promise<UploadResult[]> => {
       try {
         setIsUploading(true);
         setUploadProgress({});
@@ -48,11 +126,29 @@ export const useS3Upload = () => {
 
         for (const photo of photos) {
           try {
+            console.log("[S3_UPLOAD] Starting upload for photo:", {
+              id: photo.id,
+              contentType: "image/webp",
+              isTemporary,
+              sessionId,
+            });
+
             // Get presigned URL for this photo
-            const { url: presignedUrl, key: s3Key } = await getPresignedUrl(
+            const {
+              url: presignedUrl,
+              key: s3Key,
+              sessionId: newSessionId,
+            } = await getPresignedUrl(
               `${photo.id}.webp`,
-              "image/webp"
+              "image/webp",
+              isTemporary
             );
+
+            console.log("[S3_UPLOAD] Got presigned URL:", {
+              presignedUrl,
+              s3Key,
+              sessionId: newSessionId,
+            });
 
             // Upload to S3 with progress tracking
             const xhr = new XMLHttpRequest();
@@ -70,23 +166,45 @@ export const useS3Upload = () => {
 
               xhr.addEventListener("load", () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
+                  console.log("[S3_UPLOAD] Upload successful:", {
+                    id: photo.id,
+                    s3Key,
+                    status: xhr.status,
+                  });
+
                   results.push({
                     id: photo.id,
                     s3Key,
                     url: `https://${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.amazonaws.com/${s3Key}`,
+                    sessionId: newSessionId,
                   });
                   resolve();
                 } else {
-                  reject(new Error(`Upload failed with status ${xhr.status}`));
+                  console.error("[S3_UPLOAD] Upload failed:", {
+                    id: photo.id,
+                    status: xhr.status,
+                    response: xhr.responseText,
+                  });
+                  reject(
+                    new Error(
+                      `Upload failed with status ${xhr.status}: ${xhr.responseText}`
+                    )
+                  );
                 }
               });
 
               xhr.addEventListener("error", () => {
+                console.error("[S3_UPLOAD] Network error:", {
+                  id: photo.id,
+                  status: xhr.status,
+                  response: xhr.responseText,
+                });
+
                 uploadErrors.push({
                   id: photo.id,
-                  error: "Upload failed",
+                  error: "Network error during upload",
                 });
-                reject(new Error("Upload failed"));
+                reject(new Error("Network error during upload"));
               });
 
               xhr.open("PUT", presignedUrl);
@@ -94,53 +212,76 @@ export const useS3Upload = () => {
               xhr.send(photo.webpBlob);
             });
           } catch (error) {
-            console.error(`Failed to upload photo ${photo.id}:`, error);
+            console.error("[S3_UPLOAD] Error uploading photo:", {
+              id: photo.id,
+              error: error instanceof Error ? error.message : "Unknown error",
+            });
+
             uploadErrors.push({
               id: photo.id,
               error: error instanceof Error ? error.message : "Upload failed",
             });
-            throw error;
+            continue; // Continue with next photo instead of throwing
           }
         }
 
-        // After all uploads are complete, update the backend with the status of all photos
-        await Promise.all(
-          results.map((result) =>
-            fetch(`/api/photos/${result.id}/status`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                s3Key: result.s3Key,
-                status: "completed",
-              }),
-            })
-          )
-        );
+        // After all uploads are complete, update the backend with the status
+        if (results.length > 0) {
+          console.log("[S3_UPLOAD] Updating photo statuses:", {
+            successful: results.length,
+            failed: uploadErrors.length,
+            sessionId,
+          });
 
-        // Also update failed photos if any
-        await Promise.all(
-          uploadErrors.map((error) =>
-            fetch(`/api/photos/${error.id}/status`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                status: "error",
-                error: error.error,
-              }),
-            })
-          )
-        );
+          await Promise.all(
+            results.map((result) =>
+              fetch(`/api/photos/${result.id}/status`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  s3Key: result.s3Key,
+                  status: "completed",
+                  sessionId: result.sessionId,
+                }),
+              })
+            )
+          );
+        }
+
+        // Update failed photos if any
+        if (uploadErrors.length > 0) {
+          await Promise.all(
+            uploadErrors.map((error) =>
+              fetch(`/api/photos/${error.id}/status`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  status: "error",
+                  error: error.error,
+                  sessionId,
+                }),
+              })
+            )
+          );
+        }
+
+        if (uploadErrors.length === photos.length) {
+          throw new Error("All photo uploads failed");
+        }
 
         return results;
+      } catch (error) {
+        console.error("[S3_UPLOAD] Fatal error:", error);
+        throw error;
       } finally {
         setIsUploading(false);
       }
     },
-    []
+    [sessionId]
   );
 
   const getUploadProgress = useCallback(
@@ -155,5 +296,6 @@ export const useS3Upload = () => {
     getUploadProgress,
     isUploading,
     uploadProgress,
+    sessionId,
   };
 };

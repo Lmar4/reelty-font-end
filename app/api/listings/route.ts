@@ -47,7 +47,6 @@ export const POST = withAuth(async function POST(
       return new NextResponse("Please use JSON for creating listings", {
         status: 400,
       });
-      // We'll handle file uploads separately after listing creation
     } else {
       // Handle JSON
       body = await request.json();
@@ -64,13 +63,8 @@ export const POST = withAuth(async function POST(
     // Forward the request to the backend
     const headers: HeadersInit = {
       Authorization: `Bearer ${request.auth.sessionToken}`,
+      "Content-Type": "application/json",
     };
-
-    // Only set Content-Type for JSON requests
-    // For FormData, let the browser set the correct boundary
-    if (!isFormData) {
-      headers["Content-Type"] = "application/json";
-    }
 
     // For JSON requests, validate and transform the data
     if (!isFormData) {
@@ -113,16 +107,17 @@ export const POST = withAuth(async function POST(
     });
 
     if (!response.ok) {
-      let errorMessage;
+      const errorText = await response.text();
       try {
-        const errorData = await response.json();
-        errorMessage =
-          errorData.error || errorData.message || response.statusText;
+        const errorJson = JSON.parse(errorText);
+        return new NextResponse(errorJson.error || "Failed to create listing", {
+          status: response.status,
+        });
       } catch {
-        errorMessage = await response.text();
+        return new NextResponse(errorText || response.statusText, {
+          status: response.status,
+        });
       }
-      console.error("[LISTINGS_POST] Backend error:", errorMessage);
-      return new NextResponse(errorMessage, { status: response.status });
     }
 
     const responseData = await response.json();

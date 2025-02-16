@@ -4,6 +4,7 @@ import usePlacesAutocomplete, {
 } from "use-places-autocomplete";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useState, useCallback, KeyboardEvent } from "react";
 
 interface AddressInputProps {
   onAddressSelect: (
@@ -13,6 +14,8 @@ interface AddressInputProps {
 }
 
 export default function AddressInput({ onAddressSelect }: AddressInputProps) {
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+
   const {
     ready,
     value,
@@ -27,6 +30,7 @@ export default function AddressInput({ onAddressSelect }: AddressInputProps) {
   const handleSelect = async (description: string) => {
     setValue(description, false);
     clearSuggestions();
+    setSelectedIndex(-1);
 
     try {
       const results = await getGeocode({ address: description });
@@ -37,6 +41,36 @@ export default function AddressInput({ onAddressSelect }: AddressInputProps) {
     }
   };
 
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLInputElement>) => {
+      if (!data.length) return;
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSelectedIndex((prev) =>
+            prev < data.length - 1 ? prev + 1 : prev
+          );
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (selectedIndex >= 0) {
+            handleSelect(data[selectedIndex].description);
+          }
+          break;
+        case "Escape":
+          clearSuggestions();
+          setSelectedIndex(-1);
+          break;
+      }
+    },
+    [data, selectedIndex, clearSuggestions]
+  );
+
   return (
     <div className='space-y-2'>
       <Label htmlFor='address'>Property Address</Label>
@@ -44,26 +78,42 @@ export default function AddressInput({ onAddressSelect }: AddressInputProps) {
         <Input
           id='address'
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setSelectedIndex(-1);
+          }}
+          onKeyDown={handleKeyDown}
           disabled={!ready}
           placeholder='Search for address...'
           className='w-full'
           data-testid='address-input'
+          role='combobox'
+          aria-expanded={status === "OK"}
+          aria-controls='address-suggestions'
+          aria-activedescendant={
+            selectedIndex >= 0
+              ? `address-suggestion-${data[selectedIndex]?.place_id}`
+              : undefined
+          }
         />
         {status === "OK" && (
-          <ul className='absolute z-10 w-full bg-white border rounded-md mt-1 shadow-lg max-h-60 overflow-auto'>
-            {data.map(({ place_id, description }) => (
+          <ul
+            id='address-suggestions'
+            className='absolute z-10 w-full bg-white border rounded-md mt-1 shadow-lg max-h-60 overflow-auto'
+            role='listbox'
+          >
+            {data.map(({ place_id, description }, index) => (
               <li
                 key={place_id}
+                id={`address-suggestion-${place_id}`}
                 onClick={() => handleSelect(description)}
-                className='px-4 py-2 hover:bg-gray-100 cursor-pointer'
+                className={`px-4 py-2 hover:bg-gray-100 cursor-pointer ${
+                  index === selectedIndex ? "bg-gray-100" : ""
+                }`}
                 role='option'
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    handleSelect(description);
-                  }
-                }}
+                aria-selected={index === selectedIndex}
+                tabIndex={-1}
+                onMouseEnter={() => setSelectedIndex(index)}
                 data-testid={`address-suggestion-${place_id}`}
               >
                 {description}

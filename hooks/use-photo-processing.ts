@@ -7,7 +7,7 @@ export interface ProcessedPhoto {
   webpBlob: Blob;
   previewUrl: string;
   s3Key?: string;
-  status: "processing" | "uploaded" | "failed";
+  status: "idle" | "processing" | "uploaded" | "failed";
   error?: string;
 }
 

@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { EditTierDialog } from "./edit-tier-dialog";
 import { SubscriptionTier } from "@/types/prisma-types";
 import { formatCurrency } from "@/lib/utils";
@@ -55,28 +56,23 @@ export function SubscriptionTiersSection() {
 
         <div className='bg-white rounded-lg shadow'>
           <div className='p-6 space-y-4'>
-            <div className='grid grid-cols-5 gap-4 pb-4 border-b'>
+            <div className='grid grid-cols-6 gap-4 pb-4 border-b'>
               <div className='animate-pulse bg-gray-200 h-6 w-20 rounded' />
               <div className='animate-pulse bg-gray-200 h-6 w-32 rounded' />
               <div className='animate-pulse bg-gray-200 h-6 w-16 rounded' />
               <div className='animate-pulse bg-gray-200 h-6 w-24 rounded' />
               <div className='animate-pulse bg-gray-200 h-6 w-20 rounded' />
+              <div className='animate-pulse bg-gray-200 h-6 w-20 rounded' />
             </div>
 
             {[...Array(4)].map((_, i) => (
-              <div key={i} className='grid grid-cols-5 gap-4 py-4'>
+              <div key={i} className='grid grid-cols-6 gap-4 py-4'>
                 <div className='animate-pulse bg-gray-200 h-6 w-24 rounded' />
                 <div className='animate-pulse bg-gray-200 h-6 w-48 rounded' />
                 <div className='animate-pulse bg-gray-200 h-6 w-20 rounded' />
-                <div className='space-y-2'>
-                  {[...Array(3)].map((_, j) => (
-                    <div
-                      key={j}
-                      className='animate-pulse bg-gray-200 h-4 w-32 rounded'
-                    />
-                  ))}
-                </div>
-                <div className='animate-pulse bg-gray-200 h-8 w-16 rounded' />
+                <div className='animate-pulse bg-gray-200 h-6 w-32 rounded' />
+                <div className='animate-pulse bg-gray-200 h-6 w-24 rounded' />
+                <div className='animate-pulse bg-gray-200 h-6 w-16 rounded' />
               </div>
             ))}
           </div>
@@ -101,9 +97,11 @@ export function SubscriptionTiersSection() {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Description</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>Price</TableHead>
+            <TableHead>Credits</TableHead>
             <TableHead>Features</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -111,14 +109,52 @@ export function SubscriptionTiersSection() {
           {tiers?.data?.map((tier: SubscriptionTier) => (
             <TableRow key={tier.id}>
               <TableCell className='font-medium'>{tier.name}</TableCell>
-              <TableCell>{tier.description}</TableCell>
+              <TableCell>
+                <Badge
+                  variant={
+                    tier.planType === "MONTHLY" ? "default" : "secondary"
+                  }
+                >
+                  {tier.planType === "MONTHLY" ? "Monthly" : "Pay As You Go"}
+                </Badge>
+              </TableCell>
               <TableCell>{formatCurrency(tier.monthlyPrice)}</TableCell>
               <TableCell>
-                <ul className='list-disc list-inside'>
-                  {tier.features.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
+                <Badge variant='outline'>
+                  {tier.creditsPerInterval} credit
+                  {tier.creditsPerInterval !== 1 && "s"}
+                  {tier.planType === "MONTHLY" && "/month"}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className='space-y-1'>
+                  <div className='flex flex-wrap gap-1'>
+                    {tier.maxPhotosPerListing && (
+                      <Badge variant='secondary'>
+                        {tier.maxPhotosPerListing} photos/listing
+                      </Badge>
+                    )}
+                    {tier.maxActiveListings && (
+                      <Badge variant='secondary'>
+                        {tier.maxActiveListings} active listings
+                      </Badge>
+                    )}
+                    {!tier.hasWatermark && (
+                      <Badge variant='secondary'>No Watermark</Badge>
+                    )}
+                    {tier.premiumTemplatesEnabled && (
+                      <Badge variant='secondary'>Premium Templates</Badge>
+                    )}
+                  </div>
+                  {tier.features.length > 0 && (
+                    <div className='text-sm text-muted-foreground'>
+                      {tier.features.join(", ")}
+                    </div>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge variant='outline'>Active</Badge>
               </TableCell>
               <TableCell>
                 <Button variant='ghost' onClick={() => handleEditTier(tier)}>
