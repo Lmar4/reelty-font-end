@@ -16,8 +16,10 @@ import {
   usePhotoProcessing,
 } from "@/hooks/use-photo-processing";
 import { useS3Upload } from "@/hooks/use-s3-upload";
+import { cn } from "@/lib/utils";
 import { ListingFormData, listingFormSchema } from "@/lib/validations/listing";
-import { useAuth } from "@clerk/nextjs";
+import { makeBackendRequest } from "@/utils/api";
+import { useAuth, useSession } from "@clerk/nextjs";
 import { Loader } from "@googlemaps/js-api-loader";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -29,8 +31,6 @@ import usePlacesAutocomplete, {
   getLatLng,
 } from "use-places-autocomplete";
 import PhotoManager from "./PhotoManager";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 
 // Initialize Google Maps loader
 const loader = new Loader({
@@ -57,6 +57,13 @@ interface StoredPhoto {
   url: string;
 }
 
+// First, let's define an interface for the upload result type
+interface UploadResult {
+  id: string;
+  s3Key: string;
+  url: string;
+}
+
 export default function NewListingModal({
   isOpen,
   onClose,
@@ -66,6 +73,7 @@ export default function NewListingModal({
   tempListingId,
 }: NewListingModalProps) {
   const { userId, isSignedIn, isLoaded: authLoaded } = useAuth();
+  const { session } = useSession();
   const router = useRouter();
   const createListing = useCreateListing();
   const uploadPhoto = useUploadPhoto();
@@ -81,7 +89,7 @@ export default function NewListingModal({
 
   const { sessionData, savePhotos, saveAddress, clearSession } =
     useListingSession();
-  const { uploadToS3, isUploading, uploadProgress } = useS3Upload();
+  const uploadToS3 = useS3Upload();
 
   const [processedPhotos, setProcessedPhotos] = useState<ProcessedPhoto[]>([]);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
@@ -371,14 +379,14 @@ export default function NewListingModal({
         uploadResults = sessionData.photos;
         setProgress(30);
       } else {
-        // Process photos to webp (20%)
+        // 1. Process photos to webp (20%)
         setStatus("Processing photos...");
         setProgress(10);
         const files = selectedPhotoFiles.map((p) => p.originalFile);
         const processedFiles = await processPhotos(files);
         setProgress(20);
 
-        // Upload to S3 (20% -> 40%)
+        // 2. Upload to S3 (20% -> 40%)
         setStatus("Uploading photos...");
         const uploadStartProgress = 20;
         const uploadEndProgress = 40;
@@ -391,15 +399,19 @@ export default function NewListingModal({
           setProgress(Math.round(scaledProgress));
         };
 
-        uploadResults = await uploadToS3(
-          processedFiles,
-          true,
-          onUploadProgress
+        // Before uploading to S3, convert ProcessedPhoto to File
+        const filesToUpload = processedFiles.map(
+          (photo) =>
+            new File([photo.webpBlob], `${photo.id}.webp`, {
+              type: "image/webp",
+            })
         );
+
+        uploadResults = await uploadToS3(filesToUpload, true, onUploadProgress);
 
         // Save metadata to session
         savePhotos(
-          uploadResults.map((result) => ({
+          uploadResults.map((result: UploadResult) => ({
             id: result.id,
             s3Key: result.s3Key,
             url: result.url,
@@ -413,7 +425,10 @@ export default function NewListingModal({
         return;
       }
 
-      // Create the listing
+      // 3. Create the listing
+      setStatus("Creating listing...");
+      setProgress(60);
+
       const listingData = {
         ...data,
         photoLimit: selectedPhotos.size,
@@ -436,7 +451,7 @@ export default function NewListingModal({
         // Convert temp upload to listing
         createdListing = await createListing.mutateAsync({
           ...listingData,
-          tempId: tempListingId, // Using tempId as defined in CreateListingInput
+          tempId: tempListingId,
         });
       } else {
         // Create new listing directly
@@ -447,57 +462,25 @@ export default function NewListingModal({
         throw new Error("Failed to create listing");
       }
 
-      // Continue with listing creation
-
-      // Create listing (60% -> 80%)
-      setStatus("Creating listing...");
-      setProgress(60);
-
-      // Create listing with photo references
-      const listing = await createListing.mutateAsync({
-        ...data,
-        photoLimit: selectedPhotos.size,
-      });
-
-      if (!listing?.id) {
-        throw new Error("Failed to create listing");
-      }
-
+      // 4. Notify backend to process photos
+      setStatus("Processing photos...");
       setProgress(80);
 
-      // Link photos to listing
-      setStatus("Linking photos to listing...");
-      try {
-        // Validate we have all necessary data
-        if (uploadResults.length !== selectedPhotoFiles.length) {
-          throw new Error("Mismatch between upload results and selected files");
+      const token = (await session?.getToken()) || undefined;
+
+      await makeBackendRequest<void>(
+        `/api/listings/${createdListing.id}/process-photos`,
+        {
+          method: "POST",
+          sessionToken: token,
+          body: {
+            photos: uploadResults.map((result: UploadResult) => ({
+              id: result.id,
+              s3Key: result.s3Key,
+            })),
+          },
         }
-
-        for (let i = 0; i < uploadResults.length; i++) {
-          const photo = uploadResults[i];
-          const selectedPhoto = selectedPhotoFiles[i];
-
-          if (!selectedPhoto?.originalFile) {
-            throw new Error(`Missing original file for photo ${i + 1}`);
-          }
-
-          if (!photo?.s3Key) {
-            throw new Error(`Missing S3 key for photo ${i + 1}`);
-          }
-
-          await uploadPhoto.mutateAsync({
-            file: selectedPhoto.webpBlob as File,
-            listingId: listing.id,
-            order: i,
-            s3Key: photo.s3Key,
-          });
-          setProgress(60 + Math.floor(((i + 1) / uploadResults.length) * 40));
-        }
-      } catch (error) {
-        // Keep the session data if photo linking fails
-        console.error("Error linking photos:", error);
-        throw error;
-      }
+      );
 
       setProgress(100);
       setStatus("Complete!");
@@ -514,7 +497,7 @@ export default function NewListingModal({
 
       // Redirect after a brief delay
       setTimeout(() => {
-        router.push(`/dashboard/listings/${listing.id}`);
+        router.push(`/dashboard/listings/${createdListing.id}`);
       }, 1000);
     } catch (error) {
       console.error("[SUBMISSION_ERROR]", error);
