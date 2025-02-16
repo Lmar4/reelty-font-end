@@ -7,10 +7,10 @@ import {
 
 export const DELETE = withAuth(async function DELETE(
   request: AuthenticatedRequest,
-  { params }: { params: { agencyId: string; userId: string } }
+  { params }: { params: Promise<{ agencyId: string; userId: string }> }
 ) {
   try {
-    const { agencyId, userId } = params;
+    const { agencyId, userId } = await params;
 
     const result = await makeBackendRequest(
       `/api/admin/agencies/${agencyId}/users/${userId}`,
