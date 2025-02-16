@@ -48,6 +48,7 @@ interface NewListingModalProps {
     lat: number;
     lng: number;
   };
+  tempListingId?: string; // Optional ID for temp listings
 }
 
 interface StoredPhoto {
@@ -62,11 +63,13 @@ export default function NewListingModal({
   initialFiles = [],
   initialAddress = "",
   initialCoordinates,
+  tempListingId,
 }: NewListingModalProps) {
-  const { userId, isSignedIn } = useAuth();
+  const { userId, isSignedIn, isLoaded: authLoaded } = useAuth();
   const router = useRouter();
   const createListing = useCreateListing();
   const uploadPhoto = useUploadPhoto();
+  const photoProcessing = usePhotoProcessing();
 
   // Photo processing hook with status and progress
   const {
@@ -135,13 +138,19 @@ export default function NewListingModal({
     if (initialFiles?.length > 0) {
       // Just create preview URLs initially without processing
       Promise.all(
-        initialFiles.map(async (file) => ({
-          id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-          originalFile: file,
-          webpBlob: file, // We'll process this later
-          previewUrl: URL.createObjectURL(file),
-          status: "idle" as const,
-        }))
+        initialFiles.map(async (file) => {
+          const processedPhoto = (
+            await photoProcessing.processPhotos([file])
+          )[0];
+          return {
+            id:
+              Date.now().toString(36) + Math.random().toString(36).substring(2),
+            originalFile: file,
+            webpBlob: processedPhoto.webpBlob,
+            previewUrl: URL.createObjectURL(file),
+            status: "idle" as const,
+          };
+        })
       ).then((photos) => {
         setProcessedPhotos(photos);
         // Auto-select first 10 photos
@@ -179,45 +188,54 @@ export default function NewListingModal({
 
   // Handle session restoration
   useEffect(() => {
-    if (!isOpen || !sessionData || processedPhotos.length > 0) {
-      return;
-    }
-
-    const photos = sessionData.photos;
-    if (!Array.isArray(photos) || photos.length === 0) {
-      return;
-    }
+    // Wait for auth to be ready
+    if (!authLoaded) return;
 
     try {
-      // Create ProcessedPhoto objects from the stored photos
-      const restoredPhotos: ProcessedPhoto[] = photos.map(
-        (photo: StoredPhoto) => ({
-          id: photo.id,
-          originalFile: new File([], `${photo.id}.webp`), // Placeholder file
-          webpBlob: new Blob([], { type: "image/webp" }), // Placeholder blob
-          previewUrl: photo.url,
-          s3Key: photo.s3Key,
-          status: "uploaded" as const,
-        })
-      );
+      // Get session ID from URL if present
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get("session");
 
-      setProcessedPhotos(restoredPhotos);
-      setSelectedPhotos(new Set(restoredPhotos.map((p) => p.id)));
+      if (sessionId && sessionData) {
+        const photos = sessionData.photos;
+        if (!Array.isArray(photos) || photos.length === 0) {
+          return;
+        }
 
-      // Restore form values
-      if (sessionData.address) {
-        setInputValue(sessionData.address);
-        form.setValue("address", sessionData.address);
-      }
+        // Create ProcessedPhoto objects from the stored photos
+        const restoredPhotos: ProcessedPhoto[] = photos.map(
+          (photo: StoredPhoto) => ({
+            id: photo.id,
+            originalFile: new File([], `${photo.id}.webp`),
+            webpBlob: new Blob([], { type: "image/webp" }),
+            previewUrl: photo.url,
+            s3Key: photo.s3Key,
+            status: "uploaded" as const,
+          })
+        );
 
-      if (sessionData.coordinates) {
-        form.setValue("coordinates", sessionData.coordinates);
+        setProcessedPhotos(restoredPhotos);
+        setSelectedPhotos(new Set(restoredPhotos.map((p) => p.id)));
+
+        // Restore form values
+        if (sessionData.address) {
+          setInputValue(sessionData.address);
+          form.setValue("address", sessionData.address);
+        }
+
+        if (sessionData.coordinates) {
+          form.setValue("coordinates", sessionData.coordinates);
+        }
+
+        // Clear the session ID from URL
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
       }
     } catch (error) {
       console.error("Error restoring session:", error);
       clearSession();
     }
-  }, [isOpen, sessionData, processedPhotos.length]);
+  }, [authLoaded, sessionData, form]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -273,13 +291,19 @@ export default function NewListingModal({
 
       // Just create preview URLs initially without processing
       const newPhotos = await Promise.all(
-        newFiles.map(async (file) => ({
-          id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-          originalFile: file,
-          webpBlob: file, // We'll process this later
-          previewUrl: URL.createObjectURL(file),
-          status: "idle" as const,
-        }))
+        newFiles.map(async (file) => {
+          const processedPhoto = (
+            await photoProcessing.processPhotos([file])
+          )[0];
+          return {
+            id:
+              Date.now().toString(36) + Math.random().toString(36).substring(2),
+            originalFile: file,
+            webpBlob: processedPhoto.webpBlob,
+            previewUrl: URL.createObjectURL(file),
+            status: "idle" as const,
+          };
+        })
       );
 
       setProcessedPhotos([...processedPhotos, ...newPhotos]);
@@ -301,24 +325,40 @@ export default function NewListingModal({
         toast.error("Please enter a valid address");
         return;
       }
+
       // Reset progress and status
       setProgress(0);
       setIsSubmitting(true);
-      // If not signed in, save redirect info first
-      if (!userId || !isSignedIn) {
-        // Save the redirect path before any async operations
-        sessionStorage.setItem("postSignUpRedirect", "/dashboard/new-listing");
-
-        // Save form data
-        if (data.address && data.coordinates) {
-          saveAddress(data.address, data.coordinates);
-        }
-      }
 
       // Filter and sort selected photos
       const selectedPhotoFiles = Array.from(selectedPhotos)
         .map((id) => processedPhotos.find((p) => p.id === id))
         .filter((p): p is ProcessedPhoto => p !== undefined);
+
+      // If not signed in, save redirect info first
+      if (!userId || !isSignedIn) {
+        // Generate a UUID for the temp upload
+        const tempUploadId = crypto.randomUUID();
+
+        // Save complete form state with correct photo structure
+        savePhotos(
+          selectedPhotoFiles.map((photo) => ({
+            id: photo.id,
+            s3Key: "", // Will be populated after actual upload
+            url: photo.previewUrl, // Use preview URL temporarily
+          }))
+        );
+
+        if (data.address && data.coordinates) {
+          saveAddress(data.address, data.coordinates);
+        }
+
+        // Save the redirect path with temp upload ID
+        sessionStorage.setItem(
+          "postSignUpRedirect",
+          `/dashboard/listings/${tempUploadId}?temp=true`
+        );
+      }
 
       let uploadResults;
 
@@ -373,6 +413,40 @@ export default function NewListingModal({
         return;
       }
 
+      // Create the listing
+      const listingData = {
+        ...data,
+        photoLimit: selectedPhotos.size,
+      };
+
+      let createdListing;
+
+      // If we have a temp listing ID, convert it to a real listing
+      if (tempListingId) {
+        // First, ensure we have the temp upload
+        const tempUploadResponse = await fetch(
+          `/api/temp-uploads/${tempListingId}`
+        );
+        const tempUpload = await tempUploadResponse.json();
+
+        if (!tempUpload) {
+          throw new Error("Temp upload not found");
+        }
+
+        // Convert temp upload to listing
+        createdListing = await createListing.mutateAsync({
+          ...listingData,
+          tempId: tempListingId, // Using tempId as defined in CreateListingInput
+        });
+      } else {
+        // Create new listing directly
+        createdListing = await createListing.mutateAsync(listingData);
+      }
+
+      if (!createdListing?.id) {
+        throw new Error("Failed to create listing");
+      }
+
       // Continue with listing creation
 
       // Create listing (60% -> 80%)
@@ -412,7 +486,7 @@ export default function NewListingModal({
           }
 
           await uploadPhoto.mutateAsync({
-            file: selectedPhoto.originalFile,
+            file: selectedPhoto.webpBlob as File,
             listingId: listing.id,
             order: i,
             s3Key: photo.s3Key,
@@ -499,7 +573,7 @@ export default function NewListingModal({
             e.preventDefault();
             form.handleSubmit(handleSubmit)(e);
           }}
-          method="POST"
+          method='POST'
           className='bg-white rounded-lg max-w-[900px] w-[calc(100%-2rem)] max-h-[80vh] sm:max-h-[90vh] relative mx-auto flex flex-col overflow-hidden'
         >
           {/* Close button - Floating */}

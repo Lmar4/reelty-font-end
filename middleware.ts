@@ -11,9 +11,9 @@ const isPublicPath = createRouteMatcher([
   "/pricing",
   "/api/webhooks(.*)",
   "/api/webhook(.*)",
-  "/api/storage/presigned-url",  // Allow S3 presigned URL generation
-  "/api/storage/upload",         // Allow direct S3 uploads
-  "/api/storage/migrate",        // Allow migration of temporary files
+  "/api/storage/presigned-url", // Allow S3 presigned URL generation
+  "/api/storage/upload", // Allow direct S3 uploads
+  "/api/storage/migrate", // Allow migration of temporary files
 ]);
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
@@ -72,7 +72,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Now we can safely run auth
   const { userId, getToken } = await auth();
-
+  console.log("userId", userId);
   // Handle homepage redirect for authenticated users
   if (req.nextUrl.pathname === "/" && userId) {
     const dashboardUrl = new URL("/dashboard", req.url);

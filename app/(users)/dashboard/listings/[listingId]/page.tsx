@@ -2,6 +2,7 @@ import type { Listing } from "@/types/prisma-types";
 import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 import { ListingClient } from "./ListingClient";
+import TempListingWrapper from "./TempListingWrapper";
 
 // Utility function to handle API responses
 async function handleApiResponse<T>(
@@ -41,35 +42,15 @@ async function getListing(listingId: string): Promise<Listing> {
   const headers = await getAuthHeaders();
   const url = `${process.env.BACKEND_URL}/api/listings/${listingId}`;
 
-  // Add cache options for better performance
-  const options = {
+  const response = await fetch(url, {
     headers,
     next: {
-      revalidate: 60, // Cache for 1 minute
-      tags: [`listing-${listingId}`], // Add cache tag for targeted revalidation
+      revalidate: 60,
+      tags: [`listing-${listingId}`],
     },
-  };
+  });
 
-  const response = await fetch(url, options);
-
-  const result = await handleApiResponse<{
-    success: boolean;
-    data: Listing & {
-      photos: Array<{
-        id: string;
-        filePath: string;
-        processedFilePath: string | null;
-        order: number;
-      }>;
-    };
-  }>(response, "Failed to fetch listing");
-
-  // Sort photos by order
-  if (result.data.photos) {
-    result.data.photos.sort((a, b) => a.order - b.order);
-  }
-
-  return result.data;
+  return handleApiResponse<Listing>(response, "Failed to fetch listing");
 }
 
 export default async function ListingPage({
@@ -81,6 +62,12 @@ export default async function ListingPage({
 }) {
   const { listingId } = await params;
   const resolvedSearchParams = await searchParams;
+  const isTemp = resolvedSearchParams.temp === "true";
+
+  // For temp listings, render the modal wrapper
+  if (isTemp) {
+    return <TempListingWrapper listingId={listingId} />;
+  }
 
   try {
     const listing = await getListing(listingId).catch((error) => {
@@ -99,6 +86,9 @@ export default async function ListingPage({
     );
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
+      return <TempListingWrapper listingId={listingId} />;
+    }
+    if (error instanceof Error) {
       throw error;
     }
     throw error;

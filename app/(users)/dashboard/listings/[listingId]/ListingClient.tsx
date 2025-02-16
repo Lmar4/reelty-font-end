@@ -28,7 +28,12 @@ interface VideoJobStatus extends PrismaVideoJob {
   metadata?: {
     userMessage?: string;
     error?: string;
-  };
+    stage?: "webp" | "runway" | "template" | "final";
+    currentFile?: number;
+    totalFiles?: number;
+    startTime?: string;
+    endTime?: string;
+  } | null;
 }
 
 interface ExtendedListing extends Listing {
@@ -114,7 +119,7 @@ function useListingData(
     retryDelay: 1000, // Esperar 1 segundo entre intentos
   });
 
-  const { data: listing } = useListing(listingId, {
+  const { data: listing, isLoading: isListingLoading } = useListing(listingId, {
     initialData: initialListing,
   });
 
@@ -459,6 +464,40 @@ export function ListingClient({
     );
   };
 
+  const [videoStatus, setVideoStatus] = useState<VideoJobStatus | null>(null);
+
+  // Monitor video generation if there's an active job
+  useEffect(() => {
+    if (!listing?.videoJobId) return;
+
+    const eventSource = new EventSource(
+      `/api/jobs/${listing.videoJobId}/status`
+    );
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      setVideoStatus(data);
+
+      if (data.status === "COMPLETED") {
+        eventSource.close();
+        queryClient.invalidateQueries({ queryKey: ["listing", listingId] });
+      }
+
+      // Close connection if failed
+      if (data.status === "FAILED") {
+        eventSource.close();
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [listing?.videoJobId, listingId, queryClient]);
+
   return (
     <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
       {/* Header Section */}
@@ -569,6 +608,32 @@ export function ListingClient({
             photos={transformedPhotos}
             onRegenerateImage={handleImageRegeneration}
           />
+
+          {/* If video is processing, show a subtle indicator */}
+          {videoStatus &&
+            !["COMPLETED", "FAILED"].includes(videoStatus.status) && (
+              <div className='fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 max-w-sm animate-fade-in'>
+                <div className='flex items-center space-x-3'>
+                  <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
+                  <div>
+                    <p className='text-sm font-medium'>Generating Video</p>
+                    <p className='text-xs text-gray-500'>
+                      {videoStatus.metadata?.stage ||
+                        `${videoStatus.progress}% complete`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {/* If video generation failed, show a subtle error */}
+          {videoStatus?.status === "FAILED" && (
+            <div className='fixed bottom-4 right-4 bg-red-50 border border-red-100 rounded-lg p-4 max-w-sm'>
+              <p className='text-sm text-red-600'>
+                Video generation failed. Please try again.
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>

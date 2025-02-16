@@ -178,6 +178,12 @@ export interface Listing {
   photoLimit: number;
   createdAt: Date;
   updatedAt: Date;
+  videoJobId?: string;
+  videoUrl?: string;
+  reels?: {
+    url: string;
+    type: string;
+  }[];
 
   // Relations
   user?: User;
