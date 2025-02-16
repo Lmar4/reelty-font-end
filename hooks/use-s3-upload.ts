@@ -52,7 +52,7 @@ export const useS3Upload = () => {
           filename,
           contentType,
           isTemporary,
-          sessionId: isTemporary ? sessionId : undefined,
+          ...(isTemporary && sessionId && { sessionId }), // Only include sessionId if it exists and isTemporary is true
         }),
       });
 
@@ -131,7 +131,8 @@ export const useS3Upload = () => {
   const uploadToS3 = useCallback(
     async (
       photos: ProcessedPhoto[],
-      isTemporary: boolean = !sessionId // Default to temporary if no session
+      isTemporary: boolean = !sessionId, // Default to temporary if no session
+      onProgress?: (progress: number) => void
     ): Promise<UploadResult[]> => {
       try {
         setIsUploading(true);
@@ -177,6 +178,13 @@ export const useS3Upload = () => {
                     ...prev,
                     [photo.id]: progress,
                   }));
+
+                  // Calculate overall progress
+                  const progressValues = Object.values(uploadProgress);
+                  const overallProgress = progressValues.length > 0
+                    ? progressValues.reduce((a, b) => a + b, 0) / (photos.length * 100) * 100
+                    : 0;
+                  onProgress?.(overallProgress);
                 }
               });
 

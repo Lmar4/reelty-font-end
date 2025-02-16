@@ -64,9 +64,18 @@ export const useListingSession = () => {
   };
 
   const clearSession = () => {
+    // Clear all storage
     localStorage.removeItem("upload_session_id");
     localStorage.removeItem("listing_session");
-    setSessionData({ photos: [] });
+    sessionStorage.removeItem("upload_session_id");
+    sessionStorage.removeItem("postSignUpRedirect");
+    
+    // Reset state with empty data
+    setSessionData({
+      photos: [],
+      address: undefined,
+      coordinates: undefined
+    });
   };
 
   const hasSession = () => {
