@@ -6,17 +6,6 @@ import {
 } from "@/utils/withAuth";
 import { Template, User } from "@/types/prisma-types";
 
-const DEFAULT_TEMPLATE: Template = {
-  thumbnailUrl: null,
-  id: "default",
-  name: "Default Template",
-  description: "Default video template",
-  tiers: ["free", "pro", "enterprise"],
-  order: 0,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
-
 export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   try {
     // Get user data to get their current tier ID
