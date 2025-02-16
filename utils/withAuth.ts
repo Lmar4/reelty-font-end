@@ -89,3 +89,6 @@ export async function makeBackendRequest<T>(
     throw error;
   }
 }
+
+// Re-export types and functions from withAuthServer
+export { withAuth, type AuthenticatedRequest } from "./withAuthServer";

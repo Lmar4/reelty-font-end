@@ -21,6 +21,7 @@ import {
   getTierDisplayName,
 } from "@/types";
 import { ProcessedPhoto } from "@/hooks/use-photo-processing";
+import { useS3Upload, type UploadResult } from "@/hooks/use-s3-upload";
 
 interface VideoGenerationFlowProps {
   onComplete: () => void;
@@ -146,8 +147,10 @@ export default function VideoGenerationFlow({
         })
       );
 
-      const uploadResults = await Promise.all(uploadPromises);
-      const uploadedFilePaths = uploadResults.map((result) => result.filePath);
+      const uploadResults = (await Promise.all(
+        uploadPromises
+      )) as UploadResult[];
+      const uploadedFilePaths = uploadResults.map((result) => result.s3Key);
 
       setProgress(60);
       setProcessingStatus("Generating video...");

@@ -5,7 +5,7 @@ interface UploadProgress {
   [key: string]: number;
 }
 
-interface UploadResult {
+export interface UploadResult {
   id: string;
   s3Key: string;
   url: string;
@@ -23,7 +23,10 @@ export const useS3Upload = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    return sessionStorage.getItem("upload_session_id") || localStorage.getItem("upload_session_id");
+    return (
+      sessionStorage.getItem("upload_session_id") ||
+      localStorage.getItem("upload_session_id")
+    );
   });
 
   const getPresignedUrl = async (
@@ -59,22 +62,35 @@ export const useS3Upload = () => {
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries()),
         body: responseText,
+        isTemporary,
+        sessionId,
+        url: response.url,
       });
-
-      // Check if the response is HTML (indicating a redirect to login)
-      if (responseText.trim().startsWith("<!DOCTYPE html>") || response.status === 401) {
-        throw new Error("AUTH_REQUIRED");
-      }
 
       let data;
       try {
         data = JSON.parse(responseText);
+
+        // Check for auth required response
+        if (data.authRequired || response.status === 401) {
+          console.log("[PRESIGNED_URL] Auth required from API", {
+            status: response.status,
+            isTemporary,
+            data,
+          });
+          throw new Error("AUTH_REQUIRED");
+        }
       } catch (e) {
+        // If it's not JSON and looks like HTML, it's probably a redirect
+        if (responseText.trim().startsWith("<!DOCTYPE html>")) {
+          console.log("[PRESIGNED_URL] HTML redirect detected");
+          throw new Error("AUTH_REQUIRED");
+        }
         console.error("[PRESIGNED_URL_ERROR] Failed to parse JSON response:", {
           error: e instanceof Error ? e.message : "Unknown error",
           responseText,
         });
-        throw new Error("Invalid JSON response from server");
+        throw e;
       }
 
       if (!response.ok) {

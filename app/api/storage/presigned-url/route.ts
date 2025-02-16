@@ -76,9 +76,18 @@ export async function POST(req: Request) {
     const session = await auth();
     const userId = session?.userId;
 
+    console.log("[PRESIGNED_URL] Auth check:", {
+      isTemporary,
+      hasSession: !!session,
+    });
+
     // For non-temporary uploads, require authentication
     if (!isTemporary && !userId) {
-      return errorResponse("Authentication required for permanent uploads", 401);
+      // Instead of returning 401, return JSON with auth required flag
+      return NextResponse.json(
+        { error: "Authentication required", authRequired: true },
+        { status: 403 }
+      );
     }
 
     // For temporary uploads, we need either a sessionId or create a new one
@@ -121,6 +130,9 @@ export async function POST(req: Request) {
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
+          ...(session
+            ? { Authorization: `Bearer ${await session.getToken()}` }
+            : {}),
         },
       }
     );
