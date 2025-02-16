@@ -7,8 +7,13 @@ export const coordinatesSchema = z.object({
 
 export const listingFormSchema = z.object({
   address: z.string().min(1, "Address is required"),
-  coordinates: coordinatesSchema.nullable(),
-  photoLimit: z.number().min(1).max(10),
+  coordinates: coordinatesSchema,
+  photoLimit: z.number().min(1).max(10).default(1),
+}).refine((data) => {
+  return data.address && data.coordinates;
+}, {
+  message: "Both address and coordinates are required",
+  path: ["address"],
 });
 
 export const photoUploadSchema = z.object({
