@@ -7,10 +7,7 @@ import { QueryProvider } from "@/providers/query-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/components/providers/Providers";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
-<<<<<<< HEAD
-=======
 import { cn } from "@/lib/utils";
->>>>>>> 8a13445 (first commit)
 
 const geist = Geist({
   variable: "--font-geist",
@@ -18,11 +15,7 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-<<<<<<< HEAD
-  title: "Reelty - Real Estate Video Generator",
-=======
   title: "Reelty | Turn listing photos into viral Reels",
->>>>>>> 8a13445 (first commit)
   description: "Transform your listing photos into viral Reels in seconds!",
   icons: {
     // Regular favicons
@@ -112,16 +105,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang='en'>
-<<<<<<< HEAD
-      <body className={`${geist.variable} min-h-screen flex flex-col`}>
-=======
       <body
         className={cn(
           geist.variable,
           "min-h-screen bg-background antialiased overflow-x-hidden"
         )}
       >
->>>>>>> 8a13445 (first commit)
         <ErrorBoundary>
           <ClerkProvider afterSignOutUrl='/'>
             <QueryProvider>
