@@ -10,25 +10,29 @@ import {
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Feature {
-  name: string;
-  description?: string;
-}
+type FeatureName =
+  | "Credits"
+  | "Active Listings"
+  | "Photos per Listing"
+  | "Premium Templates";
 
-interface TierFeature {
-  included: boolean;
-  value?: string | number;
-}
-
-interface Tier {
+interface TierFeatures {
   name: string;
-  price: number;
-  features: Record<string, TierFeature>;
+  features: Record<
+    FeatureName,
+    {
+      included: boolean;
+      value?: string | number;
+    }
+  >;
 }
 
 interface TierComparisonTableProps {
-  features: Feature[];
-  tiers: Tier[];
+  features: Array<{
+    name: string;
+    description: string;
+  }>;
+  tiers: TierFeatures[];
   currentTierId?: string;
 }
 
@@ -52,9 +56,6 @@ export function TierComparisonTable({
                 )}
               >
                 <div className='font-bold'>{tier.name}</div>
-                <div className='text-sm text-muted-foreground'>
-                  ${tier.price}/month
-                </div>
               </TableHead>
             ))}
           </TableRow>
@@ -71,7 +72,7 @@ export function TierComparisonTable({
                 )}
               </TableCell>
               {tiers.map((tier) => {
-                const tierFeature = tier.features[feature.name];
+                const tierFeature = tier.features[feature.name as FeatureName];
                 return (
                   <TableCell
                     key={`${tier.name}-${feature.name}`}

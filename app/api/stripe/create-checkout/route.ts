@@ -1,50 +1,58 @@
-import { NextResponse, NextRequest } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const { userId } = getAuth(req);
+    const session = await auth();
+    const userId = session.userId;
+
     if (!userId) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
-    const { plan, billingType, returnUrl } = body;
+    const authHeader = req.headers.get("authorization");
 
-    if (!plan || !billingType || !returnUrl) {
-      return new NextResponse("Missing required fields", { status: 400 });
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: "Authorization header is required" },
+        { status: 401 }
+      );
     }
 
-    // Call our backend API to create checkout session
     const response = await fetch(
       `${process.env.BACKEND_URL}/api/subscription/create-checkout`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.REELTY_BACKEND_API_KEY}`,
+          Authorization: authHeader,
         },
-        body: JSON.stringify({
-          userId,
-          plan,
-          billingType,
-          returnUrl,
-        }),
+        body: JSON.stringify({ ...body, userId }),
       }
     );
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error("[CREATE_CHECKOUT_ERROR]", error);
-      return new NextResponse("Failed to create checkout session", {
-        status: response.status,
-      });
+      const errorData = await response.json();
+      console.error("[CREATE_CHECKOUT_ERROR]", errorData);
+      return NextResponse.json(
+        { error: errorData.error || "Failed to create checkout session" },
+        { status: response.status }
+      );
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
     console.error("[CREATE_CHECKOUT_ERROR]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create checkout session",
+      },
+      { status: 500 }
+    );
   }
 }

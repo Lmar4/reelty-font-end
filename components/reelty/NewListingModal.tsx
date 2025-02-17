@@ -39,6 +39,13 @@ const loader = new Loader({
   libraries: ["places"],
 });
 
+// Add environment variable for S3 bucket
+const S3_BUCKET_NAME =
+  process.env.NEXT_PUBLIC_S3_BUCKET_NAME || "reelty-prod-storage";
+
+// Add environment variable for S3 bucket URL
+const S3_BUCKET_URL = `https://${S3_BUCKET_NAME}.s3.amazonaws.com`;
+
 interface NewListingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -324,6 +331,9 @@ export default function NewListingModal({
 
   const handleSubmit = async (data: ListingFormData) => {
     try {
+      // Get token early
+      const token = (await session?.getToken()) || undefined;
+
       if (selectedPhotos.size === 0) {
         toast.error("Please select at least one photo");
         return;
@@ -354,6 +364,7 @@ export default function NewListingModal({
             id: photo.id,
             s3Key: "", // Will be populated after actual upload
             url: photo.previewUrl, // Use preview URL temporarily
+            bucket: S3_BUCKET_NAME, // Add bucket name
           }))
         );
 
@@ -399,7 +410,7 @@ export default function NewListingModal({
           setProgress(Math.round(scaledProgress));
         };
 
-        // Before uploading to S3, convert ProcessedPhoto to File
+        // 1. Upload photos to S3 first
         const filesToUpload = processedFiles.map(
           (photo) =>
             new File([photo.webpBlob], `${photo.id}.webp`, {
@@ -409,12 +420,59 @@ export default function NewListingModal({
 
         uploadResults = await uploadToS3(filesToUpload, true, onUploadProgress);
 
+        // 2. Verify uploads completed successfully
+        setStatus("Verifying uploads...");
+        let verificationAttempts = 0;
+        const maxVerificationAttempts = 3;
+        const verificationDelay = 1000; // 1 second delay between attempts
+
+        while (verificationAttempts < maxVerificationAttempts) {
+          try {
+            await makeBackendRequest<void>("/api/photos/verify", {
+              method: "POST",
+              sessionToken: token,
+              body: {
+                photos: uploadResults.map((result: UploadResult) => ({
+                  id: result.id,
+                  s3Key: result.s3Key,
+                })),
+              },
+            });
+            // If verification succeeds, break out of the loop
+            break;
+          } catch (error) {
+            verificationAttempts++;
+            console.error(
+              `Upload verification attempt ${verificationAttempts} failed:`,
+              error
+            );
+
+            if (verificationAttempts === maxVerificationAttempts) {
+              throw new Error(
+                "Failed to verify photo uploads after multiple attempts. Please try again."
+              );
+            }
+
+            // Wait before retrying
+            await new Promise((resolve) =>
+              setTimeout(resolve, verificationDelay)
+            );
+            setStatus(
+              `Retrying verification (attempt ${
+                verificationAttempts + 1
+              }/${maxVerificationAttempts})...`
+            );
+          }
+        }
+
         // Save metadata to session
         savePhotos(
           uploadResults.map((result: UploadResult) => ({
             id: result.id,
             s3Key: result.s3Key,
-            url: result.url,
+            url: `${S3_BUCKET_URL}/${result.s3Key}`,
+            bucket: S3_BUCKET_NAME,
+            filePath: `${S3_BUCKET_URL}/${result.s3Key}`,
           }))
         );
       }
@@ -425,48 +483,22 @@ export default function NewListingModal({
         return;
       }
 
-      // 3. Create the listing
-      setStatus("Creating listing...");
-      setProgress(60);
-
+      // 3. Create listing with the uploaded photo information
       const listingData = {
         ...data,
         photoLimit: selectedPhotos.size,
+        photos: uploadResults.map((result: UploadResult) => ({
+          id: result.id,
+          s3Key: result.s3Key,
+          filePath: `${S3_BUCKET_URL}/${result.s3Key}`,
+        })),
       };
 
-      let createdListing;
+      const createdListing = await createListing.mutateAsync(listingData);
 
-      // If we have a temp listing ID, convert it to a real listing
-      if (tempListingId) {
-        // First, ensure we have the temp upload
-        const tempUploadResponse = await fetch(
-          `/api/temp-uploads/${tempListingId}`
-        );
-        const tempUpload = await tempUploadResponse.json();
-
-        if (!tempUpload) {
-          throw new Error("Temp upload not found");
-        }
-
-        // Convert temp upload to listing
-        createdListing = await createListing.mutateAsync({
-          ...listingData,
-          tempId: tempListingId,
-        });
-      } else {
-        // Create new listing directly
-        createdListing = await createListing.mutateAsync(listingData);
-      }
-
-      if (!createdListing?.id) {
-        throw new Error("Failed to create listing");
-      }
-
-      // 4. Notify backend to process photos
+      // 4. Trigger photo processing with verified photos
       setStatus("Processing photos...");
       setProgress(80);
-
-      const token = (await session?.getToken()) || undefined;
 
       await makeBackendRequest<void>(
         `/api/listings/${createdListing.id}/process-photos`,
@@ -501,24 +533,32 @@ export default function NewListingModal({
       }, 1000);
     } catch (error) {
       console.error("[SUBMISSION_ERROR]", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to create listing"
-      );
+
+      // More specific error handling
+      let errorMessage = "Failed to create listing. Please try again.";
 
       if (error instanceof Error) {
+        // Handle specific error cases
         if (error.message.includes("address")) {
           form.setError("address", {
             type: "manual",
             message: error.message,
           });
-        } else {
-          // Set a generic form error
-          form.setError("root", {
-            type: "manual",
-            message: "Failed to create listing",
-          });
+          errorMessage = error.message;
+        } else if (error.message.includes("photo")) {
+          errorMessage = error.message;
+        } else if (error.message.includes("verification")) {
+          errorMessage = "Failed to verify uploaded photos. Please try again.";
         }
+
+        // Set root error for generic cases
+        form.setError("root", {
+          type: "manual",
+          message: errorMessage,
+        });
       }
+
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
       setProgress(0);

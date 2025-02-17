@@ -6,12 +6,19 @@ import crypto from "crypto";
 export const runtime = "nodejs";
 
 // Validate environment variables
-if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_BUCKET) {
-  console.error("[PRESIGNED_URL_ERROR] Missing required environment variables", {
-    AWS_ACCESS_KEY_ID: !!process.env.AWS_ACCESS_KEY_ID,
-    AWS_SECRET_ACCESS_KEY: !!process.env.AWS_SECRET_ACCESS_KEY,
-    AWS_BUCKET: !!process.env.AWS_BUCKET,
-  });
+if (
+  !process.env.AWS_ACCESS_KEY_ID ||
+  !process.env.AWS_SECRET_ACCESS_KEY ||
+  !process.env.AWS_BUCKET
+) {
+  console.error(
+    "[PRESIGNED_URL_ERROR] Missing required environment variables",
+    {
+      AWS_ACCESS_KEY_ID: !!process.env.AWS_ACCESS_KEY_ID,
+      AWS_SECRET_ACCESS_KEY: !!process.env.AWS_SECRET_ACCESS_KEY,
+      AWS_BUCKET: !!process.env.AWS_BUCKET,
+    }
+  );
   throw new Error("Missing required environment variables");
 }
 
@@ -45,8 +52,8 @@ export async function POST(request: Request) {
         status: 400,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+        },
       });
     }
 
@@ -54,13 +61,16 @@ export async function POST(request: Request) {
 
     // Validate required fields
     if (!filename || !contentType) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
-        status: 400,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
+      return new Response(
+        JSON.stringify({ error: "Missing required fields" }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
     }
 
     // Get current user if authenticated
@@ -69,16 +79,19 @@ export async function POST(request: Request) {
 
     // For non-temporary uploads, require authentication
     if (!isTemporary && !userId) {
-      return new Response(JSON.stringify({ 
-        error: "Authentication required", 
-        authRequired: true 
-      }), {
-        status: 403,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json"
+      return new Response(
+        JSON.stringify({
+          error: "Authentication required",
+          authRequired: true,
+        }),
+        {
+          status: 403,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
     }
 
     // For temporary uploads, we need either a sessionId or create a new one
@@ -89,13 +102,13 @@ export async function POST(request: Request) {
     // Generate a unique key for the file
     const fileExtension = filename.split(".").pop();
     const randomString = crypto.randomBytes(8).toString("hex");
-    const key = isTemporary
-      ? `temp/${uploadSessionId}/${randomString}.${fileExtension}`
-      : `${uploadSessionId}/${randomString}.${fileExtension}`;
+    const key = userId
+      ? `users/${userId}/listings/${randomString}.${fileExtension}` // Authenticated users: store in their listings directory
+      : `temp/${uploadSessionId}/${randomString}.${fileExtension}`; // Guest users: store in temp directory
 
     // Create the presigned URL
     const command = new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET,  // We validated this earlier
+      Bucket: process.env.AWS_BUCKET, // We validated this earlier
       Key: key,
       ContentType: contentType,
       Metadata: {
@@ -110,35 +123,41 @@ export async function POST(request: Request) {
 
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
 
-    return new Response(JSON.stringify({
-      url,
-      key,
-      sessionId: isTemporary ? uploadSessionId : undefined,
-    }), {
-      status: 200,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-        ...(session
-          ? { Authorization: `Bearer ${await session.getToken()}` }
-          : {}),
-      },
-    });
+    return new Response(
+      JSON.stringify({
+        url,
+        key,
+        sessionId: isTemporary ? uploadSessionId : undefined,
+      }),
+      {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          ...(session
+            ? { Authorization: `Bearer ${await session.getToken()}` }
+            : {}),
+        },
+      }
+    );
   } catch (error) {
     console.error("[PRESIGNED_URL_ERROR]", {
       error: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
     });
 
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Internal Server Error" 
-    }), {
-      status: 500,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal Server Error",
+      }),
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
       }
-    });
+    );
   }
 }
 
@@ -146,6 +165,6 @@ export async function POST(request: Request) {
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
-    headers: corsHeaders
+    headers: corsHeaders,
   });
 }

@@ -1,107 +1,69 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import PricingModal from "@/components/reelty/PricingModal";
 import { useAuth } from "@clerk/nextjs";
-import { SubscriptionStatus } from "@/components/subscription/SubscriptionStatus";
-import { TierComparisonTable } from "@/components/subscription/TierComparisonTable";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { CreditCard, Receipt, History } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { SubscriptionStatus } from "@/types/subscription";
 
 interface SubscriptionData {
-  subscription: any;
-  invoices: any[];
-  usageStats: any;
+  id: string;
+  plan: string;
+  status: string;
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
 }
 
-// Data fetching functions
-const fetchSubscriptionData = async (
-  userId: string
-): Promise<SubscriptionData> => {
-  const [subResponse, invoicesResponse, statsResponse] = await Promise.all([
-    fetch(`/api/subscription/status?userId=${userId}`),
-    fetch(`/api/subscription/invoices?userId=${userId}`),
-    fetch(`/api/subscription/usage?userId=${userId}`),
-  ]);
-
-  if (!subResponse.ok || !invoicesResponse.ok || !statsResponse.ok) {
-    throw new Error("Failed to load subscription data");
-  }
-
-  const [subscription, { invoices }, usageStats] = await Promise.all([
-    subResponse.json(),
-    invoicesResponse.json(),
-    statsResponse.json(),
-  ]);
-
-  return { subscription, invoices, usageStats };
-};
-
-const createPortalSession = async (
-  userId: string
-): Promise<{ url: string }> => {
-  const response = await fetch("/api/stripe/create-portal-session", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ userId }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to create portal session");
-  }
-
-  return response.json();
-};
-
 export default function BillingSettings() {
-  const { userId } = useAuth();
-  const queryClient = useQueryClient();
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(
+    null
+  );
+  const [loading, setLoading] = useState(true);
+  const { getToken, userId } = useAuth();
 
-  // Query for subscription data
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["subscription", userId],
-    queryFn: () => fetchSubscriptionData(userId!),
-    enabled: !!userId,
-  });
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      try {
+        if (!userId) {
+          return;
+        }
 
-  // Mutation for managing subscription
-  const { mutate: manageSubscription, isPending: isManaging } = useMutation({
-    mutationFn: () => createPortalSession(userId!),
-    onSuccess: ({ url }) => {
-      window.location.href = url;
-    },
-    onError: () => {
-      toast.error("Failed to open billing portal");
-    },
-  });
+        const token = await getToken();
+        const response = await fetch(
+          `/api/subscription/status?userId=${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-  if (isLoading) {
-    return (
-      <div className='max-w-[800px] mx-auto px-4 py-16'>
-        <div className='animate-pulse'>Loading...</div>
-      </div>
-    );
-  }
+        if (!response.ok) {
+          throw new Error("Failed to fetch subscription status");
+        }
 
-  if (error) {
-    return (
-      <div className='max-w-[800px] mx-auto px-4 py-16'>
-        <div className='text-red-500'>Error loading subscription data</div>
-      </div>
-    );
-  }
+        const { data } = await response.json();
+        setSubscription(data);
+      } catch (error) {
+        console.error("Error fetching subscription:", error);
+        toast.error("Failed to load subscription details");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const { subscription, invoices, usageStats } = data!;
+    fetchSubscription();
+  }, [getToken, userId]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   return (
     <div className='max-w-[800px] mx-auto px-4 py-16'>
@@ -109,109 +71,57 @@ export default function BillingSettings() {
         Billing
       </h1>
 
-      {/* Current Plan Section */}
+      {/* Current Plans Section */}
       <div className='mb-16'>
         <h2 className='text-[22px] font-semibold text-[#1c1c1c] mb-6'>
-          Current Plan
+          Current plan
         </h2>
-        <Card className='mb-8'>
-          <CardContent className='pt-6'>
-            <SubscriptionStatus
-              status={subscription?.status}
-              tier={subscription?.tier}
-              creditsUsed={usageStats?.creditsUsed || 0}
-              activeListings={usageStats?.activeListings || 0}
-              periodEnd={
-                subscription?.periodEnd
-                  ? new Date(subscription.periodEnd)
-                  : undefined
-              }
-              onManageSubscription={() => manageSubscription()}
-            />
-          </CardContent>
-        </Card>
 
-        {/* Quick Actions */}
-        <div className='flex gap-4'>
-          <Button
-            onClick={() => manageSubscription()}
-            className='flex items-center gap-2'
-            variant='outline'
-            disabled={isManaging}
-          >
-            <CreditCard className='h-4 w-4' />
-            {isManaging ? "Loading..." : "Update Payment Method"}
-          </Button>
-          <Button
-            onClick={() =>
-              window.open("/api/subscription/download-invoices", "_blank")
-            }
-            className='flex items-center gap-2'
-            variant='outline'
-          >
-            <Receipt className='h-4 w-4' />
-            Download Invoices
-          </Button>
-        </div>
-      </div>
-
-      {/* Usage Section */}
-      <div className='mb-16'>
-        <h2 className='text-[22px] font-semibold text-[#1c1c1c] mb-6'>
-          Usage & Limits
-        </h2>
-        <Card>
-          <CardContent className='pt-6'>
-            <TierComparisonTable
-              features={[
-                {
-                  name: "Credits",
-                  description: "Monthly credits allocation",
-                },
-                {
-                  name: "Active Listings",
-                  description: "Maximum concurrent listings",
-                },
-                {
-                  name: "Photos per Listing",
-                  description: "Maximum photos per listing",
-                },
-                {
-                  name: "Premium Templates",
-                  description: "Access to premium video templates",
-                },
-              ]}
-              tiers={[
-                {
-                  name: subscription?.tier?.name || "Current Plan",
-                  price: subscription?.tier?.monthlyPrice || 0,
-                  features: {
-                    Credits: {
-                      included: true,
-                      value: `${usageStats?.creditsUsed || 0}/${
-                        subscription?.tier?.creditsPerInterval || 0
-                      }`,
-                    },
-                    "Active Listings": {
-                      included: true,
-                      value: `${usageStats?.activeListings || 0}/${
-                        subscription?.tier?.maxActiveListings || 0
-                      }`,
-                    },
-                    "Photos per Listing": {
-                      included: true,
-                      value: subscription?.tier?.maxPhotosPerListing,
-                    },
-                    "Premium Templates": {
-                      included: subscription?.tier?.premiumTemplatesEnabled,
-                    },
-                  },
-                },
-              ]}
-              currentTierId={subscription?.tier?.id}
-            />
-          </CardContent>
-        </Card>
+        {loading ? (
+          <div className='flex items-center gap-2 text-[15px] text-[#6B7280]'>
+            <Loader2 className='w-4 h-4 animate-spin' />
+            Loading subscription details...
+          </div>
+        ) : subscription && subscription.status === "active" ? (
+          <div className='space-y-4'>
+            <div className='bg-white border rounded-xl p-6'>
+              <div className='flex justify-between items-start'>
+                <div>
+                  <h3 className='text-[18px] font-semibold text-[#1c1c1c] mb-1 capitalize'>
+                    {subscription.plan}
+                  </h3>
+                  <p className='text-[15px] text-[#6B7280]'>
+                    Active until {formatDate(subscription.currentPeriodEnd)}
+                  </p>
+                  {subscription.cancelAtPeriodEnd && (
+                    <p className='text-[15px] text-red-500 mt-2'>
+                      Your subscription will be canceled at the end of the
+                      current period
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setIsPricingOpen(true)}
+                  className='bg-[#1c1c1c] text-white px-4 py-2 rounded-lg text-[14px] font-medium hover:bg-[#2c2c2c]'
+                >
+                  Change plan
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className='space-y-4'>
+            <p className='text-[15px] text-[#6B7280]'>
+              You don't have an active subscription.
+            </p>
+            <button
+              onClick={() => setIsPricingOpen(true)}
+              className='bg-[#1c1c1c] text-white px-6 py-3 rounded-full text-[15px] font-semibold hover:bg-[#2c2c2c]'
+            >
+              Choose a plan
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Invoices Section */}
@@ -219,58 +129,20 @@ export default function BillingSettings() {
         <h2 className='text-[22px] font-semibold text-[#1c1c1c] mb-6'>
           Invoices
         </h2>
-        <Card>
-          <CardContent className='pt-6'>
-            {invoices.length > 0 ? (
-              <div className='space-y-4'>
-                {invoices.map((invoice) => (
-                  <div
-                    key={invoice.id}
-                    className='flex items-center justify-between py-4 border-b last:border-0'
-                  >
-                    <div className='flex items-center gap-4'>
-                      <History className='h-4 w-4 text-muted-foreground' />
-                      <div>
-                        <div className='font-medium'>
-                          {new Date(
-                            invoice.created * 1000
-                          ).toLocaleDateString()}
-                        </div>
-                        <div className='text-sm text-muted-foreground'>
-                          {invoice.status === "paid"
-                            ? "Payment successful"
-                            : "Payment failed"}
-                        </div>
-                      </div>
-                    </div>
-                    <div className='flex items-center gap-4'>
-                      <div className='text-right'>
-                        <div className='font-medium'>
-                          ${(invoice.amount_paid / 100).toFixed(2)}
-                        </div>
-                        <div className='text-sm text-muted-foreground'>
-                          {invoice.status}
-                        </div>
-                      </div>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={() =>
-                          window.open(invoice.invoice_pdf, "_blank")
-                        }
-                      >
-                        <Receipt className='h-4 w-4' />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className='text-[15px] text-[#6B7280]'>No invoices.</div>
-            )}
-          </CardContent>
-        </Card>
+        <div className='text-[15px] text-[#6B7280]'>No invoices.</div>
       </div>
+
+      <PricingModal
+        isOpen={isPricingOpen}
+        onClose={() => setIsPricingOpen(false)}
+        listingId=''
+        onUpgradeComplete={() => {
+          setIsPricingOpen(false);
+          window.location.reload(); // Refresh to show updated subscription
+        }}
+        currentTier={subscription?.plan}
+        currentStatus={subscription?.status as SubscriptionStatus}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { ProcessedPhoto } from "./use-photo-processing";
+import { useAuth } from "@clerk/nextjs";
 
 interface UploadProgress {
   [key: string]: number;
@@ -9,6 +10,7 @@ interface UploadResult {
   id: string;
   s3Key: string;
   url: string;
+  sessionId?: string;
 }
 
 interface UseS3UploadReturn {
@@ -28,6 +30,8 @@ interface PresignedUrlResponse {
 }
 
 export function useS3Upload() {
+  const { userId } = useAuth();
+
   return async function uploadToS3(
     files: File[],
     isListing: boolean = false,
@@ -36,30 +40,53 @@ export function useS3Upload() {
     const results = [];
 
     for (const [index, file] of files.entries()) {
-      // Generate a unique ID for this upload
+      // Generate a unique ID for this upload that will also serve as the temp folder name
       const uploadId = crypto.randomUUID();
 
-      // Determine the temp path
-      const tempKey = `temp/${uploadId}/${file.name}`;
-
       // Get presigned URL for upload
-      const presignedUrl = await fetch("/api/s3/presigned-url", {
+      const presignedUrl = await fetch("/api/storage/presigned-url", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          fileName: file.name,
+          filename: file.name,
           contentType: file.type,
-          tempKey,
+          // Only set isTemporary and use uploadId as sessionId for guest users
+          ...(isListing &&
+            !userId && {
+              isTemporary: true,
+              sessionId: uploadId, // Use uploadId as sessionId for each file
+            }),
+          // For authenticated users, we don't need temporary storage
+          ...(userId && {
+            isTemporary: false,
+          }),
         }),
-      }).then((r) => r.json());
+      }).then(async (r) => {
+        if (!r.ok) {
+          const error = await r.text();
+          throw new Error(`Failed to get presigned URL: ${error}`);
+        }
+        return r.json();
+      });
+
+      if (!presignedUrl.url || !presignedUrl.key) {
+        throw new Error("Invalid presigned URL response");
+      }
 
       // Upload file
-      await fetch(presignedUrl.url, {
+      const uploadResponse = await fetch(presignedUrl.url, {
         method: "PUT",
         body: file,
         headers: {
           "Content-Type": file.type,
         },
       });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload file: ${uploadResponse.statusText}`);
+      }
 
       // Track progress
       if (onProgress) {
@@ -68,8 +95,9 @@ export function useS3Upload() {
 
       results.push({
         id: uploadId,
-        s3Key: tempKey,
-        url: `https://${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.amazonaws.com/${tempKey}`,
+        s3Key: presignedUrl.key,
+        url: `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.amazonaws.com/${presignedUrl.key}`,
+        sessionId: uploadId, // Include the uploadId as sessionId in the result
       });
     }
 

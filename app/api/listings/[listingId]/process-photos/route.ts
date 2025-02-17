@@ -5,7 +5,7 @@ export const runtime = "edge";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { listingId: string } }
+  { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
     // Verify authentication
@@ -16,7 +16,7 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { listingId } = params;
+    const { listingId } = await params;
     const body = await request.json();
 
     // Forward the request to our backend

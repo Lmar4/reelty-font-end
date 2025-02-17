@@ -1,10 +1,9 @@
-import { NextResponse } from "next/server";
 import {
-  withAuth,
-  makeBackendRequest,
   AuthenticatedRequest,
+  makeBackendRequest,
+  withAuth,
 } from "@/utils/withAuth";
-import Stripe from "stripe";
+import { NextResponse } from "next/server";
 
 interface Invoice {
   id: string;
@@ -38,18 +37,21 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    const queryParams = new URLSearchParams();
+    queryParams.append("userId", userId);
+    queryParams.append("limit", limit);
+    if (starting_after) {
+      queryParams.append("starting_after", starting_after);
+    }
+
     const invoices = await makeBackendRequest<InvoicesResponse>(
-      `/api/subscription/invoices/${userId}`,
+      `/api/subscription/invoices?${queryParams.toString()}`,
       {
         sessionToken: request.auth.sessionToken,
-        headers: {
-          "X-Pagination-Limit": limit,
-          ...(starting_after && { "X-Pagination-After": starting_after }),
-        },
       }
     );
 
-    return NextResponse.json(invoices);
+    return NextResponse.json({ data: invoices });
   } catch (error) {
     console.error("[SUBSCRIPTION_INVOICES_GET]", error);
     return NextResponse.json(

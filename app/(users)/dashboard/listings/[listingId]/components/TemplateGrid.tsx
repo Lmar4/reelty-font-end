@@ -15,122 +15,123 @@ interface TemplateGridProps {
 }
 
 export function TemplateGrid({
-  templates = [],
-  photos = [],
+  templates,
+  photos,
   isLoading,
   userTier,
   activeJobs = [],
   onGenerateVideo,
 }: TemplateGridProps) {
-  if (isLoading) {
+  // Check if any job is currently processing
+  const isProcessing = activeJobs.some(
+    (job) => job.status === "PROCESSING" || job.status === "QUEUED"
+  );
+
+  if (isLoading || !templates) {
     return (
       <>
-        {Array.from({ length: 4 }).map((_, i) => (
-          <TemplateSkeleton key={i} />
-        ))}
+        <TemplateSkeleton />
+        <TemplateSkeleton />
+        <TemplateSkeleton />
       </>
     );
   }
 
-  // Get the first two photos for photo-based templates
-  const photoTemplates = photos.slice(0, 2).map((photo, index) => {
-    // Clean the URL by removing query parameters
-    const url = photo.processedFilePath || photo.filePath;
-    const cleanUrl = url.includes("?") ? url.split("?")[0] : url;
+  // If processing, show a loading state with more information
+  if (isProcessing) {
+    const processingJob = activeJobs.find(
+      (job) => job.status === "PROCESSING" || job.status === "QUEUED"
+    );
 
-    return {
-      id: `photo-${photo.id}`,
-      name: `Photo Reel ${index + 1}`,
-      description: "Generated from your photo",
-      tiers: ["free"],
-      order: 1000 + index, // High order number to ensure they appear last
-      thumbnailUrl: cleanUrl,
-    };
-  });
+    return (
+      <div className='col-span-full'>
+        <Card className='p-6 space-y-4'>
+          <div className='flex items-center space-x-4'>
+            <div className='w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center'>
+              <Loader2 className='w-6 h-6 text-blue-600 animate-spin' />
+            </div>
+            <div>
+              <h3 className='text-lg font-semibold'>Generating Your Video</h3>
+              <p className='text-sm text-gray-500'>
+                {processingJob?.metadata?.stage === "webp"
+                  ? "Optimizing your photos for the best quality..."
+                  : processingJob?.metadata?.stage === "runway"
+                  ? "Applying AI enhancements to your photos..."
+                  : processingJob?.metadata?.stage === "template"
+                  ? "Creating your video with the selected template..."
+                  : processingJob?.metadata?.stage === "final"
+                  ? "Finalizing your video..."
+                  : "Processing your video..."}
+              </p>
+            </div>
+          </div>
 
-  // Combine video templates with photo templates and sort by order
-  const allTemplates = [...templates, ...photoTemplates]
-    .sort((a, b) => (a.order || 0) - (b.order || 0))
-    .slice(0, 6); // Limit to 6 items total
-
-  if (!allTemplates?.length) {
-    return null;
+          <div className='space-y-2'>
+            <div className='w-full bg-gray-100 rounded-full h-2'>
+              <div
+                className='bg-blue-600 h-2 rounded-full transition-all duration-500'
+                style={{ width: `${processingJob?.progress || 0}%` }}
+              />
+            </div>
+            <div className='flex justify-between text-sm text-gray-500'>
+              <span>Progress: {processingJob?.progress || 0}%</span>
+              {processingJob?.metadata?.currentFile &&
+                processingJob?.metadata?.totalFiles && (
+                  <span>
+                    Processing file {processingJob.metadata.currentFile} of{" "}
+                    {processingJob.metadata.totalFiles}
+                  </span>
+                )}
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (
     <>
-      {allTemplates.map((template) => {
-        const isTemplateAvailable = template.tiers.includes(
-          userTier.toLowerCase()
+      {templates.map((template) => {
+        const isGenerating = activeJobs.some(
+          (job) =>
+            job.template === template.id &&
+            (job.status === "PROCESSING" || job.status === "QUEUED")
         );
-        const isPhotoTemplate = template.id.startsWith("photo-");
-        const activeJob = activeJobs.find((job) =>
-          isPhotoTemplate
-            ? job.inputFiles?.includes(template.thumbnailUrl)
-            : job.template === template.id
-        );
-        const isProcessing = activeJob?.status === "PROCESSING";
-        const isCompleted = activeJob?.status === "COMPLETED";
-        const isFailed = activeJob?.status === "FAILED";
 
         return (
-          <Card key={template.id} className='overflow-hidden group'>
-            <div className='relative aspect-[9/16] bg-gray-100'>
-              {template.thumbnailUrl ? (
+          <Card
+            key={template.id}
+            className='relative overflow-hidden group hover:shadow-lg transition-shadow duration-200'
+          >
+            {template.thumbnailUrl && (
+              <div className='relative aspect-video'>
                 <Image
                   src={template.thumbnailUrl}
                   alt={template.name}
                   fill
                   className='object-cover'
-                  sizes='(max-width: 768px) 50vw, 25vw'
                 />
-              ) : (
-                <div className='absolute inset-0 bg-muted' />
-              )}
-              {!isTemplateAvailable && (
-                <div className='absolute inset-0 bg-black/50 flex items-center justify-center'>
-                  <span className='text-white text-sm font-medium px-3 py-1 bg-black/70 rounded-full'>
-                    Pro
-                  </span>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
             <div className='p-4'>
-              <h3 className='text-base font-medium'>{template.name}</h3>
-              <p className='text-sm text-muted-foreground mt-1 line-clamp-2'>
+              <h3 className='font-semibold'>{template.name}</h3>
+              <p className='text-sm text-gray-500 mt-1'>
                 {template.description}
               </p>
-              {isProcessing ? (
-                <div className='mt-4 space-y-2'>
-                  <div className='flex items-center justify-between text-sm'>
-                    <span className='text-muted-foreground'>Processing...</span>
-                    <span className='text-muted-foreground'>
-                      {activeJob.progress}%
-                    </span>
-                  </div>
-                  <div className='w-full bg-gray-100 rounded-full h-1.5'>
-                    <div
-                      className='bg-blue-600 h-1.5 rounded-full transition-all duration-300'
-                      style={{ width: `${activeJob.progress}%` }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  className='w-full mt-4'
-                  variant={isCompleted ? "outline" : "default"}
-                  disabled={!isTemplateAvailable || isProcessing}
-                  onClick={() => onGenerateVideo(template.id)}
-                >
-                  {isCompleted
-                    ? "Download HD"
-                    : isFailed
-                    ? "Try Again"
-                    : !isTemplateAvailable
-                    ? "Upgrade Required"
-                    : "Generate Video"}
-                </Button>
-              )}
+              <Button
+                onClick={() => onGenerateVideo(template.id)}
+                disabled={isGenerating || !photos?.length}
+                className='w-full mt-4'
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Video"
+                )}
+              </Button>
             </div>
           </Card>
         );

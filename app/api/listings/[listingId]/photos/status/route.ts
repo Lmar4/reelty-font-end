@@ -30,12 +30,7 @@ export const GET = withAuth(
         }
       );
 
-      const response = new NextResponse(JSON.stringify(status));
-      response.headers.set("Content-Type", "text/event-stream");
-      response.headers.set("Cache-Control", "no-cache");
-      response.headers.set("Connection", "keep-alive");
-
-      return response;
+      return NextResponse.json(status);
     } catch (error) {
       logger.error("[PHOTOS_STATUS_ERROR]", error);
       return new NextResponse("Internal Error", { status: 500 });

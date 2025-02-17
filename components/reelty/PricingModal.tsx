@@ -1,11 +1,23 @@
-import PricingCards from "./PricingCards";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import PricingCards from "./PricingCards";
+
+type SubscriptionStatus =
+  | "ACTIVE"
+  | "CANCELED"
+  | "INCOMPLETE"
+  | "INCOMPLETE_EXPIRED"
+  | "PAST_DUE"
+  | "TRIALING"
+  | "UNPAID"
+  | "INACTIVE";
 
 interface PricingModalProps {
   isOpen: boolean;
   onClose: () => void;
   listingId: string;
   onUpgradeComplete: () => void;
+  currentTier?: string;
+  currentStatus?: SubscriptionStatus;
 }
 
 export default function PricingModal({
@@ -13,6 +25,8 @@ export default function PricingModal({
   onClose,
   listingId,
   onUpgradeComplete,
+  currentTier,
+  currentStatus,
 }: PricingModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -20,7 +34,12 @@ export default function PricingModal({
         <DialogTitle className='text-xl font-semibold text-center mb-6'>
           Choose a plan to continue and unlock Premium features!
         </DialogTitle>
-        <PricingCards isModal={true} />
+        <PricingCards
+          isModal={true}
+          onUpgradeComplete={onUpgradeComplete}
+          currentTier={currentTier}
+          currentStatus={currentStatus}
+        />
       </DialogContent>
     </Dialog>
   );

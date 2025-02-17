@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/components/common/Toast";
+
 import { DashboardUpload } from "@/components/reelty/DashboardUpload";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ListingGrid } from "@/components/listings/ListingGrid";
@@ -13,7 +13,7 @@ import NewListingModal from "@/components/reelty/NewListingModal";
 
 export default function DashboardPage() {
   const { user: clerkUser } = useClerkUser();
-  const { showToast } = useToast();
+
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);

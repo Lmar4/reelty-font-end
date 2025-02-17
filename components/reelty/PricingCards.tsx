@@ -35,19 +35,50 @@ export default function PricingCards({
     "monthly"
   );
   const [loading, setLoading] = useState<string | null>(null);
-  const router = useRouter();
-  const { userId } = useAuth();
+
+  const { userId, getToken } = useAuth();
 
   const prices = {
-    basic: billingType === "credits" ? 49 : 39,
-    pro: billingType === "credits" ? 79 : 149,
-    proPlus: billingType === "credits" ? 189 : 299,
+    basic: billingType === "credits" ? 59 : 39,
+    pro: billingType === "credits" ? 236 : 129,
+    proPlus: billingType === "credits" ? 590 : 249,
   };
 
   const credits = {
     basic: billingType === "credits" ? 1 : 1,
-    pro: billingType === "credits" ? 2 : 5,
-    proPlus: billingType === "credits" ? 5 : 12,
+    pro: billingType === "credits" ? 4 : 4,
+    proPlus: billingType === "credits" ? 10 : 10,
+  };
+
+  const reelLimits = {
+    payg: 3,
+    subscription: 6,
+  };
+
+  const getPlanName = (plan: string) => {
+    if (billingType === "credits") {
+      switch (plan) {
+        case "basic":
+          return "1 Credit";
+        case "pro":
+          return "4 Credits";
+        case "proPlus":
+          return "10 Credits";
+        default:
+          return plan;
+      }
+    } else {
+      switch (plan) {
+        case "basic":
+          return "Reelty";
+        case "pro":
+          return "Reelty Pro";
+        case "proPlus":
+          return "Reelty Pro+";
+        default:
+          return plan;
+      }
+    }
   };
 
   const handleSubscribe = async (plan: string) => {
@@ -58,6 +89,7 @@ export default function PricingCards({
       }
 
       setLoading(plan);
+      const token = await getToken();
 
       // If user is already subscribed and trying to change plan
       if (currentTier && currentStatus === "ACTIVE") {
@@ -65,10 +97,11 @@ export default function PricingCards({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             userId,
-            newPlan: plan,
+            newPlan: getPlanName(plan),
             billingType,
           }),
         });
@@ -87,30 +120,40 @@ export default function PricingCards({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           userId,
-          plan,
+          plan: getPlanName(plan),
           billingType,
           returnUrl: window.location.href,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create checkout session");
+        const errorText = await response.text();
+        console.error("Checkout error details:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+        });
+        throw new Error(`Failed to create checkout session: ${errorText}`);
       }
 
-      const data = await response.json();
-
-      // If in modal, call the completion handler
-      if (isModal && onUpgradeComplete) {
-        onUpgradeComplete();
+      const { data } = await response.json();
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("Invalid checkout response:", data);
+        throw new Error("Invalid checkout session response");
       }
-
-      window.location.href = data.url;
     } catch (error) {
       console.error("Subscription error:", error);
-      toast.error("Failed to process subscription. Please try again.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to process subscription"
+      );
     } finally {
       setLoading(null);
     }
@@ -132,7 +175,7 @@ export default function PricingCards({
         <div className='bg-[#F3F4F6] rounded-full p-1 inline-flex'>
           <button
             onClick={() => setBillingType("credits")}
-            className={`px-6 py-2 rounded-full text-[15px] font-medium transition-all ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-[13px] sm:text-[15px] font-medium transition-all ${
               billingType === "credits"
                 ? "bg-white text-[#1c1c1c] shadow-sm"
                 : "text-[#6B7280]"
@@ -142,15 +185,15 @@ export default function PricingCards({
           </button>
           <button
             onClick={() => setBillingType("monthly")}
-            className={`px-6 py-2 rounded-full text-[15px] font-medium flex items-center gap-2 transition-all ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-[13px] sm:text-[15px] font-medium flex items-center gap-2 transition-all ${
               billingType === "monthly"
                 ? "bg-white text-[#1c1c1c] shadow-sm"
                 : "text-[#6B7280]"
             }`}
           >
             Monthly
-            <span className='px-2 py-0.5 bg-[#22C55E]/10 text-[#22C55E] text-[13px] rounded-full'>
-              Save 20%
+            <span className='px-2 py-0.5 bg-[#22C55E]/10 text-[#22C55E] text-[11px] sm:text-[13px] rounded-full'>
+              Save 34%
             </span>
           </button>
         </div>
@@ -170,7 +213,7 @@ export default function PricingCards({
                 className='flex-shrink-0'
               />
             ) : (
-              <div className='text-[28px] font-black text-[#1c1c1c] tracking-tight'>
+              <div className='text-[24px] sm:text-[28px] font-black text-[#1c1c1c] tracking-tight'>
                 1 Credit
               </div>
             )}
@@ -178,11 +221,11 @@ export default function PricingCards({
 
           <div className='mb-6 text-center'>
             <div className='flex items-end gap-1 mb-6 justify-center'>
-              <span className='text-[52px] font-semibold text-[#1c1c1c]'>
+              <span className='text-[42px] sm:text-[52px] font-semibold text-[#1c1c1c]'>
                 ${prices.basic}
               </span>
               {billingType === "monthly" && (
-                <span className='text-[15px] font-bold text-[#6B7280] mb-3'>
+                <span className='text-[13px] sm:text-[15px] font-bold text-[#6B7280] mb-3'>
                   /month
                 </span>
               )}
@@ -190,7 +233,7 @@ export default function PricingCards({
             <Button
               onClick={() => handleSubscribe("basic")}
               disabled={loading === "basic" || currentTier === "basic"}
-              className='w-full py-6 rounded-lg border text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]'
+              className='w-full py-3 rounded-lg border text-[13px] sm:text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]'
             >
               {loading === "basic" ? (
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -198,7 +241,7 @@ export default function PricingCards({
                 getButtonText("basic")
               )}
             </Button>
-            <div className='text-[13px] text-center text-[#6B7280] mt-2'>
+            <div className='text-[11px] sm:text-[13px] text-center text-[#6B7280] mt-2'>
               Secured by Stripe
             </div>
           </div>
@@ -208,13 +251,18 @@ export default function PricingCards({
               <Feature text={`${credits.basic} Credit per month`} />
             )}
             <Feature text='Up to 20 Photos per Listing' />
-            <Feature text='Unlimited Reel Downloads' />
+            <Feature
+              text={`${
+                billingType === "monthly"
+                  ? reelLimits.subscription
+                  : reelLimits.payg
+              } Reels per Listing`}
+            />
             <Feature text='No Watermark' />
-            <Feature text='Access to Premium Templates' />
             {billingType === "monthly" && (
               <>
+                <Feature text='Premium Templates' />
                 <Feature text='Credits Roll Over (up to 3 months)' />
-                <Feature text='Priority Support' />
               </>
             )}
           </div>
@@ -238,7 +286,7 @@ export default function PricingCards({
               </div>
             ) : (
               <div className='text-[28px] font-black text-white tracking-tight'>
-                2 Credits
+                4 Credits
               </div>
             )}
           </div>
@@ -255,7 +303,7 @@ export default function PricingCards({
             <Button
               onClick={() => handleSubscribe("pro")}
               disabled={loading === "pro" || currentTier === "pro"}
-              className='w-full py-6 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90'
+              className='w-full py-3 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90'
             >
               {loading === "pro" ? (
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -273,12 +321,19 @@ export default function PricingCards({
               <Feature text={`${credits.pro} Credits per month`} light />
             )}
             <Feature text='Up to 20 Photos per Listing' light />
-            <Feature text='Unlimited Reel Downloads' light />
+            <Feature
+              text={`${
+                billingType === "monthly"
+                  ? reelLimits.subscription
+                  : reelLimits.payg
+              } Reels per Listing`}
+              light
+            />
             <Feature text='No Watermark' light />
-            <Feature text='Access to Premium Templates' light />
             {billingType === "monthly" && (
               <>
-                <Feature text='Credits Roll Over (up to 3 months)' light />
+                <Feature text='Premium Templates' light />
+                <Feature text='Credits Roll Over (up to 6 months)' light />
                 <Feature text='Priority Support' light />
               </>
             )}
@@ -303,7 +358,7 @@ export default function PricingCards({
               </div>
             ) : (
               <div className='text-[28px] font-black text-[#1c1c1c] tracking-tight'>
-                5 Credits
+                10 Credits
               </div>
             )}
           </div>
@@ -322,7 +377,7 @@ export default function PricingCards({
             <Button
               onClick={() => handleSubscribe("proPlus")}
               disabled={loading === "proPlus" || currentTier === "proPlus"}
-              className='w-full py-6 rounded-lg bg-[#1c1c1c] text-white text-[15px] font-semibold hover:bg-black'
+              className='w-full py-3 rounded-lg bg-[#1c1c1c] text-white text-[15px] font-semibold hover:bg-black'
             >
               {loading === "proPlus" ? (
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -340,13 +395,20 @@ export default function PricingCards({
               <Feature text={`${credits.proPlus} Credits per month`} />
             )}
             <Feature text='Up to 20 Photos per Listing' />
-            <Feature text='Unlimited Reel Downloads' />
+            <Feature
+              text={`${
+                billingType === "monthly"
+                  ? reelLimits.subscription
+                  : reelLimits.payg
+              } Reels per Listing`}
+            />
             <Feature text='No Watermark' />
-            <Feature text='Access to Premium Templates' />
             {billingType === "monthly" && (
               <>
-                <Feature text='Credits Roll Over (up to 3 months)' />
+                <Feature text='Premium Templates' />
+                <Feature text='Credits Roll Over (unlimited)' />
                 <Feature text='Priority Support' />
+                <Feature text='Dedicated Account Manager' />
               </>
             )}
           </div>
@@ -373,22 +435,19 @@ function Feature({ text, light = false }: { text: string; light?: boolean }) {
   return (
     <div className='flex items-center gap-3'>
       <svg
-        width='16'
-        height='16'
-        viewBox='0 0 16 16'
+        width='18'
+        height='18'
+        viewBox='0 0 24 24'
         fill='none'
-        xmlns='http://www.w3.org/2000/svg'
+        stroke={light ? "white" : "#1c1c1c"}
+        strokeWidth='1.5'
+        className={light ? "" : ""}
       >
-        <path
-          d='M13.3332 4L5.99984 11.3333L2.6665 8'
-          stroke={light ? "#fff" : "#1c1c1c"}
-          strokeWidth='2'
-          strokeLinecap='round'
-          strokeLinejoin='round'
-        />
+        <circle cx='12' cy='12' r='10' />
+        <path d='M8 12l3 3 6-6' />
       </svg>
       <span
-        className={`text-[15px] ${light ? "text-white" : "text-[#1c1c1c]"}`}
+        className={`text-[13px] sm:text-[15px] ${light ? "text-white" : ""}`}
       >
         {text}
       </span>

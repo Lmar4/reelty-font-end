@@ -10,20 +10,33 @@ export const GET = withAuth(async function GET(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
+  const { listingId } = await params;
+
   try {
-    const { listingId } = await params;
+    if (!listingId) {
+      return new NextResponse("Listing ID is required", { status: 400 });
+    }
 
-    const listing = await makeBackendRequest<Listing>(
-      `/api/listings/${listingId}`,
-      {
-        method: "GET",
-        sessionToken: request.auth.sessionToken,
-      }
-    );
+    const data = await makeBackendRequest(`/api/listings/${listingId}`, {
+      method: "GET",
+      sessionToken: request.auth.sessionToken,
+    });
 
-    return NextResponse.json(listing);
+    if (!data) {
+      return new NextResponse("Listing not found", { status: 404 });
+    }
+
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[LISTING_GET]", error);
+    console.error("[LISTING_API_ERROR]", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      listingId,
+    });
+
+    if (error instanceof Error && error.message.includes("401")) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     return new NextResponse(
       error instanceof Error ? error.message : "Failed to fetch listing",
       { status: 500 }

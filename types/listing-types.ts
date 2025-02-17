@@ -37,4 +37,13 @@ export interface VideoJob {
   error: string | null;
   createdAt: Date;
   updatedAt: Date;
+  metadata?: {
+    userMessage?: string;
+    error?: string;
+    stage?: "webp" | "runway" | "template" | "final";
+    currentFile?: number;
+    totalFiles?: number;
+    startTime?: string;
+    endTime?: string;
+  } | null;
 }

@@ -1,9 +1,9 @@
 "use client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Listing } from "@/types/prisma-types";
-import { toast } from "sonner";
-import { useAuth } from "@clerk/nextjs";
 import { makeBackendRequest } from "@/utils/api";
+import { useAuth } from "@clerk/nextjs";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const LISTINGS_QUERY_KEY = "listings";
 
@@ -52,10 +52,9 @@ async function fetchListingById(id: string, token: string): Promise<Listing> {
 
 interface CreateListingInput {
   address: string;
-  coordinates: { lat: number; lng: number } | null;
+  coordinates: { lat: number; lng: number };
   photoLimit: number;
-  id?: string; // Optional ID for updating existing listings
-  tempId?: string; // Optional ID for temp listings
+  photos: Array<{ id: string; s3Key: string }>;
 }
 
 async function createListing(
@@ -153,52 +152,37 @@ export function useListings(userId: string) {
   });
 }
 
-export function useListing(id: string, options?: { initialData?: Listing }) {
+type ListingQueryKey = readonly ["listing", string];
+
+export const useListing = (listingId: string, initialData?: Listing) => {
   const { getToken } = useAuth();
 
-  return useQuery({
-    queryKey: [LISTINGS_QUERY_KEY, id],
+  return useQuery<Listing, Error, Listing, ListingQueryKey>({
+    queryKey: ["listing", listingId] as const,
     queryFn: async () => {
       const token = await getToken();
-      return fetchListingById(id, token || "");
-    },
-    enabled: !!id,
-    initialData: options?.initialData,
-    refetchInterval: (query) => {
-      const data = query.state.data as Listing | undefined;
-      // If we have data and any photos are still processing, refetch every 5 seconds
-      if (
-        data?.photos?.some(
-          (p: {
-            status: string;
-            processedFilePath: string | null;
-            error: string | null;
-          }) => p.status === "processing" || (!p.processedFilePath && !p.error)
-        )
-      ) {
-        return 5000; // Increased from 2s to 5s
+      if (!token) {
+        throw new Error("Authentication token not found");
       }
-      // Otherwise, don't refetch automatically
-      return false;
+
+      const data = await makeBackendRequest<Listing>(
+        `/api/listings/${listingId}`,
+        {
+          method: "GET",
+          sessionToken: token,
+        }
+      );
+      return data;
     },
-    // Add retry and backoff logic
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     retry: (failureCount, error) => {
-      if (error instanceof Error && error.message.includes("429")) {
-        return failureCount < 3; // Retry up to 3 times for rate limit errors
-      }
-      return failureCount < 2; // Default to 2 retries for other errors
+      if (error.message?.includes("404")) return false;
+      return failureCount < 3;
     },
-    retryDelay: (attemptIndex) => {
-      // Exponential backoff: 2s, 4s, 8s...
-      return Math.min(1000 * Math.pow(2, attemptIndex), 10000);
-    },
-    // Refetch settings
-    refetchOnWindowFocus: false, // Changed to false to reduce requests
-    refetchOnReconnect: true,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
-}
+};
 
 export function useCreateListing() {
   const queryClient = useQueryClient();
@@ -215,6 +199,11 @@ export function useCreateListing() {
         throw new Error("Authentication token not found");
       }
 
+      // Validate that we have photos
+      if (!input.photos || input.photos.length === 0) {
+        throw new Error("At least one photo is required to create a listing");
+      }
+
       const requestBody = {
         address: input.address,
         coordinates: input.coordinates
@@ -225,6 +214,7 @@ export function useCreateListing() {
           : null,
         photoLimit: input.photoLimit,
         description: "",
+        photos: input.photos, // Pass the S3 photo information
       };
 
       try {

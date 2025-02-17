@@ -7,52 +7,18 @@ import { useListing } from "@/hooks/queries/use-listings";
 import { useTemplates } from "@/hooks/queries/use-templates";
 import { useCreateJob } from "@/hooks/use-jobs";
 import type { Photo, VideoJob, VideoTemplate } from "@/types/listing-types";
-import type {
-  JsonValue,
-  Listing,
-  VideoJob as PrismaVideoJob,
-  Template,
-  User,
-} from "@/types/prisma-types";
-import { useAuth, useUser } from "@clerk/nextjs";
+import type { JsonValue, Listing, Template, User } from "@/types/prisma-types";
+import { useUser } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { JobStatusMessage } from "./components/JobStatusMessage";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TemplateGrid } from "./components/TemplateGrid";
 import { VideoJobCard } from "./components/VideoJobCard";
-
-// Extend the Prisma types with our runtime needs
-interface VideoJobStatus extends PrismaVideoJob {
-  progress: number;
-  metadata?: {
-    userMessage?: string;
-    error?: string;
-    stage?: "webp" | "runway" | "template" | "final";
-    currentFile?: number;
-    totalFiles?: number;
-    startTime?: string;
-    endTime?: string;
-  } | null;
-}
+import { useVideoStatus } from "@/hooks/queries/use-video-status";
+import { usePhotoStatus } from "@/hooks/queries/use-photo-status";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
-}
-
-interface ListingData {
-  id: string;
-  currentJobId?: string;
-  userId: string;
-  address: string;
-  description: string | null;
-  coordinates: { lat: number; lng: number };
-  photos: Photo[];
-  videoJobs?: VideoJobStatus[];
-  createdAt: Date;
-  updatedAt: Date;
-  status: string;
-  photoLimit: number;
 }
 
 interface UserData
@@ -118,9 +84,10 @@ function useListingData(
     retryDelay: 1000, // Esperar 1 segundo entre intentos
   });
 
-  const { data: listing, isLoading: isListingLoading } = useListing(listingId, {
-    initialData: initialListing,
-  });
+  const { data: listing, isLoading: isListingLoading } = useListing(
+    listingId,
+    initialListing
+  );
 
   const isLoading = !isUserLoaded || isUserDataLoading || !listing;
 
@@ -177,101 +144,42 @@ const transformPhotos = (photos: Photo[] | undefined) => {
   });
 };
 
-const useVideoJobStatus = (jobId?: string) => {
-  const [jobStatus, setJobStatus] = useState<VideoJobStatus | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const { getToken } = useAuth();
-
-  useEffect(() => {
-    if (!jobId) return;
-
-    let eventSource: EventSource | null = null;
-
-    const connectToStream = async () => {
-      try {
-        // Get fresh token
-        const token = await getToken();
-        if (!token) {
-          setError(new Error("No authentication token available"));
-          return;
-        }
-
-        // Create EventSource connection
-        eventSource = new EventSource(`/api/jobs/${jobId}/status`, {
-          withCredentials: true,
-        });
-
-        // Handle incoming messages
-        eventSource.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            setJobStatus(data);
-
-            // Close connection if job is completed or failed
-            if (["COMPLETED", "FAILED"].includes(data.status)) {
-              eventSource?.close();
-            }
-          } catch (err) {
-            console.error("[STREAM_PARSE_ERROR]", err);
-            setError(
-              err instanceof Error
-                ? err
-                : new Error("Failed to parse job status")
-            );
-          }
-        };
-
-        // Handle connection errors
-        eventSource.onerror = (event) => {
-          console.error("[STREAM_ERROR]", event);
-          setError(new Error("Failed to connect to status stream"));
-          eventSource?.close();
-        };
-      } catch (err) {
-        console.error("[STREAM_CONNECTION_ERROR]", err);
-        setError(
-          err instanceof Error
-            ? err
-            : new Error("Failed to connect to status stream")
-        );
-      }
-    };
-
-    // Initial connection
-    connectToStream();
-
-    // Cleanup
-    return () => {
-      if (eventSource) {
-        eventSource.close();
-      }
-    };
-  }, [jobId, getToken]);
-
-  return {
-    data: jobStatus,
-    error,
-    isLoading: !jobStatus && !error,
-    isError: !!error,
-  };
-};
+const transformVideoJob = (job: any): VideoJob => ({
+  id: job.id,
+  listingId: job.listingId,
+  status: job.status,
+  progress: job.progress || 0,
+  template: job.template,
+  inputFiles: job.inputFiles,
+  outputFile: job.outputFile,
+  thumbnailUrl: job.thumbnailUrl,
+  error: job.error || null,
+  createdAt: new Date(job.createdAt),
+  updatedAt: new Date(job.updatedAt || job.createdAt),
+  metadata: {
+    userMessage: job.metadata?.userMessage,
+    error: job.metadata?.error,
+    stage: job.metadata?.stage,
+    currentFile: job.metadata?.currentFile,
+    totalFiles: job.metadata?.totalFiles,
+    startTime: job.metadata?.startTime,
+    endTime: job.metadata?.endTime,
+  },
+});
 
 const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
-  const { data: jobStatus, error, isLoading } = useVideoJobStatus(jobId);
+  // Early return if no jobId
+  if (!jobId) return null;
 
-  if (isLoading) {
+  const { data: videoData } = useVideoStatus(jobId);
+  const jobs = videoData?.videos || [];
+  const jobStatus = jobs[0]; // Get the first job if it exists
+
+  if (!jobs.length) {
     return (
       <div className='flex items-center space-x-3'>
         <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
         <p className='text-sm font-medium'>Connecting to video service...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className='text-sm text-red-600'>
-        Failed to connect to video service. Please try again.
       </div>
     );
   }
@@ -338,21 +246,6 @@ const transformTemplate = (template: Template): VideoTemplate => ({
   tiers: template.tiers || [],
 });
 
-// Transform Prisma VideoJob to VideoJob
-const transformVideoJob = (job: any): VideoJob => ({
-  id: job.id,
-  listingId: job.listingId,
-  status: job.status,
-  progress: job.progress,
-  template: job.template,
-  inputFiles: job.inputFiles,
-  outputFile: job.outputFile || null,
-  thumbnailUrl: job.thumbnailUrl || null,
-  error: job.error || null,
-  createdAt: job.createdAt,
-  updatedAt: job.updatedAt,
-});
-
 interface PhotoStatusResponse {
   processingCount: number;
   failedCount: number;
@@ -372,6 +265,7 @@ const usePhotoProcessingStatus = (listingId: string) => {
     message: string;
     photos?: PhotoStatusResponse["photos"];
   } | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -395,14 +289,26 @@ const usePhotoProcessingStatus = (listingId: string) => {
             message: `${data.failedCount} photos failed to process`,
             photos: data.photos,
           });
+          // Stop polling on error
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
         } else if (data.totalCount > 0) {
           setStatus({
             status: "COMPLETED",
             message: "All photos processed successfully",
             photos: data.photos,
           });
+          // Stop polling when completed
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
         } else {
           setStatus(null);
+          // Stop polling when no photos
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
         }
       } catch (error) {
         console.error("[PHOTO_STATUS_ERROR]", error);
@@ -410,16 +316,46 @@ const usePhotoProcessingStatus = (listingId: string) => {
           status: "ERROR",
           message: "Failed to check photo status",
         });
+        // Stop polling on error
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
       }
     };
 
-    const interval = setInterval(checkStatus, 5000); // Poll every 5 seconds
-    checkStatus(); // Initial check
+    // Initial check
+    checkStatus();
 
-    return () => clearInterval(interval);
+    // Start polling only if we don't have a status yet
+    if (!status) {
+      intervalRef.current = setInterval(checkStatus, 5000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
   }, [listingId]);
 
   return status;
+};
+
+// Add this helper function near other utility functions
+const getValidVideoJobs = (videoJobs: any[] = []) => {
+  return videoJobs
+    .filter((job) => {
+      return (
+        job.status === "COMPLETED" &&
+        job.outputFile &&
+        job.outputFile.includes("s3.us-east-2.amazonaws.com") &&
+        job.outputFile.endsWith(".mp4")
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 };
 
 export function ListingClient({
@@ -445,13 +381,30 @@ export function ListingClient({
     [prismaTemplates]
   );
 
-  const videoJobs = useMemo(
-    () =>
-      listing?.videoJobs
-        ?.filter((job) => job.status === "COMPLETED")
-        ?.map(transformVideoJob),
-    [listing?.videoJobs]
-  );
+  const { data: videoData } = useVideoStatus(listingId);
+  const videoJobs = videoData?.videos || [];
+
+  // Update the latestVideosByTemplate memo
+  const latestVideosByTemplate = useMemo(() => {
+    const validJobs = getValidVideoJobs(videoJobs);
+
+    const groupedVideos = validJobs.reduce<Record<string, VideoJob>>(
+      (acc, job: VideoJob) => {
+        if (!job.template) return acc;
+
+        if (
+          !acc[job.template] ||
+          new Date(acc[job.template].createdAt) < new Date(job.createdAt)
+        ) {
+          acc[job.template] = job;
+        }
+        return acc;
+      },
+      {}
+    );
+
+    return Object.values(groupedVideos);
+  }, [videoJobs]);
 
   // Video generation mutation
   const { mutate: createVideoJob, isPending: isGeneratingVideo } =
@@ -469,15 +422,11 @@ export function ListingClient({
     [listing]
   );
 
-  // Get video job status if there's an active job
-  const {
-    data: videoStatus,
-    error: videoStatusError,
-    isLoading: isLoadingVideoStatus,
-  } = useVideoJobStatus(listing?.currentJobId);
+  // Get the latest job
+  const videoStatus = videoJobs[0];
 
-  // Replace the memoized jobStatus with the streaming version
-  const photoStatus = usePhotoProcessingStatus(listingId);
+  // Replace the old photoStatus hook with the new one
+  const { data: photoStatus } = usePhotoStatus(listingId);
 
   const handleImageRegeneration = async (photoIds: string | string[]) => {
     const idsArray = Array.isArray(photoIds) ? photoIds : [photoIds];
@@ -533,10 +482,9 @@ export function ListingClient({
       }
     );
   };
-
+  console.log("latestVideosByTemplate", latestVideosByTemplate);
   return (
-    <div className='max-w-[1200px] mx-auto px-4 py-8 md:py-16'>
-      {/* Header Section */}
+    <div className='container mx-auto py-8 space-y-8'>
       <div className='mb-8'>
         <Link
           href='/dashboard'
@@ -608,12 +556,12 @@ export function ListingClient({
                 photos={listing?.photos}
                 isLoading={isLoadingTemplates}
                 userTier={userData?.currentTierId || "free"}
-                activeJobs={videoJobs}
+                activeJobs={videoJobs as unknown as VideoJob[]}
                 onGenerateVideo={handleVideoGeneration}
               />
 
-              {/* Video Jobs */}
-              {videoJobs?.map((job) => (
+              {/* Video Jobs - Now showing only latest per template */}
+              {latestVideosByTemplate.map((job) => (
                 <VideoJobCard
                   key={job.id}
                   job={job}
@@ -641,15 +589,8 @@ export function ListingClient({
             onRegenerateImage={handleImageRegeneration}
           />
 
-          {/* Video generation progress indicator */}
-          {videoStatus &&
-            !["COMPLETED", "FAILED"].includes(videoStatus.status) && (
-              <div className='fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 max-w-sm animate-fade-in'>
-                <VideoGenerationProgress jobId={listing?.currentJobId!} />
-              </div>
-            )}
-
-          {/* Video generation error indicator */}
+          {/* Remove the small progress indicator since we have a more prominent one */}
+          {/* Only keep the error indicator */}
           {videoStatus?.status === "FAILED" && (
             <div className='fixed bottom-4 right-4 bg-red-50 border border-red-100 rounded-lg p-4 max-w-sm'>
               <p className='text-sm text-red-600'>

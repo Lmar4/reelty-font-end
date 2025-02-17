@@ -31,17 +31,19 @@ export const GET = withAuth(async (request: AuthenticatedRequest) => {
     }
 
     const usageStats = await makeBackendRequest<UsageStats>(
-      `/api/subscription/usage/${userId}`,
+      `/api/subscription/usage`,
       {
         sessionToken: request.auth.sessionToken,
       }
     );
 
-    return NextResponse.json(usageStats);
+    return NextResponse.json({ data: usageStats });
   } catch (error) {
     console.error("[SUBSCRIPTION_USAGE_GET]", error);
-    return NextResponse.json(
-      { error: "Failed to fetch usage statistics" },
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch usage statistics",
       { status: 500 }
     );
   }
