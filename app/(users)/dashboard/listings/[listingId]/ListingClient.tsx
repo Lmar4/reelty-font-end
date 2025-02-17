@@ -168,10 +168,11 @@ const transformVideoJob = (job: any): VideoJob => ({
 });
 
 const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
-  // Early return if no jobId
+  const { data: videoData } = useVideoStatus(jobId);
+
+  // Move early return after the hook
   if (!jobId) return null;
 
-  const { data: videoData } = useVideoStatus(jobId);
   const jobs = videoData?.videos || [];
   const jobStatus = jobs[0]; // Get the first job if it exists
 
@@ -482,7 +483,7 @@ export function ListingClient({
       }
     );
   };
-  console.log("latestVideosByTemplate", latestVideosByTemplate);
+  // console.log("latestVideosByTemplate", latestVideosByTemplate);
   return (
     <div className='container mx-auto py-8 space-y-8'>
       <div className='mb-8'>
