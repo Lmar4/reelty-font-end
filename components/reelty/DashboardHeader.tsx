@@ -24,7 +24,7 @@ export function DashboardHeader() {
           <div className='flex items-center gap-6'>
             <Link
               href='/dashboard'
-              className='text-[14px] font-semibold text-[#1c1c1c] cursor-pointer'
+              className='text-[14px] font-semibold text-[#1c1c1c] cursor-pointer px-3 py-2 rounded-md hover:bg-gray-100 transition-colors'
             >
               Dashboard
             </Link>

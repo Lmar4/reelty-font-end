@@ -5,13 +5,26 @@ import Footer from "@/components/reelty/Footer";
 import HomeHeader from "@/components/reelty/HomeHeader";
 import NewListingModal from "@/components/reelty/NewListingModal";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+
 import { useState } from "react";
 import { toast } from "sonner";
 
-export default function Home() {
-  const router = useRouter();
+// Add these pages to the public paths that don't require authentication
+const publicPaths = [
+  '/',
+  '/login',
+  '/signup',
+  '/terms',
+  '/privacy',
+  // ... any other existing public paths ...
+];
 
+// In your middleware or route protection logic
+const isPublicPath = (path: string) => {
+  return publicPaths.some(publicPath => path.startsWith(publicPath));
+}
+
+export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -39,13 +52,37 @@ export default function Home() {
 
       {/* Main Content */}
       <main className='max-w-[1200px] mx-auto px-6 pt-[84px] md:pt-[72px] text-center flex-grow'>
-        <div className='inline-flex items-center gap-3 mb-1 md:mb-2 bg-gray-50 px-4 py-2 rounded-full mt-8 md:mt-16'>
+        <div className='inline-flex items-center gap-2 mb-1 md:mb-2 bg-gray-100 px-3 py-1.5 rounded-full mt-8 md:mt-16'>
           <div className='flex -space-x-1.5'>
-            <div className='w-6 h-6 rounded-full bg-gray-200 border-2 border-white'></div>
-            <div className='w-6 h-6 rounded-full bg-gray-300 border-2 border-white'></div>
-            <div className='w-6 h-6 rounded-full bg-gray-400 border-2 border-white'></div>
+            <div className='w-6 h-6 rounded-full overflow-hidden border-2 border-white'>
+              <Image
+                src='/images/profiles/profile1.png'
+                alt='Profile 1'
+                width={24}
+                height={24}
+                className='object-cover w-full h-full'
+              />
+            </div>
+            <div className='w-6 h-6 rounded-full overflow-hidden border-2 border-white'>
+              <Image
+                src='/images/profiles/profile2.png'
+                alt='Profile 2'
+                width={24}
+                height={24}
+                className='object-cover w-full h-full'
+              />
+            </div>
+            <div className='w-6 h-6 rounded-full overflow-hidden border-2 border-white'>
+              <Image
+                src='/images/profiles/profile3.png'
+                alt='Profile 3'
+                width={24}
+                height={24}
+                className='object-cover w-full h-full'
+              />
+            </div>
           </div>
-          <p className='text-[13px] md:text-[15px] text-[#1c1c1c]'>
+          <p className='text-[15px] text-[#1c1c1c]'>
             Coming soon to{" "}
             <span className='font-semibold'>150k+ happy users</span>
           </p>
@@ -57,9 +94,9 @@ export default function Home() {
           <div className='flex flex-col md:hidden'>
             <div className='mb-3'>Turn listings</div>
             <div className='mb-3 flex items-center justify-center'>
-              <div className='w-[100px] h-[60px] rounded-lg bg-white shadow-[0_0_20px_rgba(0,0,0,0.3)] overflow-hidden mr-4'>
+              <div className='w-[100px] h-[60px] rounded-md bg-white shadow-[0_0_20px_rgba(0,0,0,0.3)] overflow-hidden mr-4'>
                 <div className='grid grid-cols-2 gap-1 p-1 h-full'>
-                  <div className='relative rounded-lg overflow-hidden w-full h-full'>
+                  <div className='relative rounded-[4px] overflow-hidden w-full h-full'>
                     <Image
                       src='/images/hero/listing1.webp'
                       alt='Listing photo 1'
@@ -67,7 +104,7 @@ export default function Home() {
                       className='object-cover'
                     />
                   </div>
-                  <div className='relative rounded-lg overflow-hidden w-full h-full'>
+                  <div className='relative rounded-[4px] overflow-hidden w-full h-full'>
                     <Image
                       src='/images/hero/listing2.webp'
                       alt='Listing photo 2'
@@ -75,7 +112,7 @@ export default function Home() {
                       className='object-cover'
                     />
                   </div>
-                  <div className='relative rounded-lg overflow-hidden w-full h-full'>
+                  <div className='relative rounded-[4px] overflow-hidden w-full h-full'>
                     <Image
                       src='/images/hero/listing3.webp'
                       alt='Listing photo 3'
@@ -83,7 +120,7 @@ export default function Home() {
                       className='object-cover'
                     />
                   </div>
-                  <div className='relative rounded-lg overflow-hidden w-full h-full'>
+                  <div className='relative rounded-[4px] overflow-hidden w-full h-full'>
                     <Image
                       src='/images/hero/listing4.webp'
                       alt='Listing photo 4'

@@ -122,7 +122,7 @@ export function ProfileDropdown() {
               <Link
                 key={item.href}
                 href={item.href}
-                className='flex items-center px-4 py-2 text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]'
+                className='flex items-center mx-2 px-3 py-2 text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7] rounded-md'
                 onClick={() => setIsOpen(false)}
               >
                 <item.icon className='w-5 h-5 mr-3 text-[#1c1c1c]/60 flex-shrink-0' />
@@ -133,9 +133,9 @@ export function ProfileDropdown() {
           <div className='border-t py-1'>
             <button
               onClick={handleSignOut}
-              className='flex items-center w-full text-left px-4 py-2 text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]'
+              className='flex items-center w-[calc(100%-16px)] text-left mx-2 px-3 py-2 text-[15px] font-semibold text-red-600 hover:bg-[#f7f7f7] rounded-md'
             >
-              <LogOut className='w-5 h-5 mr-3 text-[#1c1c1c]/60 flex-shrink-0' />
+              <LogOut className='w-5 h-5 mr-3 text-red-600/60 flex-shrink-0' />
               Log out
             </button>
           </div>

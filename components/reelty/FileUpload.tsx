@@ -218,7 +218,7 @@ export default function FileUpload({
           alt='Upload photos'
           className='w-7 h-7 brightness-0 invert pointer-events-none'
         />
-        <span className='text-lg font-medium pointer-events-none'>
+        <span className='text-lg font-bold pointer-events-none'>
           {buttonText}
         </span>
       </button>
