@@ -19,13 +19,36 @@ export function withAuth(handler: ApiHandler) {
       const session = await auth();
       const user = await currentUser();
 
-      if (!user) {
-        return new NextResponse("Unauthorized", { status: 401 });
+      if (!session) {
+        return new NextResponse(
+          JSON.stringify({ error: "No active session" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
       }
 
-      const sessionToken = await session.getToken();
-      if (!sessionToken) {
-        return new NextResponse("No session token available", { status: 401 });
+      if (!user) {
+        return new NextResponse(JSON.stringify({ error: "User not found" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      let sessionToken: string;
+      try {
+        const token = await session.getToken();
+        if (!token) {
+          return new NextResponse(
+            JSON.stringify({ error: "No session token available" }),
+            { status: 401, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        sessionToken = token;
+      } catch (error) {
+        console.error("[SESSION_TOKEN_ERROR]", error);
+        return new NextResponse(
+          JSON.stringify({ error: "Invalid or missing session" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
       }
 
       // Extend the request object with auth information
@@ -40,10 +63,12 @@ export function withAuth(handler: ApiHandler) {
     } catch (error) {
       console.error("[AUTH_ERROR]", error);
       return new NextResponse(
-        `Authentication error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        { status: 401 }
+        JSON.stringify({
+          error: `Authentication error: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
   };

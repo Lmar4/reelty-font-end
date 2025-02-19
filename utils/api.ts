@@ -44,15 +44,6 @@ export async function makeBackendRequest<T>(
       : undefined,
   };
 
-  console.log("[BACKEND_REQUEST] Making request:", {
-    endpoint,
-    method: requestOptions.method,
-    hasFormData: isFormData,
-    contentType: headers.get("Content-Type") || "browser-handled",
-    hasBody: !!requestOptions.body,
-    hasAuthHeader: headers.has("Authorization"),
-  });
-
   try {
     const response = await fetch(`${backendUrl}${endpoint}`, requestOptions);
     const contentType = response.headers.get("content-type");
@@ -71,11 +62,19 @@ export async function makeBackendRequest<T>(
 
     // Only try to parse JSON if the response is JSON
     if (contentType?.includes("application/json")) {
-      const backendResponse = (await response.json()) as BackendResponse<T>;
-      if (!backendResponse.success) {
-        throw new Error(backendResponse.error || "Unknown error occurred");
+      const jsonResponse = await response.json();
+      // If the response is already in the expected format, return it directly
+      if (
+        jsonResponse.success !== undefined &&
+        jsonResponse.data !== undefined
+      ) {
+        return jsonResponse.data as T;
       }
-      return backendResponse.data as T;
+      // Otherwise, wrap it in our standard format
+      return {
+        success: true,
+        data: jsonResponse,
+      } as T;
     } else {
       // For non-JSON responses, return the raw response
       return response as unknown as T;

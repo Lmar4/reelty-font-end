@@ -6,88 +6,104 @@ export interface BackendResponse<T> {
 
 export async function makeBackendRequest<T>(
   endpoint: string,
-  options: {
+  {
+    method = "GET",
+    body,
+    sessionToken,
+    timeout = 30000, // 30 second default timeout
+    retryCount = 3, // Add retry count
+  }: {
     method?: string;
     body?: any;
-    sessionToken?: string;
-    headers?: HeadersInit;
+    sessionToken: string;
+    timeout?: number;
+    retryCount?: number;
   }
 ): Promise<T> {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-  if (!backendUrl) {
-    throw new Error(
-      "Backend URL not configured. Please set NEXT_PUBLIC_BACKEND_URL in your environment variables."
-    );
-  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  const headers = new Headers(options.headers || {});
-  const isFormData = options.body instanceof FormData;
+  let lastError: Error | null = null;
+  let attempts = 0;
 
-  if (options.sessionToken) {
-    headers.set("Authorization", `Bearer ${options.sessionToken}`);
-  }
+  while (attempts < retryCount) {
+    try {
+      const backendUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+      const url = `${backendUrl}${endpoint}`;
 
-  // For FormData, don't set any Content-Type and let the browser handle it
-  // For other cases, ensure we have application/json
-  if (!isFormData && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-
-  const requestOptions: RequestInit = {
-    method: options.method || "GET",
-    headers,
-    // Don't transform FormData, but stringify other bodies
-    body: isFormData
-      ? options.body
-      : options.body
-      ? JSON.stringify(options.body)
-      : undefined,
-  };
-
-  console.log("[BACKEND_REQUEST] Making request:", {
-    endpoint,
-    method: requestOptions.method,
-    hasFormData: isFormData,
-    contentType: headers.get("Content-Type") || "browser-handled",
-    hasBody: !!requestOptions.body,
-    hasAuthHeader: headers.has("Authorization"),
-  });
-
-  try {
-    const response = await fetch(`${backendUrl}${endpoint}`, requestOptions);
-    const contentType = response.headers.get("content-type");
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[BACKEND_REQUEST] Request failed:", {
-        status: response.status,
-        statusText: response.statusText,
-        errorText,
-        contentType,
-        headers: Object.fromEntries(response.headers.entries()),
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
       });
-      throw new Error(`Backend error: ${errorText || response.statusText}`);
-    }
 
-    // Only try to parse JSON if the response is JSON
-    if (contentType?.includes("application/json")) {
-      const backendResponse = (await response.json()) as BackendResponse<T>;
-      if (!backendResponse.success) {
-        throw new Error(backendResponse.error || "Unknown error occurred");
+      clearTimeout(timeoutId);
+
+      // Handle rate limiting
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("Retry-After");
+        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        attempts++;
+        continue;
       }
-      return backendResponse.data as T;
-    } else {
-      // For non-JSON responses, return the raw response
-      return response as unknown as T;
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        // Handle session expiration
+        if (
+          response.status === 401 &&
+          errorData.error === "Invalid or missing session"
+        ) {
+          console.warn(
+            "[AUTH_WARNING] Session expired, please refresh the page"
+          );
+          throw new Error("Session expired");
+        }
+
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      return data as T;
+    } catch (error) {
+      lastError =
+        error instanceof Error
+          ? error
+          : new Error("An unexpected error occurred");
+
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          throw new Error("Request timed out. Please try again.");
+        }
+
+        // Don't retry on session expiration
+        if (error.message === "Session expired") {
+          throw error;
+        }
+      }
+
+      attempts++;
+      if (attempts === retryCount) {
+        throw lastError;
+      }
+
+      // Exponential backoff
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.pow(2, attempts) * 1000)
+      );
     }
-  } catch (error) {
-    console.error("[BACKEND_REQUEST_ERROR]", {
-      endpoint,
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    throw error;
   }
+
+  throw lastError || new Error("Request failed after all retries");
 }
 
 // Re-export types and functions from withAuthServer
