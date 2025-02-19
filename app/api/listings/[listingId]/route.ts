@@ -81,9 +81,6 @@ export const DELETE = withAuth(async function DELETE(
     await makeBackendRequest(`/api/listings/${listingId}`, {
       method: "DELETE",
       sessionToken: request.auth.sessionToken,
-      headers: {
-        "Content-Type": "application/json",
-      },
     });
 
     return new NextResponse(null, { status: 204 });

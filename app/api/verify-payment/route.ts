@@ -29,14 +29,12 @@ export const POST = withAuth(async function POST(
     await makeBackendRequest(`/api/users/${request.auth.userId}/subscription`, {
       method: "POST",
       sessionToken: request.auth.sessionToken,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+      body: {
         planId: session.metadata?.planId,
         stripeSubscriptionId: session.subscription as string,
         status: "active",
-      }),
+        contentType: "application/json",
+      },
     });
 
     // Send subscription confirmation email

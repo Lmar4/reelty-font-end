@@ -5,7 +5,7 @@ import PricingModal from "@/components/reelty/PricingModal";
 import { useAuth } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { SubscriptionStatus } from "@/types/subscription";
+import { SubscriptionStatus } from "@/types/prisma-types";
 
 interface SubscriptionData {
   id: string;

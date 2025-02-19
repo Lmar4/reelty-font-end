@@ -19,12 +19,10 @@ export const POST = withAuth(async function POST(
     const data = await makeBackendRequest("/api/credits/deduct", {
       method: "POST",
       sessionToken: request.auth.sessionToken,
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: {
         amount,
         reason: reason || "Video generation",
+        contentType: "application/json",
       },
     });
 

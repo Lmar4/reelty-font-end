@@ -18,10 +18,7 @@ export const PATCH = withAuth(async function PATCH(
       {
         method: "PATCH",
         sessionToken: request.auth.sessionToken,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: { status },
+        body: { status, contentType: "application/json" },
       }
     );
 
