@@ -9,6 +9,8 @@ const isPublicPath = createRouteMatcher([
   "/reset-password",
   "/recovery-password",
   "/pricing",
+  "/terms",
+  "/privacy",
   "/api/webhooks(.*)",
   "/api/webhook(.*)",
   "/api/storage/presigned-url", // Allow S3 presigned URL generation
