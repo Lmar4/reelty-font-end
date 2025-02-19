@@ -1,17 +1,14 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
+import { VideoGenerationStatus, PhotoProcessingStatus } from "@/types/status";
 
-interface PhotoProcessingStatus {
-  processingCount: number;
-  failedCount: number;
-  totalCount: number;
-}
+type StatusState = {
+  status: VideoGenerationStatus;
+  message: string;
+} | null;
 
 export const usePhotoProcessingStatus = (listingId: string) => {
-  const [status, setStatus] = useState<{
-    status: "PROCESSING" | "ERROR" | "COMPLETED" | null;
-    message: string;
-  } | null>(null);
+  const [status, setStatus] = useState<StatusState>(null);
   const { getToken } = useAuth();
 
   useEffect(() => {
@@ -38,17 +35,17 @@ export const usePhotoProcessingStatus = (listingId: string) => {
 
             if (processingCount > 0) {
               setStatus({
-                status: "PROCESSING",
+                status: VideoGenerationStatus.PROCESSING,
                 message: `Processing ${processingCount} of ${totalCount} photos...`,
               });
             } else if (failedCount > 0) {
               setStatus({
-                status: "ERROR",
+                status: VideoGenerationStatus.FAILED,
                 message: `${failedCount} photos failed to process`,
               });
             } else {
               setStatus({
-                status: "COMPLETED",
+                status: VideoGenerationStatus.COMPLETED,
                 message: "All photos processed successfully",
               });
               eventSource?.close();
