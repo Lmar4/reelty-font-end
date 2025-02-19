@@ -334,8 +334,8 @@ export default function NewListingModal({
       // Get token early
       const token = (await session?.getToken()) || undefined;
 
-      if (selectedPhotos.size === 0) {
-        toast.error("Please select at least one photo");
+      if (selectedPhotos.size < 10) {
+        toast.error("Please select at least 10 photos");
         return;
       }
 
@@ -718,15 +718,32 @@ export default function NewListingModal({
                 {/* Progress Bar */}
                 <div>
                   <div className='flex items-center justify-between text-[18px] font-semibold mb-2 text-black'>
-                    <span>{selectedPhotos.size} of 10 photos selected</span>
-                    <span>{Math.round((selectedPhotos.size / 10) * 100)}%</span>
+                    <span>{selectedPhotos.size} of 20 photos selected</span>
+                    <span>{Math.round((selectedPhotos.size / 20) * 100)}%</span>
                   </div>
                   <div className='h-2 bg-gray-100 rounded-full overflow-hidden'>
                     <div
-                      className='h-full bg-purple-500 transition-all duration-300'
-                      style={{ width: `${(selectedPhotos.size / 10) * 100}%` }}
+                      className={cn(
+                        "h-full transition-all duration-300",
+                        selectedPhotos.size < 10
+                          ? "bg-red-500"
+                          : selectedPhotos.size > 20
+                          ? "bg-red-500"
+                          : "bg-purple-500"
+                      )}
+                      style={{ width: `${(selectedPhotos.size / 20) * 100}%` }}
                     />
                   </div>
+                  {selectedPhotos.size < 10 && (
+                    <p className='text-red-500 text-sm mt-1'>
+                      Please select at least 10 photos
+                    </p>
+                  )}
+                  {selectedPhotos.size > 20 && (
+                    <p className='text-red-500 text-sm mt-1'>
+                      Maximum 20 photos allowed
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -780,7 +797,7 @@ export default function NewListingModal({
               className='w-full bg-black text-white rounded-lg h-10 sm:h-12 text-[16px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50'
               disabled={
                 isSubmitting ||
-                selectedPhotos.size === 0 ||
+                selectedPhotos.size < 10 ||
                 !form.getValues("address")
               }
             >
