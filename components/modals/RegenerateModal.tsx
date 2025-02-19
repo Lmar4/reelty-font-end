@@ -61,10 +61,22 @@ export const RegenerateModal = ({
         inputFiles = paths;
       }
 
-      await regenerateJob.mutateAsync({
+      const response = await regenerateJob.mutateAsync({
         template: template || undefined,
         inputFiles,
       });
+
+      // Check if the operation is still processing despite the error
+      if (response.isProcessing) {
+        toast.success("Video regeneration started in the background");
+        onSuccess?.();
+        onClose();
+        return;
+      }
+
+      if (!response.success) {
+        throw new Error(response.message);
+      }
 
       toast.success("Video regeneration started");
       onSuccess?.();
