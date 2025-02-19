@@ -30,6 +30,7 @@ export default function HomeHeader() {
           {/* Logo */}
           <Link href='/' className='flex items-center'>
             <Image
+              priority
               src='/images/logo.svg'
               alt='Reelty Logo'
               width={90}

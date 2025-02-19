@@ -39,8 +39,8 @@ export default function PhotoManager({
     if (newSelected.has(id)) {
       newSelected.delete(id);
     } else {
-      if (newSelected.size >= 10) {
-        return; // Don't allow more than 10 selections
+      if (newSelected.size >= 20) {
+        return; // Don't allow more than 20 selections
       }
       newSelected.add(id);
     }

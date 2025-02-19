@@ -59,11 +59,11 @@ export default function PricingCards({
     if (billingType === "credits") {
       switch (plan) {
         case "basic":
-          return "1 Credit";
+          return "1 Listing";
         case "pro":
-          return "4 Credits";
+          return "4 Listings";
         case "proPlus":
-          return "10 Credits";
+          return "10 Listings";
         default:
           return plan;
       }
@@ -214,7 +214,7 @@ export default function PricingCards({
               />
             ) : (
               <div className='text-[24px] sm:text-[28px] font-black text-[#1c1c1c] tracking-tight'>
-                1 Credit
+                1 Listing
               </div>
             )}
           </div>
@@ -233,7 +233,7 @@ export default function PricingCards({
             <Button
               onClick={() => handleSubscribe("basic")}
               disabled={loading === "basic" || currentTier === "basic"}
-              className='w-full py-3 rounded-lg border text-[13px] sm:text-[15px] font-semibold text-[#1c1c1c] hover:bg-[#f7f7f7]'
+              className='w-full py-3 rounded-lg border text-[13px] sm:text-[15px] font-semibold text-white hover:bg-black/80'
             >
               {loading === "basic" ? (
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -248,7 +248,7 @@ export default function PricingCards({
 
           <div className='space-y-3 text-[#1c1c1c]'>
             {billingType === "monthly" && (
-              <Feature text={`${credits.basic} Credit per month`} />
+              <Feature text={`${credits.basic} Listing per month`} />
             )}
             <Feature text='Up to 20 Photos per Listing' />
             <Feature
@@ -262,7 +262,7 @@ export default function PricingCards({
             {billingType === "monthly" && (
               <>
                 <Feature text='Premium Templates' />
-                <Feature text='Credits Roll Over (up to 3 months)' />
+                <Feature text='Listings Roll Over (up to 3 months)' />
               </>
             )}
           </div>
@@ -286,7 +286,7 @@ export default function PricingCards({
               </div>
             ) : (
               <div className='text-[28px] font-black text-white tracking-tight'>
-                4 Credits
+                4 Listings
               </div>
             )}
           </div>
@@ -303,7 +303,7 @@ export default function PricingCards({
             <Button
               onClick={() => handleSubscribe("pro")}
               disabled={loading === "pro" || currentTier === "pro"}
-              className='w-full py-3 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90'
+              className='w-full py-3 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90 '
             >
               {loading === "pro" ? (
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -318,7 +318,7 @@ export default function PricingCards({
 
           <div className='space-y-3'>
             {billingType === "monthly" && (
-              <Feature text={`${credits.pro} Credits per month`} light />
+              <Feature text={`${credits.pro} Listings per month`} light />
             )}
             <Feature text='Up to 20 Photos per Listing' light />
             <Feature
@@ -333,7 +333,7 @@ export default function PricingCards({
             {billingType === "monthly" && (
               <>
                 <Feature text='Premium Templates' light />
-                <Feature text='Credits Roll Over (up to 6 months)' light />
+                <Feature text='Listings Roll Over (up to 6 months)' light />
                 <Feature text='Priority Support' light />
               </>
             )}
@@ -358,7 +358,7 @@ export default function PricingCards({
               </div>
             ) : (
               <div className='text-[28px] font-black text-[#1c1c1c] tracking-tight'>
-                10 Credits
+                10 Listings
               </div>
             )}
           </div>
@@ -377,7 +377,7 @@ export default function PricingCards({
             <Button
               onClick={() => handleSubscribe("proPlus")}
               disabled={loading === "proPlus" || currentTier === "proPlus"}
-              className='w-full py-3 rounded-lg bg-[#1c1c1c] text-white text-[15px] font-semibold hover:bg-black'
+              className='w-full py-3 rounded-lg bg-[#1c1c1c] text-white text-[15px] font-semibold   hover:bg-black/80'
             >
               {loading === "proPlus" ? (
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
@@ -392,7 +392,7 @@ export default function PricingCards({
 
           <div className='space-y-3 text-[#1c1c1c]'>
             {billingType === "monthly" && (
-              <Feature text={`${credits.proPlus} Credits per month`} />
+              <Feature text={`${credits.proPlus} Listings per month`} />
             )}
             <Feature text='Up to 20 Photos per Listing' />
             <Feature
@@ -406,7 +406,7 @@ export default function PricingCards({
             {billingType === "monthly" && (
               <>
                 <Feature text='Premium Templates' />
-                <Feature text='Credits Roll Over (unlimited)' />
+                <Feature text='Listings Roll Over (unlimited)' />
                 <Feature text='Priority Support' />
                 <Feature text='Dedicated Account Manager' />
               </>
