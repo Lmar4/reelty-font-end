@@ -1,41 +1,40 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { withAuth, AuthenticatedRequest } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/api";
 import { logger } from "@/utils/logger";
 
 interface VideoResponse {
   success: boolean;
-  videos: {
-    id: string;
-    status: string;
-    outputFile: string | null;
-    thumbnailUrl: string | null;
-    createdAt: string;
-    metadata?: {
-      templateResults?: Array<{
-        template: string;
-        status: "SUCCESS" | "FAILED";
-        error?: string;
-        timestamp: number;
-        processingTime?: number;
-      }>;
-      mapVideo?: {
-        path: string;
-        coordinates: { lat: number; lng: number };
-        generatedAt: string;
+  data: {
+    videos: {
+      id: string;
+      status: string;
+      outputFile: string | null;
+      thumbnailUrl: string | null;
+      createdAt: string;
+      metadata?: {
+        templateResults?: Array<{
+          template: string;
+          status: "SUCCESS" | "FAILED";
+          error?: string;
+          timestamp: number;
+          processingTime?: number;
+        }>;
+        mapVideo?: {
+          path: string;
+          coordinates: { lat: number; lng: number };
+          generatedAt: string;
+        };
       };
+    }[];
+    status: {
+      isProcessing: boolean;
+      processingCount: number;
+      failedCount: number;
+      completedCount: number;
+      totalCount: number;
+      shouldEndPolling?: boolean;
     };
-  }[];
-  status: {
-    isProcessing: boolean;
-    processingCount: number;
-    failedCount: number;
-    completedCount: number;
-    totalCount: number;
-    shouldEndPolling?: boolean;
   };
 }
 
@@ -47,32 +46,63 @@ export const GET = withAuth(async function GET(
 ) {
   try {
     const { listingId } = await params;
-    const searchParams = new URL(request.url).searchParams;
-    const type = searchParams.get("type"); // 'latest' or 'all'
 
-    const endpoint =
-      type === "latest"
-        ? `/api/listings/${listingId}/latest-videos`
-        : `/api/listings/${listingId}/videos`;
-
-    const data = await makeBackendRequest<VideoResponse>(endpoint, {
-      method: "GET",
-      sessionToken: request.auth.sessionToken,
+    logger.info("[VIDEOS_GET] Fetching videos", {
+      listingId,
+      userId: request.auth.userId,
     });
 
-    return NextResponse.json(data);
+    // Validate listingId
+    if (!listingId || listingId === "undefined") {
+      logger.error("[VIDEOS_GET] Invalid listingId", { listingId });
+      return NextResponse.json(
+        { success: false, error: "Invalid listing ID" },
+        { status: 400 }
+      );
+    }
+
+    // Ensure we have a valid session token
+    if (!request.auth.sessionToken) {
+      logger.error("[VIDEOS_GET] No session token");
+      return NextResponse.json(
+        { success: false, error: "No session token" },
+        { status: 401 }
+      );
+    }
+
+    const response = await makeBackendRequest<VideoResponse>(
+      `/api/listings/${listingId}/latest-videos`,
+      {
+        method: "GET",
+        sessionToken: request.auth.sessionToken,
+      }
+    );
+
+    logger.info("[VIDEOS_GET] Raw response from backend:", response);
+
+    // Ensure we have a valid response structure
+    if (!response || typeof response !== "object") {
+      logger.error("[VIDEOS_GET] Invalid response from backend:", { response });
+      throw new Error("Invalid response from backend");
+    }
+
+    // Return the response directly without transformation
+    return NextResponse.json(response);
   } catch (error) {
-    logger.error("[VIDEOS_GET]", {
+    logger.error("[VIDEOS_GET] Error:", {
       error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
       listingId: (await params).listingId,
     });
 
-    if (error instanceof Error && error.message.includes("401")) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    return new NextResponse(
-      error instanceof Error ? error.message : "Failed to fetch videos",
+    // Return a more detailed error response
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to fetch videos",
+        details: error instanceof Error ? error.stack : undefined,
+      },
       { status: 500 }
     );
   }
@@ -91,18 +121,24 @@ export const POST = withAuth(async function POST(
     const data = await makeBackendRequest(`/api/listings/${listingId}/videos`, {
       method: "POST",
       sessionToken: request.auth.sessionToken,
-      body: JSON.stringify(body),
+      body,
     });
 
     return NextResponse.json(data);
   } catch (error) {
-    logger.error("[VIDEOS_POST]", {
+    logger.error("[VIDEOS_POST] Error:", {
       error: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
       listingId: (await params).listingId,
     });
 
-    return new NextResponse(
-      error instanceof Error ? error.message : "Failed to create video job",
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to create video job",
+        details: error instanceof Error ? error.stack : undefined,
+      },
       { status: 500 }
     );
   }

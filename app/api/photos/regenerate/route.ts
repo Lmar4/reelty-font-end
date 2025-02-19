@@ -12,7 +12,7 @@ export const POST = withAuth(async function POST(
 ) {
   try {
     const body = await request.json();
-    const { photoIds } = body;
+    const { photoIds, forceRegeneration = true } = body;
 
     if (!Array.isArray(photoIds) || photoIds.length === 0) {
       return new NextResponse("Invalid photo IDs", { status: 400 });
@@ -33,18 +33,76 @@ export const POST = withAuth(async function POST(
     }>("/api/photos/regenerate", {
       method: "POST",
       sessionToken: request.auth.sessionToken,
-      body: { photoIds },
+      body: {
+        photoIds,
+        forceRegeneration,
+        isRegeneration: true,
+      },
+      timeout: 60000, // Increased timeout to 60 seconds
     });
 
-    // Check if response has the expected structure
-    if (!response || !Array.isArray(response.jobs)) {
-      console.error(
-        "[PHOTOS_REGENERATE] Invalid response structure:",
-        response
+    // If we get undefined response but no error was thrown, it likely means
+    // the backend is still processing but hasn't responded in time
+    if (!response) {
+      console.warn(
+        "[PHOTOS_REGENERATE] Backend request timeout - job may still be processing"
       );
-      throw new Error("Invalid response from backend");
+      return NextResponse.json(
+        {
+          success: true,
+          message:
+            "Request accepted. Photo regeneration may take longer than expected.",
+          data: {
+            jobs: [], // We don't have job IDs in this case
+            inaccessiblePhotoIds: [],
+            message:
+              "Photo regeneration started but taking longer than expected. Please check status later.",
+          },
+        },
+        { status: 202 } // Accepted status code
+      );
     }
 
+    // Handle case where response exists but jobs array is missing
+    if (!response.jobs && response.success !== false) {
+      console.error(
+        "[PHOTOS_REGENERATE] Response missing jobs array:",
+        response
+      );
+
+      // If we have an error message from backend, use it
+      if (response.message) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: response.message,
+          },
+          { status: 400 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid response format from backend",
+        },
+        { status: 500 }
+      );
+    }
+
+    // If the response indicates failure but has a message, return that
+    if (response.success === false) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: response.message || "Failed to regenerate photos",
+          inaccessiblePhotoIds: response.inaccessiblePhotoIds,
+        },
+        { status: response.inaccessiblePhotoIds ? 404 : 500 }
+      );
+    }
+
+    // Success case
     return NextResponse.json({
       success: true,
       data: {
@@ -55,12 +113,22 @@ export const POST = withAuth(async function POST(
     });
   } catch (error) {
     console.error("[PHOTOS_REGENERATE]", error);
+
+    // Determine appropriate status code based on error
+    const statusCode =
+      error instanceof Error && error.message.includes("No response received")
+        ? 503 // Service Unavailable
+        : 500; // Internal Server Error
+
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Internal Error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Failed to process photo regeneration request",
       },
-      { status: 500 }
+      { status: statusCode }
     );
   }
 });
