@@ -1,18 +1,15 @@
-import { NextResponse } from "next/server";
-import { withAuth } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/api";
+import {
+  AuthenticatedRequest,
+  makeBackendRequest,
+  withAuth,
+} from "@/utils/withAuth";
 import { logger } from "@/utils/logger";
+import { NextResponse } from "next/server";
 
 interface PhotoStatus {
   processingCount: number;
   failedCount: number;
   totalCount: number;
-}
-
-interface AuthenticatedRequest extends Request {
-  auth: {
-    sessionToken: string;
-  };
 }
 
 export const GET = withAuth(

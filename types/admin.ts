@@ -1,5 +1,3 @@
-import type { SubscriptionTierId } from "@/constants/subscription-tiers";
-
 export interface AdminUser {
   id: string;
   email: string;

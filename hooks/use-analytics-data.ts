@@ -1,9 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import type {
-  CreditAnalytics,
-  RevenueAnalytics,
-  VideoAnalytics,
-} from "@/app/admin/types";
 
 import {
   getCreditAnalytics,

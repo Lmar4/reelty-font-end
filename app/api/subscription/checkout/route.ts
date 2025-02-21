@@ -1,5 +1,9 @@
-import { withAuth, AuthenticatedRequest } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/api";
+import {
+  AuthenticatedRequest,
+  makeBackendRequest,
+  withAuth,
+} from "@/utils/withAuth";
+
 import { NextResponse } from "next/server";
 
 interface CheckoutRequest {

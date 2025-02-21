@@ -2,45 +2,49 @@ import { auth } from "@clerk/nextjs/server";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
 
+// Add interface for the response type
+interface UserResponse {
+  success: boolean;
+  data?: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    currentTier?: {
+      id: string;
+      name: string;
+    };
+  };
+  error?: string;
+}
+
 export async function GET() {
   try {
-    const { userId, sessionId, getToken } = await auth();
-    const token = await getToken(); // Remove template for now
+    const { userId, getToken } = await auth();
+    const token = await getToken();
 
-    if (!token || !userId || !sessionId) {
+    if (!token || !userId) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Missing authentication credentials",
-        },
+        { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // Pass the userId in the request headers
-    const userData = await makeBackendRequest(`/users/${userId}`, {
-      method: "GET",
-      sessionToken: token,
-    });
+    const response = await makeBackendRequest<UserResponse>(
+      `/api/users/${userId}`,
+      {
+        sessionToken: token,
+      }
+    );
 
-    if (!userData) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: userData,
-    });
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("[USER_ME_GET] Error:", error);
+    console.error("[USER_GET]", error);
+
     return NextResponse.json(
       {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch user data",
+        error: error instanceof Error ? error.message : "Unknown error",
       },
       { status: 500 }
     );

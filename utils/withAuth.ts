@@ -1,94 +1,127 @@
-import { makeBackendRequest as baseRequest, type BackendResponse } from './api';
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-export type { BackendResponse };
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
-export async function makeAuthenticatedRequest<T>(
-  endpoint: string,
-  {
-    method = "GET",
-    body,
-    sessionToken,
-    timeout = 30000,
-    retryCount = 3,
-  }: {
-    method?: string;
-    body?: any;
+// Types
+export interface BackendResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface AuthenticatedRequest extends Request {
+  auth: {
     sessionToken: string;
-    timeout?: number;
-    retryCount?: number;
-  }
+    userId: string;
+  };
+}
+
+interface RequestOptions {
+  method?: string;
+  body?: any;
+  sessionToken: string;
+  headers?: Record<string, string>;
+}
+
+// Main request function
+export async function makeBackendRequest<T>(
+  endpoint: string,
+  options: RequestOptions
 ): Promise<T> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const { method = "GET", body, sessionToken, headers = {} } = options;
 
-  let lastError: Error | null = null;
-  let attempts = 0;
+  try {
+    console.debug("[REQUEST]", {
+      endpoint,
+      method,
+      hasToken: !!sessionToken,
+      tokenPreview: sessionToken ? `${sessionToken.slice(0, 10)}...` : null,
+    });
 
-  while (attempts < retryCount) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${sessionToken}`,
+        ...headers,
+      },
+      ...(body && { body: JSON.stringify(body) }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("[REQUEST_ERROR]", {
+      endpoint,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
+    if (error instanceof Error) {
+      if (error.message.includes("401") || error.message.includes("403")) {
+        throw new Error("Session expired or invalid");
+      }
+    }
+
+    throw error;
+  }
+}
+
+// Route handler wrapper
+type ApiHandler = (
+  request: AuthenticatedRequest,
+  ...args: any[]
+) => Promise<NextResponse>;
+
+export function withAuth(handler: ApiHandler) {
+  return async (request: Request, ...args: any[]) => {
     try {
-      // Log the request details (remove in production)
-      console.debug("[REQUEST]", {
-        endpoint,
-        method,
-        hasToken: !!sessionToken,
-        tokenPreview: sessionToken ? `${sessionToken.slice(0, 10)}...` : null,
-      });
+      const session = await auth();
+      const user = await currentUser();
 
-      // Use the base request with our auth headers
-      const response = await baseRequest<T>(endpoint, {
-        method,
-        body,
-        sessionToken,
-        timeout,
-        headers: {
-          Authorization: `Bearer ${sessionToken}`,
-        },
-      });
+      if (!session) {
+        return new NextResponse(
+          JSON.stringify({ error: "No active session" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
+      }
 
-      clearTimeout(timeoutId);
-      return response;
-    } catch (error) {
-      lastError =
-        error instanceof Error
-          ? error
-          : new Error("An unexpected error occurred");
-
-      if (error instanceof Error) {
-        if (error.name === "AbortError") {
-          throw new Error("Request timed out. Please try again.");
-        }
-
-        // Don't retry on session expiration
-        if (error.message === "Session expired or invalid") {
-          throw error;
-        }
-
-        // Log errors in development
-        console.error("[REQUEST_ERROR]", {
-          endpoint,
-          error: error.message,
-          attempt: attempts + 1,
-          maxAttempts: retryCount,
+      if (!user) {
+        return new NextResponse(JSON.stringify({ error: "User not found" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
         });
       }
 
-      attempts++;
-      if (attempts === retryCount) {
-        throw lastError;
+      const token = await session.getToken();
+      if (!token) {
+        return new NextResponse(
+          JSON.stringify({ error: "No session token available" }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
       }
 
-      // Exponential backoff
-      const backoffTime = Math.pow(2, attempts) * 1000;
-      console.debug(`[RETRY] Waiting ${backoffTime}ms before retry ${attempts + 1}/${retryCount}`);
-      await new Promise((resolve) => setTimeout(resolve, backoffTime));
+      const authenticatedRequest = request as AuthenticatedRequest;
+      authenticatedRequest.auth = {
+        sessionToken: token,
+        userId: user.id,
+      };
+
+      return handler(authenticatedRequest, ...args);
+    } catch (error) {
+      console.error("[AUTH_ERROR]", error);
+      return new NextResponse(
+        JSON.stringify({
+          error: `Authentication error: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
     }
-  }
-
-  throw lastError || new Error("Request failed after all retries");
+  };
 }
-
-// Export the authenticated version as the default makeBackendRequest
-export const makeBackendRequest = makeAuthenticatedRequest;
-
-// Re-export types and functions from withAuthServer
-export { withAuth, type AuthenticatedRequest } from "./withAuthServer";

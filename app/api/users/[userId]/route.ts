@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { withAuth, AuthenticatedRequest } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/api";
+import {
+  AuthenticatedRequest,
+  makeBackendRequest,
+  withAuth,
+} from "@/utils/withAuth";
+import {} from "@/utils/withAuth";
 import { User } from "@/types/prisma-types";
 
 export const GET = withAuth(async function GET(

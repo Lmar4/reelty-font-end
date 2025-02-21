@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { VideoJob } from "@/types/listing-types";
-import { makeBackendRequest } from "@/utils/api";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 

@@ -18,7 +18,7 @@ import {
 import { useS3Upload } from "@/hooks/use-s3-upload";
 import { cn } from "@/lib/utils";
 import { ListingFormData, listingFormSchema } from "@/lib/validations/listing";
-import { makeBackendRequest } from "@/utils/api";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { useAuth, useSession } from "@clerk/nextjs";
 import { Loader } from "@googlemaps/js-api-loader";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -334,7 +334,10 @@ export default function NewListingModal({
   const handleSubmit = async (data: ListingFormData) => {
     try {
       // Get token early
-      const token = (await session?.getToken()) || undefined;
+      const token = await session?.getToken();
+      if (!token) {
+        throw new Error("No authentication token available");
+      }
 
       // Update photo limit check based on trial status
       const requiredPhotos = 10;

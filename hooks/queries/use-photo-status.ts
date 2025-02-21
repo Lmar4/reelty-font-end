@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { makeBackendRequest, BackendResponse } from "@/utils/api";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { useAuth } from "@clerk/nextjs";
 
 interface PhotoStatusResponse {
@@ -29,7 +29,6 @@ export const usePhotoStatus = (listingId: string) => {
       const response = await makeBackendRequest<PhotoStatusResponse>(
         `/api/listings/${listingId}/photos/status`,
         {
-          method: "GET",
           sessionToken,
         }
       );

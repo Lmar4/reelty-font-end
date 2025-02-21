@@ -1,6 +1,6 @@
+import { AuthenticatedRequest } from "@/utils/withAuth";
+import { makeBackendRequest, withAuth } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
-import { withAuth, AuthenticatedRequest } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/api";
 
 interface CreditBalance {
   total: number;

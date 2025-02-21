@@ -38,7 +38,6 @@ export const POST = withAuth(async function POST(
         forceRegeneration,
         isRegeneration: true,
       },
-      timeout: 60000, // Increased timeout to 60 seconds
     });
 
     // If we get undefined response but no error was thrown, it likely means

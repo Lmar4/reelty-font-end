@@ -1,14 +1,12 @@
+import { JobStatus } from "@/types/job-types";
 import {
   CreateVideoJobInput,
-  GetVideoJobsParams,
   RegenerateVideoInput,
   UpdateVideoJobInput,
 } from "@/types/user-types";
-import { JobStatus } from "@/types/job-types";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-
 
 const JOBS_QUERY_KEY = "jobs";
 

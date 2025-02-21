@@ -1,5 +1,5 @@
-import { makeBackendRequest } from "@/utils/api";
-import { AuthenticatedRequest, withAuth } from "@/utils/withAuthServer";
+import { AuthenticatedRequest, makeBackendRequest } from "@/utils/withAuth";
+import { withAuth } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
