@@ -43,11 +43,13 @@ export async function makeBackendRequest<T>(
       ...(body && { body: JSON.stringify(body) }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const json = (await response.json()) as BackendResponse<T>;
+
+    if (!response.ok || !json.success) {
+      throw new Error(json.error || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    return json.data as T; // Unwrap data here
   } catch (error) {
     console.error("[REQUEST_ERROR]", {
       endpoint,
