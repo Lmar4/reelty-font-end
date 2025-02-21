@@ -18,7 +18,6 @@ export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
         sessionToken: req.auth.sessionToken,
       }
     );
-    console.log(subscription);
     return NextResponse.json({ subscription });
   } catch (error) {
     console.error("[SUBSCRIPTION_CURRENT_GET]", error);

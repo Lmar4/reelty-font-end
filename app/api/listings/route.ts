@@ -120,7 +120,7 @@ export const POST = withAuthServer(async function POST(
     }
 
     const responseData = await response.json();
-    return NextResponse.json(responseData);
+    return NextResponse.json(responseData.data);
   } catch (error) {
     console.error("[LISTINGS_POST]", error);
     return new NextResponse(
