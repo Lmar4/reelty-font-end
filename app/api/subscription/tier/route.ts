@@ -1,9 +1,6 @@
 import { SubscriptionTier } from "@/types/prisma-types";
-import {
-  AuthenticatedRequest,
-  makeBackendRequest,
-  withAuth,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -16,7 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export const PATCH = withAuth(async function PATCH(
+export const GET = withAuthServer(async function PATCH(
   request: AuthenticatedRequest
 ) {
   try {

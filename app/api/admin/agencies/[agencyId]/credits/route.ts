@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendCreditUpdateEmail } from "@/lib/plunk";
-import {
-  withAuth,
-  makeBackendRequest,
-  AuthenticatedRequest,
-} from "@/utils/withAuth";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
 
 interface CreditUpdateResponse {
   email: string;
@@ -14,20 +11,20 @@ interface CreditUpdateResponse {
   totalCredits: number;
 }
 
-export const POST = withAuth(
+export const POST = withAuthServer(
   async (
-    request: AuthenticatedRequest,
+    req: AuthenticatedRequest,
     { params }: { params: Promise<{ agencyId: string }> }
   ) => {
     try {
       const { agencyId } = await params;
-      const body = await request.json();
+      const body = await req.json();
       const data = await makeBackendRequest<CreditUpdateResponse>(
         `/api/admin/agencies/${agencyId}/credits`,
         {
           method: "POST",
           body,
-          sessionToken: request.auth.sessionToken,
+          sessionToken: req.auth.sessionToken,
         }
       );
 

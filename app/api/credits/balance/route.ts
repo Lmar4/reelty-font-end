@@ -1,19 +1,18 @@
-import { AuthenticatedRequest } from "@/utils/withAuth";
-import { makeBackendRequest, withAuth } from "@/utils/withAuth";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
-
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
 interface CreditBalance {
   total: number;
   available: number;
   used: number;
 }
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
+export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
   try {
     const creditBalance = await makeBackendRequest<CreditBalance>(
       "/api/credits/balance",
       {
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 

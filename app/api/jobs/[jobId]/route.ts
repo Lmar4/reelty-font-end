@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { VideoJob } from "@/types/prisma-types";
 
-export const GET = withAuth(async function GET(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function GET(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
@@ -15,7 +12,7 @@ export const GET = withAuth(async function GET(
 
     const job = await makeBackendRequest<VideoJob>(`/api/jobs/${jobId}`, {
       method: "GET",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
     });
 
     return NextResponse.json(job);
@@ -28,8 +25,8 @@ export const GET = withAuth(async function GET(
   }
 });
 
-export const DELETE = withAuth(async function DELETE(
-  request: AuthenticatedRequest,
+export const DELETE = withAuthServer(async function DELETE(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
@@ -37,7 +34,7 @@ export const DELETE = withAuth(async function DELETE(
 
     await makeBackendRequest(`/api/jobs/${jobId}`, {
       method: "DELETE",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
     });
 
     return new NextResponse(null, { status: 204 });
@@ -50,7 +47,7 @@ export const DELETE = withAuth(async function DELETE(
   }
 });
 
-export const PATCH = withAuth(async function PATCH(
+export const PATCH = withAuthServer(async function PATCH(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {

@@ -1,4 +1,4 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { useAuth } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
 const API_BASE_URL =
@@ -9,13 +9,6 @@ export interface BackendResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
-}
-
-export interface AuthenticatedRequest extends Request {
-  auth: {
-    sessionToken: string;
-    userId: string;
-  };
 }
 
 interface RequestOptions {
@@ -71,57 +64,22 @@ export async function makeBackendRequest<T>(
   }
 }
 
-// Route handler wrapper
-type ApiHandler = (
-  request: AuthenticatedRequest,
-  ...args: any[]
-) => Promise<NextResponse>;
+// Client-side auth hook
+export const useAuthToken = () => {
+  const { getToken, userId } = useAuth();
 
-export function withAuth(handler: ApiHandler) {
-  return async (request: Request, ...args: any[]) => {
+  const getAuthToken = async () => {
     try {
-      const session = await auth();
-      const user = await currentUser();
-
-      if (!session) {
-        return new NextResponse(
-          JSON.stringify({ error: "No active session" }),
-          { status: 401, headers: { "Content-Type": "application/json" } }
-        );
-      }
-
-      if (!user) {
-        return new NextResponse(JSON.stringify({ error: "User not found" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
-
-      const token = await session.getToken();
-      if (!token) {
-        return new NextResponse(
-          JSON.stringify({ error: "No session token available" }),
-          { status: 401, headers: { "Content-Type": "application/json" } }
-        );
-      }
-
-      const authenticatedRequest = request as AuthenticatedRequest;
-      authenticatedRequest.auth = {
-        sessionToken: token,
-        userId: user.id,
+      const token = await getToken();
+      return {
+        token,
+        userId,
       };
-
-      return handler(authenticatedRequest, ...args);
     } catch (error) {
-      console.error("[AUTH_ERROR]", error);
-      return new NextResponse(
-        JSON.stringify({
-          error: `Authentication error: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
-      );
+      console.error("[GET_AUTH_TOKEN_ERROR]", error);
+      throw error;
     }
   };
-}
+
+  return getAuthToken;
+};

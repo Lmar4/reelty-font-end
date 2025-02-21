@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
-export const POST = withAuth(async function POST(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function POST(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ photoId: string }> }
 ) {
   try {
@@ -18,7 +15,7 @@ export const POST = withAuth(async function POST(
 
     const data = await makeBackendRequest(`/api/photos/${photoId}/status`, {
       method: "POST",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
     });
 
     return NextResponse.json(data);

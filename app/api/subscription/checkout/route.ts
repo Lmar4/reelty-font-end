@@ -1,8 +1,5 @@
-import {
-  AuthenticatedRequest,
-  makeBackendRequest,
-  withAuth,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 import { NextResponse } from "next/server";
 
@@ -13,7 +10,7 @@ interface CheckoutRequest {
   returnUrl: string;
 }
 
-export const POST = withAuth(async function POST(
+export const GET = withAuthServer(async function POST(
   request: AuthenticatedRequest
 ) {
   try {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { makeBackendRequest, withAuth } from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { z } from "zod";
 
 const subscriptionTierSchema = z.object({
@@ -34,7 +35,7 @@ const subscriptionTierSchema = z.object({
 });
 
 // GET /api/admin/subscription-tiers
-export const GET = withAuth(async (request) => {
+export const GET = withAuthServer(async (request) => {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -43,7 +44,7 @@ export const GET = withAuth(async (request) => {
     const data = await makeBackendRequest(
       `/api/admin/subscription-tiers?page=${page}&limit=${limit}`,
       {
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
     return NextResponse.json({ success: true, data });
@@ -57,14 +58,14 @@ export const GET = withAuth(async (request) => {
 });
 
 // POST /api/admin/subscription-tiers
-export const POST = withAuth(async (request) => {
+export const GET = withAuthServer(async (request) => {
   try {
     const body = await request.json();
     const validatedData = subscriptionTierSchema.parse(body);
 
     const data = await makeBackendRequest("/api/admin/subscription-tiers", {
       method: "POST",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
       body: JSON.stringify(validatedData),
     });
 
@@ -85,7 +86,7 @@ export const POST = withAuth(async (request) => {
 });
 
 // PATCH /api/admin/subscription-tiers/:id
-export const PATCH = withAuth(async (request) => {
+export const GET = withAuthServer(async (request) => {
   try {
     const tierId = request.url.split("/").pop();
     if (!tierId) {
@@ -102,7 +103,7 @@ export const PATCH = withAuth(async (request) => {
       `/api/admin/subscription-tiers/${tierId}`,
       {
         method: "PATCH",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
         body: JSON.stringify(validatedData),
       }
     );

@@ -1,11 +1,11 @@
 import WelcomeEmail from "@/emails/WelcomeEmail";
-import { AuthenticatedRequest, withAuth } from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
 import { currentUser } from "@clerk/nextjs/server";
 import { render } from "@react-email/render";
 import { NextResponse } from "next/server";
 
-export const POST = withAuth(async function POST(
-  request: AuthenticatedRequest
+export const GET = withAuthServer(async function POST(
+  req: AuthenticatedRequest
 ) {
   try {
     const user = await currentUser();

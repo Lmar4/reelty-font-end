@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { Listing } from "@/types/prisma-types";
 
-export const GET = withAuth(async function GET(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function GET(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
   const { listingId } = await params;
@@ -19,7 +16,7 @@ export const GET = withAuth(async function GET(
 
     const data = await makeBackendRequest(`/api/listings/${listingId}`, {
       method: "GET",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
     });
 
     if (!data) {
@@ -44,7 +41,7 @@ export const GET = withAuth(async function GET(
   }
 });
 
-export const PATCH = withAuth(async function PATCH(
+export const PATCH = withAuthServer(async function PATCH(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
@@ -71,7 +68,7 @@ export const PATCH = withAuth(async function PATCH(
   }
 });
 
-export const DELETE = withAuth(async function DELETE(
+export const DELETE = withAuthServer(async function DELETE(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {

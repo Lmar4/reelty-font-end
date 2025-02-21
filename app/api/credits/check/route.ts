@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
-export const POST = withAuth(async function POST(
-  request: AuthenticatedRequest
+export const GET = withAuthServer(async function POST(
+  req: AuthenticatedRequest
 ) {
   try {
     const data = await makeBackendRequest("/api/credits/check", {
       method: "POST",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
     });
 
     return NextResponse.json(data);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { withAuth } from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { z } from "zod";
 
 const agencySchema = z.object({
@@ -9,7 +10,7 @@ const agencySchema = z.object({
 });
 
 // GET /api/admin/agencies
-export const GET = withAuth(async (request) => {
+export const GET = withAuthServer(async (request) => {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -47,7 +48,7 @@ export const GET = withAuth(async (request) => {
 });
 
 // POST /api/admin/agencies
-export const POST = withAuth(async (request) => {
+export const POST = withAuthServer(async (request) => {
   try {
     const body = await request.json();
     const validatedData = agencySchema.parse(body);

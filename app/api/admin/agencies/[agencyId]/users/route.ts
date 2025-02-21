@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { sendAgencyInviteEmail } from "@/lib/plunk";
-import {
-  withAuth,
-  makeBackendRequest,
-  AuthenticatedRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 interface AgencyUserResponse {
   email: string;
@@ -14,16 +11,16 @@ interface AgencyUserResponse {
   inviteToken: string;
 }
 
-export const GET = withAuth(
+export const $1 = withAuthServer(
   async (
-    request: AuthenticatedRequest,
+    req: AuthenticatedRequest,
     { params }: { params: { agencyId: string } }
   ) => {
     try {
       const data = await makeBackendRequest<AgencyUserResponse[]>(
         `/api/admin/agencies/${params.agencyId}/users`,
         {
-          sessionToken: request.auth.sessionToken,
+          sessionToken: req.auth.sessionToken,
         }
       );
 
@@ -38,13 +35,13 @@ export const GET = withAuth(
   }
 );
 
-export const POST = withAuth(
+export const POST = withAuthServer(
   async (
-    request: AuthenticatedRequest,
+    req: AuthenticatedRequest,
     { params }: { params: { agencyId: string } }
   ) => {
     try {
-      const body = await request.json();
+      const body = await req.json();
       const { sendInvite, ...userData } = body;
 
       const data = await makeBackendRequest<AgencyUserResponse>(
@@ -52,7 +49,7 @@ export const POST = withAuth(
         {
           method: "POST",
           body: userData,
-          sessionToken: request.auth.sessionToken,
+          sessionToken: req.auth.sessionToken,
         }
       );
 

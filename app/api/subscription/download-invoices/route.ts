@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  makeBackendRequest,
-  AuthenticatedRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
+export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");

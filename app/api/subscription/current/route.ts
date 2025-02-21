@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  makeBackendRequest,
-  AuthenticatedRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 interface Subscription {
   id: string;
@@ -13,11 +10,14 @@ interface Subscription {
   cancelAtPeriodEnd: boolean;
 }
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
+export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
   try {
-    const subscription = await makeBackendRequest<Subscription>("/api/subscription/current", {
-      sessionToken: request.auth.sessionToken,
-    });
+    const subscription = await makeBackendRequest<Subscription>(
+      "/api/subscription/current",
+      {
+        sessionToken: req.auth.sessionToken,
+      }
+    );
     console.log(subscription);
     return NextResponse.json({ subscription });
   } catch (error) {

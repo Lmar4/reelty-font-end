@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 interface CreditPackage {
   id: string;
@@ -14,13 +11,15 @@ interface CreditPackage {
   stripePriceId: string;
 }
 
-export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
+export const GET = withAuthServer(async function GET(
+  req: AuthenticatedRequest
+) {
   try {
     const packages = await makeBackendRequest<CreditPackage[]>(
       "/api/credits/packages",
       {
         method: "GET",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 

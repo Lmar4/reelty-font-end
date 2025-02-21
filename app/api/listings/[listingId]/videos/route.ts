@@ -1,8 +1,5 @@
-import {
-  AuthenticatedRequest,
-  makeBackendRequest,
-  withAuth,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { logger } from "@/utils/logger";
 import { NextResponse } from "next/server";
 
@@ -43,8 +40,8 @@ interface VideoResponse {
 
 // GET /api/listings/[listingId]/videos
 // Returns all videos for a listing, including status and metadata
-export const GET = withAuth(async function GET(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function GET(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
@@ -52,7 +49,7 @@ export const GET = withAuth(async function GET(
 
     logger.info("[VIDEOS_GET] Fetching videos", {
       listingId,
-      userId: request.auth.userId,
+      userId: req.auth.userId,
     });
 
     // Validate listingId
@@ -65,7 +62,7 @@ export const GET = withAuth(async function GET(
     }
 
     // Ensure we have a valid session token
-    if (!request.auth.sessionToken) {
+    if (!req.auth.sessionToken) {
       logger.error("[VIDEOS_GET] No session token");
       return NextResponse.json(
         { success: false, error: "No session token" },
@@ -77,7 +74,7 @@ export const GET = withAuth(async function GET(
       `/api/listings/${listingId}/latest-videos`,
       {
         method: "GET",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 
@@ -113,7 +110,7 @@ export const GET = withAuth(async function GET(
 
 // POST /api/listings/[listingId]/videos
 // Creates a new video generation job
-export const POST = withAuth(async function POST(
+export const POST = withAuthServer(async function POST(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {

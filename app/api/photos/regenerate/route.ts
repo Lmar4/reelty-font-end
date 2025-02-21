@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  makeBackendRequest,
-  withAuth,
-  AuthenticatedRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 const MAX_BATCH_SIZE = 20; // Reasonable limit for batch processing
 
-export const POST = withAuth(async function POST(
+export const GET = withAuthServer(async function POST(
   request: AuthenticatedRequest
 ) {
   try {

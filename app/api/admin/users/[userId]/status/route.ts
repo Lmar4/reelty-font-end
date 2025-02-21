@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
-export const PATCH = withAuth(async function PATCH(
+export const GET = withAuthServer(async function PATCH(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {

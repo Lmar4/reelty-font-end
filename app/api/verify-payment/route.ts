@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import Stripe from "stripe";
 import { currentUser } from "@clerk/nextjs/server";
 import { render } from "@react-email/render";
@@ -14,11 +11,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export const POST = withAuth(async function POST(
-  request: AuthenticatedRequest
+export const GET = withAuthServer(async function POST(
+  req: AuthenticatedRequest
 ) {
   try {
-    const { sessionId } = await request.json();
+    const { sessionId } = await req.json();
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status !== "paid") {
@@ -26,9 +23,9 @@ export const POST = withAuth(async function POST(
     }
 
     // Update user's subscription status in your database
-    await makeBackendRequest(`/api/users/${request.auth.userId}/subscription`, {
+    await makeBackendRequest(`/api/users/${req.auth.userId}/subscription`, {
       method: "POST",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
       body: {
         planId: session.metadata?.planId,
         stripeSubscriptionId: session.subscription as string,

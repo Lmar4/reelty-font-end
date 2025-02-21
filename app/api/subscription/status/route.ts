@@ -1,5 +1,6 @@
-import { AuthenticatedRequest, makeBackendRequest } from "@/utils/withAuth";
-import { withAuth } from "@/utils/withAuth";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/withAuthServer";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -16,7 +17,7 @@ const querySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
 });
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
+export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const result = querySchema.safeParse({

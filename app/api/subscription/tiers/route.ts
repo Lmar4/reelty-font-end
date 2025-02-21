@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  makeBackendRequest,
-  AuthenticatedRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 interface SubscriptionTier {
   id: string;
@@ -13,12 +10,12 @@ interface SubscriptionTier {
   features: string[];
 }
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
+export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
   try {
     const tiers = await makeBackendRequest<SubscriptionTier[]>(
       "/api/subscription/tiers",
       {
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 

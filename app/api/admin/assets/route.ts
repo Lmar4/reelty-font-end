@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { Asset } from "@/types/prisma-types";
+import { AuthenticatedRequest } from "@/utils/withAuthServer";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { withAuth } from "@/utils/withAuth";
-import { AuthenticatedRequest } from "@/utils/withAuth";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
+export const GET = withAuthServer(async function GET(
+  request: AuthenticatedRequest
+) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || undefined;
@@ -37,7 +39,7 @@ export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   }
 });
 
-export const POST = withAuth(async function POST(
+export const POST = withAuthServer(async function POST(
   request: AuthenticatedRequest
 ) {
   try {

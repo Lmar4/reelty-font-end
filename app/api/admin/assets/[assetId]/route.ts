@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { Asset } from "@/types/prisma-types";
 
-export const GET = withAuth(async function GET(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function GET(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
@@ -17,7 +14,7 @@ export const GET = withAuth(async function GET(
       `/api/admin/assets/${assetId}`,
       {
         method: "GET",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 
@@ -31,8 +28,8 @@ export const GET = withAuth(async function GET(
   }
 });
 
-export const PATCH = withAuth(async function PATCH(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function PATCH(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
@@ -43,7 +40,7 @@ export const PATCH = withAuth(async function PATCH(
       `/api/admin/assets/${assetId}`,
       {
         method: "PATCH",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
         body: body,
       }
     );
@@ -58,8 +55,8 @@ export const PATCH = withAuth(async function PATCH(
   }
 });
 
-export const DELETE = withAuth(async function DELETE(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function DELETE(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
@@ -67,7 +64,7 @@ export const DELETE = withAuth(async function DELETE(
 
     await makeBackendRequest(`/api/admin/assets/${assetId}`, {
       method: "DELETE",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
     });
 
     return new NextResponse(null, { status: 204 });

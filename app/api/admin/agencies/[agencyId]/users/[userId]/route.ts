@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
-export const DELETE = withAuth(async function DELETE(
-  request: AuthenticatedRequest,
+export const GET = withAuthServer(async function DELETE(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ agencyId: string; userId: string }> }
 ) {
   try {
@@ -16,7 +13,7 @@ export const DELETE = withAuth(async function DELETE(
       `/api/admin/agencies/${agencyId}/users/${userId}`,
       {
         method: "DELETE",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 

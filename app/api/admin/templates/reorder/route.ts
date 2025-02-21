@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { Template } from "@/types/prisma-types";
 
-export const PUT = withAuth(async function PUT(request: AuthenticatedRequest) {
+export const PUT = withAuthServer(async function PUT(
+  request: AuthenticatedRequest
+) {
   try {
     const body = await request.json();
     const templates = await makeBackendRequest<Template[]>(

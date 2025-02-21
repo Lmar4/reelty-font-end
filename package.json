@@ -10,7 +10,8 @@
     "test": "vitest",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "update-auth": "ts-node scripts/update-route-auth.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.749.0",
@@ -99,6 +100,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^14.2.1",
     "@testing-library/user-event": "^14.6.1",
+    "@types/glob": "^8.1.0",
     "@types/node": "^20.17.17",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
@@ -109,6 +111,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.20.0",
     "eslint-config-next": "15.1.6",
+    "glob": "^11.0.1",
     "jsdom": "^26.0.0",
     "postcss": "^8.5.2",
     "prisma": "^6.3.1",

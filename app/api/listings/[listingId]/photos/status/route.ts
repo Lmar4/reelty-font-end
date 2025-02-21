@@ -1,8 +1,5 @@
-import {
-  AuthenticatedRequest,
-  makeBackendRequest,
-  withAuth,
-} from "@/utils/withAuth";
+import { withAuthServer, AuthenticatedRequest } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { logger } from "@/utils/logger";
 import { NextResponse } from "next/server";
 
@@ -12,7 +9,7 @@ interface PhotoStatus {
   totalCount: number;
 }
 
-export const GET = withAuth(
+export const GET = withAuthServer(
   async (
     req: AuthenticatedRequest,
     { params }: { params: Promise<{ listingId: string }> }

@@ -1,7 +1,8 @@
+import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { NextResponse } from "next/server";
-import { withAuth, makeBackendRequest } from "@/utils/withAuth";
 
-export const GET = withAuth(async (request) => {
+export const GET = withAuthServer(async (request) => {
   try {
     // Get query parameters
     const { searchParams } = new URL(request.url);

@@ -1,4 +1,5 @@
-import { AuthenticatedRequest, withAuth } from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -6,7 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia",
 });
 
-export const POST = withAuth(async function POST(
+export const GET = withAuthServer(async function POST(
   request: AuthenticatedRequest
 ) {
   try {

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { Listing } from "@/types/prisma-types";
 
-export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
+export const GET = withAuthServer(async function GET(
+  request: AuthenticatedRequest
+) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.toString();
@@ -27,7 +26,7 @@ export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
   }
 });
 
-export const POST = withAuth(async function POST(
+export const POST = withAuthServer(async function POST(
   request: AuthenticatedRequest
 ) {
   try {

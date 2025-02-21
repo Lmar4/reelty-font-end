@@ -1,8 +1,5 @@
-import {
-  AuthenticatedRequest,
-  makeBackendRequest,
-  withAuth,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { NextResponse } from "next/server";
 
 interface Invoice {
@@ -18,7 +15,7 @@ interface InvoicesResponse {
   has_more: boolean;
 }
 
-export const GET = withAuth(async (request: AuthenticatedRequest) => {
+export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");

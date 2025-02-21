@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { withAuth } from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 // POST /api/admin/bulk-upload
-export const POST = withAuth(async (request) => {
+export const GET = withAuthServer(async (request) => {
   try {
     const formData = await request.formData();
 

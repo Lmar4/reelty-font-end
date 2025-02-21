@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  withAuth,
-  AuthenticatedRequest,
-  makeBackendRequest,
-} from "@/utils/withAuth";
+import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 interface PaymentMethod {
   id: string;
@@ -14,7 +11,9 @@ interface PaymentMethod {
   isDefault: boolean;
 }
 
-export const GET = withAuth(async function GET(request: AuthenticatedRequest) {
+export const GET = withAuthServer(async function GET(
+  request: AuthenticatedRequest
+) {
   try {
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get("customerId");
