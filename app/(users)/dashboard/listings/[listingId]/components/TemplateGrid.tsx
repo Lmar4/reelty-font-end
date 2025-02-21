@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { VideoJob, VideoTemplate, Photo } from "@/types/listing-types";
-import { TemplateSkeleton } from "./TemplateSkeleton";
+import ListingSkeleton from "./ListingSkeleton";
 
 const TEMPLATES = [
   {
@@ -77,9 +77,9 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   if (isLoading) {
     return (
       <>
-        <TemplateSkeleton />
-        <TemplateSkeleton />
-        <TemplateSkeleton />
+        <ListingSkeleton />
+        <ListingSkeleton />
+        <ListingSkeleton />
       </>
     );
   }

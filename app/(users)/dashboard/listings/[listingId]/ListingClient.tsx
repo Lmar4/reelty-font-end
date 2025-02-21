@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TemplateGrid } from "./components/TemplateGrid";
 import { VideoJobCard } from "./components/VideoJobCard";
+import ListingSkeleton from "./components/ListingSkeleton";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
@@ -412,22 +413,6 @@ const getValidVideoJobs = (videoJobs: VideoJob[] = []) => {
   return Object.values(latestByTemplate);
 };
 
-// Add these new components at the top level
-const ListingSkeleton = () => (
-  <div className='animate-pulse space-y-8'>
-    <div className='space-y-4'>
-      <div className='h-4 w-24 bg-gray-200 rounded'></div>
-      <div className='h-8 w-3/4 bg-gray-200 rounded'></div>
-      <div className='h-4 w-1/2 bg-gray-200 rounded'></div>
-    </div>
-    <div className='grid grid-cols-2 md:grid-cols-3 gap-6'>
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className='aspect-video bg-gray-200 rounded-lg'></div>
-      ))}
-    </div>
-  </div>
-);
-
 const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   const [hasError, setHasError] = useState(false);
 
@@ -463,33 +448,6 @@ const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 
   return <>{children}</>;
 };
-
-interface TemplateGridProps {
-  videoJobs: VideoJob[];
-  photos: Photo[] | undefined;
-  isLoading: boolean;
-  userTier: string;
-  activeJobs: VideoJob[];
-  onGenerateVideo: (templateId: string) => void;
-  isGenerating?: boolean;
-}
-
-interface VideoJobCardProps {
-  job: VideoJob;
-  isPaidUser: boolean;
-  onDownload: (jobId: string) => void;
-  onRegenerate: () => void;
-  isRegenerating?: boolean;
-}
-
-interface PropertySettingsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  address: string;
-  photos: PhotoStatusResponse["photos"];
-  onRegenerateImage: (photoIds: string | string[]) => Promise<void>;
-  isLoading?: boolean;
-}
 
 export function ListingClient({
   listingId,

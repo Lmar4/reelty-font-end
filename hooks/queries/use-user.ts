@@ -7,7 +7,15 @@ import { UserResource, toPartialUser } from "@/types/api-types";
 
 const USER_QUERY_KEY = "user";
 
-async function fetchUserData(userId: string, token: string): Promise<Partial<User>> {
+// Type the error response properly
+type ErrorResponse = {
+  error: string;
+};
+
+async function fetchUserData(
+  userId: string,
+  token: string
+): Promise<Partial<User>> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
     {
@@ -19,7 +27,7 @@ async function fetchUserData(userId: string, token: string): Promise<Partial<Use
   );
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = (await response.json()) as ErrorResponse;
     throw new Error(error.error || "Failed to fetch user data");
   }
 
@@ -28,12 +36,15 @@ async function fetchUserData(userId: string, token: string): Promise<Partial<Use
   return toPartialUser(userResource);
 }
 
-async function updateUser(data: {
+// Add proper types for the update payload
+type UpdateUserPayload = {
   id: string;
   name: string;
   email: string;
   token: string;
-}): Promise<User> {
+};
+
+async function updateUser(data: UpdateUserPayload): Promise<User> {
   const response = await fetch(`/api/users/${data.id}`, {
     method: "PUT",
     headers: {
@@ -85,11 +96,14 @@ export function useUserData() {
   return query;
 }
 
+// Add proper types for the mutation payload
+type UpdateUserMutationPayload = Omit<UpdateUserPayload, "token">;
+
 export function useUpdateUser() {
   const { getToken } = useAuth();
 
-  return useMutation({
-    mutationFn: async (data: { id: string; name: string; email: string }) => {
+  return useMutation<User, Error, UpdateUserMutationPayload>({
+    mutationFn: async (data) => {
       const token = await getToken();
       if (!token) {
         throw new Error("No authentication token available");

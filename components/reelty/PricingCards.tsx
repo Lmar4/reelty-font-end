@@ -4,10 +4,9 @@ import { useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
-
+import { useRouter } from "next/navigation";
 type SubscriptionStatus =
   | "ACTIVE"
   | "CANCELED"
@@ -35,7 +34,7 @@ export default function PricingCards({
     "monthly"
   );
   const [loading, setLoading] = useState<string | null>(null);
-
+  const router = useRouter();
   const { userId, getToken } = useAuth();
 
   const prices = {
@@ -84,7 +83,10 @@ export default function PricingCards({
   const handleSubscribe = async (plan: string) => {
     try {
       if (!userId) {
-        toast.error("Please sign in to subscribe");
+        sessionStorage.setItem("postSignUpRedirect", window.location.href);
+        router.push(
+          "/sign-up?message=Please sign up first to subscribe to a plan"
+        );
         return;
       }
 

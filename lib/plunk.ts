@@ -1,9 +1,10 @@
 import Plunk from "@plunk/node";
 import { render } from "@react-email/render";
-import { CreditPurchaseEmail } from "@/emails/CreditPurchaseEmail";
-import { LowBalanceEmail } from "@/emails/LowBalanceEmail";
+
 import { SubscriptionChangeEmail } from "@/emails/SubscriptionChangeEmail";
 import { PaymentFailureEmail } from "@/emails/PaymentFailureEmail";
+import CreditPurchaseEmail from "@/emails/CreditPurchaseEmail";
+import LowBalanceEmail from "@/emails/LowBalanceEmail";
 
 if (!process.env.PLUNK_PUBLIC_API_KEY) {
   throw new Error("Missing PLUNK_PUBLIC_API_KEY environment variable");
@@ -164,15 +165,13 @@ export const sendCreditPurchaseEmail = async (
 
 export const sendLowBalanceEmail = async (
   email: string,
-  name: string,
-  remainingCredits: number,
-  expiryDate?: string
+  currentBalance: number,
+  currency: string
 ) => {
   const emailHtml = render(
     LowBalanceEmail({
-      name,
-      remainingCredits,
-      expiryDate,
+      currentBalance,
+      currency,
     })
   );
 
@@ -186,13 +185,12 @@ export const sendLowBalanceEmail = async (
 // Credit monitoring function
 export const checkAndNotifyLowBalance = async (
   email: string,
-  name: string,
-  credits: number,
-  expiryDate?: string,
+  currentBalance: number,
+  currency: string,
   threshold: number = 5 // Default threshold of 5 credits
 ) => {
-  if (credits <= threshold) {
-    await sendLowBalanceEmail(email, name, credits, expiryDate);
+  if (currentBalance <= threshold) {
+    await sendLowBalanceEmail(email, currentBalance, currency);
     return true;
   }
   return false;

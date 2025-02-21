@@ -3,9 +3,12 @@
 import { SignUp } from "@clerk/nextjs";
 import HomeHeader from "@/components/reelty/HomeHeader";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 export default function SignUpPage() {
   const [redirectUrl, setRedirectUrl] = useState<string>("/dashboard");
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     // Get the stored redirect path
@@ -14,6 +17,22 @@ export default function SignUpPage() {
       setRedirectUrl(storedRedirect);
     }
   }, []);
+
+  useEffect(() => {
+    const message = searchParams.get("message");
+    // Create a flag to track if toast was shown
+    let isToastShown = false;
+
+    if (message && !isToastShown) {
+      toast.info(message);
+      isToastShown = true;
+    }
+
+    // Cleanup function
+    return () => {
+      isToastShown = false;
+    };
+  }, [searchParams]);
 
   return (
     <>

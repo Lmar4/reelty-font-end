@@ -5,16 +5,27 @@ import Footer from "@/components/reelty/Footer";
 import HomeHeader from "@/components/reelty/HomeHeader";
 import NewListingModal from "@/components/reelty/NewListingModal";
 import Image from "next/image";
-
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@clerk/nextjs";
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const router = useRouter();
+  const { userId } = useAuth();
 
   const handleFilesSelected = (files: File[]) => {
-    // Take first 10 files if more are selected
+    // If user is not authenticated, redirect to sign up
+    if (!userId) {
+      router.push(
+        "/sign-up?message=Please sign up first to have your own reels"
+      );
+      return;
+    }
+
+    // Regular file handling for authenticated users
     const filesToUse = files.slice(0, 10);
     if (files.length > 10) {
       toast.info(
@@ -215,7 +226,9 @@ export default function Home() {
         {/* Input Section */}
         <div className='max-w-[800px] mx-auto px-4'>
           <FileUpload
-            buttonText='Select listing photos'
+            buttonText={
+              userId ? "Select listing photos" : "Get started for free"
+            }
             onFilesSelected={handleFilesSelected}
             uploadUrl='' // Keep empty for new listings
             maxFiles={10}

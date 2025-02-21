@@ -55,7 +55,8 @@ interface NewListingModalProps {
     lat: number;
     lng: number;
   };
-  tempListingId?: string; // Optional ID for temp listings
+  tempListingId?: string;
+  maxPhotos?: number;
 }
 
 interface StoredPhoto {
@@ -78,6 +79,7 @@ export default function NewListingModal({
   initialAddress = "",
   initialCoordinates,
   tempListingId,
+  maxPhotos = 10, // Default to 10 if not specified
 }: NewListingModalProps) {
   const { userId, isSignedIn, isLoaded: authLoaded } = useAuth();
   const { session } = useSession();
@@ -289,8 +291,8 @@ export default function NewListingModal({
         ...newFiles,
       ];
 
-      if (totalFiles.length > 60) {
-        toast.error("Maximum 60 photos allowed");
+      if (totalFiles.length > maxPhotos) {
+        toast.error(`Maximum ${maxPhotos} photos allowed`);
         return;
       }
 
@@ -334,8 +336,16 @@ export default function NewListingModal({
       // Get token early
       const token = (await session?.getToken()) || undefined;
 
-      if (selectedPhotos.size < 10) {
+      // Update photo limit check based on trial status
+      const requiredPhotos = 10;
+
+      if (selectedPhotos.size < requiredPhotos) {
         toast.error("Please select at least 10 photos");
+        return;
+      }
+
+      if (selectedPhotos.size > maxPhotos) {
+        toast.error(`Maximum ${maxPhotos} photos allowed`);
         return;
       }
 
@@ -718,8 +728,12 @@ export default function NewListingModal({
                 {/* Progress Bar */}
                 <div>
                   <div className='flex items-center justify-between text-[18px] font-semibold mb-2 text-black'>
-                    <span>{selectedPhotos.size} of 20 photos selected</span>
-                    <span>{Math.round((selectedPhotos.size / 20) * 100)}%</span>
+                    <span>
+                      {selectedPhotos.size} of {maxPhotos} photos selected
+                    </span>
+                    <span>
+                      {Math.round((selectedPhotos.size / maxPhotos) * 100)}%
+                    </span>
                   </div>
                   <div className='h-2 bg-gray-100 rounded-full overflow-hidden'>
                     <div
@@ -727,11 +741,13 @@ export default function NewListingModal({
                         "h-full transition-all duration-300",
                         selectedPhotos.size < 10
                           ? "bg-red-500"
-                          : selectedPhotos.size > 20
+                          : selectedPhotos.size > maxPhotos
                           ? "bg-red-500"
                           : "bg-purple-500"
                       )}
-                      style={{ width: `${(selectedPhotos.size / 20) * 100}%` }}
+                      style={{
+                        width: `${(selectedPhotos.size / maxPhotos) * 100}%`,
+                      }}
                     />
                   </div>
                   {selectedPhotos.size < 10 && (
@@ -739,9 +755,9 @@ export default function NewListingModal({
                       Please select at least 10 photos
                     </p>
                   )}
-                  {selectedPhotos.size > 20 && (
+                  {selectedPhotos.size > maxPhotos && (
                     <p className='text-red-500 text-sm mt-1'>
-                      Maximum 20 photos allowed
+                      Maximum {maxPhotos} photos allowed
                     </p>
                   )}
                 </div>

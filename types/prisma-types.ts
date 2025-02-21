@@ -10,6 +10,8 @@ export type JsonValue =
 
 export type AssetType = "MUSIC" | "WATERMARK" | "LOTTIE";
 
+export type PlanType = "PAY_AS_YOU_GO" | "MONTHLY";
+
 export type UserRole = "USER" | "ADMIN" | "AGENCY" | "AGENCY_USER";
 
 export type SubscriptionStatus =
@@ -23,11 +25,10 @@ export type SubscriptionStatus =
   | "INACTIVE";
 
 export type VideoGenerationStatus =
-  | "QUEUED"
+  | "PENDING"
   | "PROCESSING"
   | "COMPLETED"
-  | "FAILED"
-  | "CANCELLED";
+  | "FAILED";
 
 export interface User {
   id: string; // Clerk ID
@@ -58,6 +59,7 @@ export interface User {
   agency?: User | null;
   agencyUsers?: User[];
   subscriptionLogs?: SubscriptionLog[];
+  subscriptionHistory?: SubscriptionHistory[];
   creditLogs?: CreditLog[];
   adminCreditLogs?: CreditLog[];
   tierChanges?: TierChange[];
@@ -295,6 +297,21 @@ export interface ProcessedAsset {
   settings: JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface SubscriptionHistory {
+  id: string;
+  userId: string;
+  tierId: string;
+  startDate: Date;
+  endDate: Date | null;
+  status: SubscriptionStatus;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  user?: User;
+  tier?: SubscriptionTier;
 }
 
 export interface BulkDiscount {

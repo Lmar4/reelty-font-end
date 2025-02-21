@@ -1,17 +1,15 @@
-export interface BackendResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
+import { makeBackendRequest as baseRequest, type BackendResponse } from './api';
 
-export async function makeBackendRequest<T>(
+export type { BackendResponse };
+
+export async function makeAuthenticatedRequest<T>(
   endpoint: string,
   {
     method = "GET",
     body,
     sessionToken,
-    timeout = 30000, // 30 second default timeout
-    retryCount = 3, // Add retry count
+    timeout = 30000,
+    retryCount = 3,
   }: {
     method?: string;
     body?: any;
@@ -28,52 +26,27 @@ export async function makeBackendRequest<T>(
 
   while (attempts < retryCount) {
     try {
-      const backendUrl =
-        process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-      const url = `${backendUrl}${endpoint}`;
-
-      const response = await fetch(url, {
+      // Log the request details (remove in production)
+      console.debug("[REQUEST]", {
+        endpoint,
         method,
+        hasToken: !!sessionToken,
+        tokenPreview: sessionToken ? `${sessionToken.slice(0, 10)}...` : null,
+      });
+
+      // Use the base request with our auth headers
+      const response = await baseRequest<T>(endpoint, {
+        method,
+        body,
+        sessionToken,
+        timeout,
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: body ? JSON.stringify(body) : undefined,
-        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
-
-      // Handle rate limiting
-      if (response.status === 429) {
-        const retryAfter = response.headers.get("Retry-After");
-        const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 5000;
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-        attempts++;
-        continue;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-
-        // Handle session expiration
-        if (
-          response.status === 401 &&
-          errorData.error === "Invalid or missing session"
-        ) {
-          console.warn(
-            "[AUTH_WARNING] Session expired, please refresh the page"
-          );
-          throw new Error("Session expired");
-        }
-
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      const data = await response.json();
-      return data as T;
+      return response;
     } catch (error) {
       lastError =
         error instanceof Error
@@ -86,9 +59,17 @@ export async function makeBackendRequest<T>(
         }
 
         // Don't retry on session expiration
-        if (error.message === "Session expired") {
+        if (error.message === "Session expired or invalid") {
           throw error;
         }
+
+        // Log errors in development
+        console.error("[REQUEST_ERROR]", {
+          endpoint,
+          error: error.message,
+          attempt: attempts + 1,
+          maxAttempts: retryCount,
+        });
       }
 
       attempts++;
@@ -97,14 +78,17 @@ export async function makeBackendRequest<T>(
       }
 
       // Exponential backoff
-      await new Promise((resolve) =>
-        setTimeout(resolve, Math.pow(2, attempts) * 1000)
-      );
+      const backoffTime = Math.pow(2, attempts) * 1000;
+      console.debug(`[RETRY] Waiting ${backoffTime}ms before retry ${attempts + 1}/${retryCount}`);
+      await new Promise((resolve) => setTimeout(resolve, backoffTime));
     }
   }
 
   throw lastError || new Error("Request failed after all retries");
 }
+
+// Export the authenticated version as the default makeBackendRequest
+export const makeBackendRequest = makeAuthenticatedRequest;
 
 // Re-export types and functions from withAuthServer
 export { withAuth, type AuthenticatedRequest } from "./withAuthServer";

@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { AuthProvider } from "@/providers/AuthProvider";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 import { QueryProvider } from "@/providers/query-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/components/providers/Providers";

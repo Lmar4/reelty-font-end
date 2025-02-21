@@ -6,20 +6,19 @@ import { DashboardUpload } from "@/components/reelty/DashboardUpload";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ListingGrid } from "@/components/listings/ListingGrid";
 import { useListings } from "@/hooks/queries/use-listings";
-import { useUser as useClerkUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import NewListingModal from "@/components/reelty/NewListingModal";
+import { useUserData } from "@/hooks/useUserData";
 
 export default function DashboardPage() {
-  const { user: clerkUser } = useClerkUser();
-
+  const { data: user } = useUserData();
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const { data: listings, isLoading: isListingsLoading } = useListings(
-    clerkUser?.id || ""
+    user?.id || ""
   );
 
   const handleFilesSelected = async (files: File[]) => {
@@ -75,6 +74,7 @@ export default function DashboardPage() {
             router.refresh();
           }}
           initialFiles={selectedFiles}
+          maxPhotos={user?.currentTier?.maxPhotosPerListing || 10}
         />
       )}
     </>

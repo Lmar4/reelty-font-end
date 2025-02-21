@@ -1,17 +1,8 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
-  Link,
-  Preview,
-  Section,
-  Text,
-} from "@react-email/components";
+import * as React from "react";
+import { Section, Text, Link } from "@react-email/components";
 import { BaseLayout } from "./components/BaseLayout";
+import { theme } from "./components/EmailStyles";
+import { Hr } from "@react-email/components";
 
 interface VideoErrorEmailProps {
   firstName: string;
@@ -22,82 +13,82 @@ interface VideoErrorEmailProps {
 }
 
 export default function VideoErrorEmail({
-  firstName,
-  appUrl,
-  listingAddress,
-  errorMessage,
-  supportTicketId,
+  firstName = "Rob",
+  appUrl = "https://app.reelty.com",
+  listingAddress = "123 Main St",
+  errorMessage = "Something went wrong",
+  supportTicketId = "123",
 }: VideoErrorEmailProps) {
-  const previewText = `We encountered an issue with your video for ${listingAddress}`;
-
   return (
-    <Html>
-      <Head />
-      <Preview>{previewText}</Preview>
-      <BaseLayout previewText={previewText}>
-        <Container>
-          <Heading className='text-2xl font-bold text-gray-800 my-8 text-center'>
-            Video Generation Issue
-          </Heading>
+    <BaseLayout previewText={`⚠️ Issue with Your Video for ${listingAddress}`}>
+      <Text style={{
+        ...theme.typography.h1,
+        marginBottom: theme.spacing.lg
+      }}>
+        Something Went Wrong…
+      </Text>
 
-          <Section className='bg-white rounded-lg p-6 shadow-lg'>
-            <Text className='text-gray-700 text-base mb-4'>
-              Hi {firstName},
-            </Text>
+      <Text style={theme.typography.body}>
+        We hit a snag while generating your reels for <strong>{listingAddress}</strong>.
+      </Text>
 
-            <Text className='text-gray-700 text-base mb-4'>
-              We encountered an issue while generating your video reel for{" "}
-              <strong>{listingAddress}</strong>.
-            </Text>
-
-            <Section className='bg-red-50 border border-red-100 rounded-lg p-4 mb-6'>
-              <Text className='text-red-700 text-sm'>
-                Error Details: {errorMessage}
-              </Text>
-              {supportTicketId && (
-                <Text className='text-red-700 text-sm mt-2'>
-                  Support Ticket: #{supportTicketId}
-                </Text>
-              )}
-            </Section>
-
-            <Text className='text-gray-700 text-base mb-6'>
-              Our team has been notified and is working to resolve this issue.
-              You can try generating the video again or contact our support team
-              for assistance.
-            </Text>
-
-            <div className='flex gap-4'>
-              <Button
-                className='bg-purple-600 text-white rounded-lg px-6 py-3 font-medium text-center flex-1'
-                href={`${appUrl}/dashboard`}
-              >
-                Go to Dashboard
-              </Button>
-              <Button
-                className='bg-white border border-purple-600 text-purple-600 rounded-lg px-6 py-3 font-medium text-center flex-1'
-                href={`${appUrl}/support`}
-              >
-                Contact Support
-              </Button>
-            </div>
-
-            <Hr className='border-gray-200 my-6' />
-
-            <Text className='text-gray-600 text-sm'>
-              If you continue to experience issues, please don't hesitate to
-              reach out to our support team.
-            </Text>
-          </Section>
-
-          <Text className='text-gray-500 text-sm text-center mt-8'>
-            Need immediate assistance? Contact our support team at{" "}
-            <Link href='mailto:support@reelty.com' className='text-purple-600'>
-              support@reelty.com
-            </Link>
+      <Section style={{
+        backgroundColor: theme.colors.danger + '10',
+        border: `1px solid ${theme.colors.danger}20`,
+        borderRadius: '8px',
+        padding: theme.spacing.md,
+        marginBottom: theme.spacing.lg
+      }}>
+        <Text style={{
+          ...theme.typography.small,
+          color: theme.colors.danger
+        }}>
+          Error Details: {errorMessage}
+        </Text>
+        {supportTicketId && (
+          <Text style={{
+            ...theme.typography.small,
+            color: theme.colors.danger,
+            marginTop: theme.spacing.sm
+          }}>
+            Support Ticket: #{supportTicketId}
           </Text>
-        </Container>
-      </BaseLayout>
-    </Html>
+        )}
+      </Section>
+
+      <Text style={theme.typography.body}>
+        We're on it. You can try again or contact us for help.
+      </Text>
+
+      <div style={{ 
+        display: 'flex', 
+        gap: theme.spacing.md,
+        margin: `${theme.spacing.lg} 0`
+      }}>
+        <a href={`${appUrl}/dashboard`} style={{
+          ...theme.buttons.primary,
+          backgroundColor: theme.colors.primary,
+          borderRadius: '9999px',
+          display: 'inline-block'
+        }}>
+          Go to Dashboard
+        </a>
+        <a href={`${appUrl}/support`} style={{
+          ...theme.buttons.secondary,
+          color: theme.colors.primary,
+          borderColor: theme.colors.primary,
+          borderRadius: '9999px',
+          display: 'inline-block'
+        }}>
+          Contact Support
+        </a>
+      </div>
+
+      <Hr style={{ borderColor: theme.colors.text.light }} />
+      
+      <Text style={theme.typography.body}>
+        The Reelty Team
+      </Text>
+    </BaseLayout>
   );
 }

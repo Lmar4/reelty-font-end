@@ -16,7 +16,7 @@ export default function TempListingWrapper({
   useEffect(() => {
     // Only redirect if we're not loading and have no session
     if (!isLoading && !sessionData) {
-      console.log('No session data found, redirecting to dashboard');
+      console.log("No session data found, redirecting to dashboard");
       router.replace("/dashboard");
       return;
     }
@@ -42,6 +42,7 @@ export default function TempListingWrapper({
         initialAddress={sessionData.address}
         initialCoordinates={sessionData.coordinates}
         tempListingId={listingId}
+        maxPhotos={10}
       />
     </div>
   );

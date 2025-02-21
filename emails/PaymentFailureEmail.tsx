@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Section, Text, Link, Hr, Button } from "@react-email/components";
 import { BaseLayout } from "./components/BaseLayout";
+import { theme } from "./components/EmailStyles";
 
 interface PaymentFailureEmailProps {
   firstName: string;
@@ -13,121 +14,77 @@ interface PaymentFailureEmailProps {
 }
 
 export const PaymentFailureEmail = ({
-  firstName = "there",
+  firstName = "Rob",
   appUrl = "https://app.reelty.com",
-  planName,
-  amount,
-  failureReason,
-  nextAttemptDate,
-  paymentMethodLast4,
+  planName = "Pro+",
+  amount = 10.0,
+  failureReason = "Payment failed",
+  nextAttemptDate = "2024-01-01",
+  paymentMethodLast4 = "1234",
 }: PaymentFailureEmailProps) => {
   return (
-    <BaseLayout previewText='Important: Action Required - Payment Failed'>
-      <Text style={styles.heading}>Payment Failed</Text>
-
-      <Text style={styles.text}>Hi {firstName},</Text>
-
-      <Text style={styles.text}>
-        We were unable to process your payment of ${amount.toFixed(2)} for your{" "}
-        {planName} subscription.
+    <BaseLayout previewText="Payment Issue – Action Required">
+      <Text style={theme.typography.h1}>
+        Payment Failed
       </Text>
 
-      <Section style={styles.details}>
-        <Text style={styles.detailRow}>
+      <Text style={theme.typography.body}>
+        We couldn't process your payment of ${amount.toFixed(2)} for your {planName} subscription.
+      </Text>
+
+      <Section style={{
+        ...theme.containers.section,
+        backgroundColor: theme.colors.danger + '10',
+        border: `1px solid ${theme.colors.danger}20`,
+      }}>
+        <Text style={{
+          ...theme.typography.body,
+          color: theme.colors.danger
+        }}>
           <strong>Reason:</strong> {failureReason}
         </Text>
         {paymentMethodLast4 && (
-          <Text style={styles.detailRow}>
+          <Text style={{
+            ...theme.typography.body,
+            color: theme.colors.danger
+          }}>
             <strong>Payment Method:</strong> Card ending in {paymentMethodLast4}
           </Text>
         )}
         {nextAttemptDate && (
-          <Text style={styles.detailRow}>
+          <Text style={{
+            ...theme.typography.body,
+            color: theme.colors.danger
+          }}>
             <strong>Next Attempt:</strong> {nextAttemptDate}
           </Text>
         )}
       </Section>
 
-      <Text style={styles.text}>
-        To ensure uninterrupted access to your {planName} subscription, please
-        update your payment information as soon as possible.
+      <Text style={theme.typography.body}>
+        To keep your subscription active, update your payment details now.
       </Text>
 
-      <Section style={styles.buttonContainer}>
-        <Button
-          style={{
-            ...styles.button,
-            padding: "12px 20px",
-          }}
-          href={`${appUrl}/billing/payment-methods`}
-        >
+      <Section style={{ margin: `${theme.spacing.xl} 0` }}>
+        <a href={`${appUrl}/billing/payment-methods`} style={{
+          ...theme.buttons.primary,
+          backgroundColor: theme.colors.primary,
+          borderRadius: '9999px',
+          display: 'inline-block'
+        }}>
           Update Payment Method
-        </Button>
+        </a>
       </Section>
 
-      <Text style={styles.text}>
-        If you need assistance or have any questions, please don't hesitate to
-        contact our support team. We're here to help!
+      <Text style={theme.typography.body}>
+        Need help? Reach out—we're here.
       </Text>
 
-      <Hr style={styles.hr} />
+      <Hr style={{ borderColor: theme.colors.text.light }} />
 
-      <Text style={styles.signature}>
-        Best regards,
-        <br />
+      <Text style={theme.typography.body}>
         The Reelty Team
       </Text>
     </BaseLayout>
   );
 };
-
-const styles = {
-  heading: {
-    fontSize: "24px",
-    fontWeight: "bold",
-    textAlign: "left" as const,
-    margin: "0 0 15px",
-    color: "#dc2626", // red-600
-  },
-  text: {
-    margin: "15px 0",
-    fontSize: "16px",
-    lineHeight: "1.6",
-  },
-  details: {
-    backgroundColor: "#fee2e2", // red-100
-    borderRadius: "6px",
-    padding: "20px",
-    margin: "20px 0",
-    border: "1px solid #fecaca", // red-200
-  },
-  detailRow: {
-    margin: "10px 0",
-    fontSize: "16px",
-    color: "#991b1b", // red-800
-  },
-  buttonContainer: {
-    textAlign: "center" as const,
-    margin: "30px 0",
-  },
-  button: {
-    backgroundColor: "#dc2626", // red-600
-    borderRadius: "6px",
-    color: "#fff",
-    fontWeight: "bold",
-    textDecoration: "none",
-    textAlign: "center" as const,
-    display: "inline-block",
-  },
-  hr: {
-    borderColor: "#e5e7eb",
-    margin: "30px 0",
-  },
-  signature: {
-    fontSize: "16px",
-    lineHeight: "1.6",
-    color: "#374151",
-  },
-} as const;
-
-export default PaymentFailureEmail;

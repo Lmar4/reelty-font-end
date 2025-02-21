@@ -11,8 +11,22 @@ export async function makeBackendRequest<T>(
     body?: any;
     sessionToken?: string;
     headers?: HeadersInit;
+    timeout?: number;
+    retryCount?: number;
   }
 ): Promise<T> {
+  const {
+    method = 'GET',
+    body,
+    sessionToken,
+    headers: customHeaders,
+    timeout = 30000,
+    retryCount = 3
+  } = options;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
   if (!backendUrl) {
     throw new Error(
@@ -20,11 +34,11 @@ export async function makeBackendRequest<T>(
     );
   }
 
-  const headers = new Headers(options.headers || {});
-  const isFormData = options.body instanceof FormData;
+  const headers = new Headers(customHeaders || {});
+  const isFormData = body instanceof FormData;
 
-  if (options.sessionToken) {
-    headers.set("Authorization", `Bearer ${options.sessionToken}`);
+  if (sessionToken) {
+    headers.set("Authorization", `Bearer ${sessionToken}`);
   }
 
   // For FormData, don't set any Content-Type and let the browser handle it
@@ -33,15 +47,19 @@ export async function makeBackendRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
+  // Prevent double JSON stringification
+  let processedBody = body;
+  if (body && !isFormData) {
+    processedBody = typeof body === 'string' ? body : 
+                   body instanceof URLSearchParams ? body :
+                   JSON.stringify(body);
+  }
+
   const requestOptions: RequestInit = {
-    method: options.method || "GET",
+    method,
     headers,
-    // Don't transform FormData, but stringify other bodies
-    body: isFormData
-      ? options.body
-      : options.body
-      ? JSON.stringify(options.body)
-      : undefined,
+    body: processedBody,
+    signal: controller.signal
   };
 
   try {

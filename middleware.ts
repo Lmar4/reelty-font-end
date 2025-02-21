@@ -74,7 +74,7 @@ export default clerkMiddleware(async (auth, req) => {
 
   // Now we can safely run auth
   const { userId, getToken } = await auth();
-  console.log("userId", userId);
+
   // Handle homepage redirect for authenticated users
   if (req.nextUrl.pathname === "/" && userId) {
     const dashboardUrl = new URL("/dashboard", req.url);
