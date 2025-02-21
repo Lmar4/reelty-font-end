@@ -22,20 +22,12 @@ export const usePhotoStatus = (listingId: string) => {
     queryKey: ["photoStatus", listingId],
     queryFn: async () => {
       const sessionToken = await getToken();
-      if (!sessionToken) {
-        throw new Error("No session token available");
-      }
+      if (!sessionToken) throw new Error("No session token available");
 
       const response = await makeBackendRequest<PhotoStatusResponse>(
         `/api/listings/${listingId}/photos/status`,
-        {
-          sessionToken,
-        }
+        { sessionToken }
       );
-
-      if (!response) {
-        throw new Error("Invalid response format");
-      }
 
       return {
         status:
@@ -62,29 +54,20 @@ export const usePhotoStatus = (listingId: string) => {
     },
     refetchInterval: (query) => {
       const data = query.state.data;
-      // If we have data and photos are still processing, refetch every 5 seconds
-      if (data?.status === "PROCESSING") {
-        return 5000;
-      }
-      // Otherwise, don't refetch automatically
-      return false;
+      return data?.status === "PROCESSING" ? 5000 : false;
     },
-    // Add retry and backoff logic
     retry: (failureCount, error) => {
       if (error instanceof Error && error.message.includes("429")) {
-        return failureCount < 3; // Retry up to 3 times for rate limit errors
+        return failureCount < 3;
       }
-      return failureCount < 2; // Default to 2 retries for other errors
+      return failureCount < 2;
     },
-    retryDelay: (attemptIndex) => {
-      // Exponential backoff: 2s, 4s, 8s...
-      return Math.min(1000 * Math.pow(2, attemptIndex), 10000);
-    },
-    // Refetch settings
+    retryDelay: (attemptIndex) =>
+      Math.min(1000 * Math.pow(2, attemptIndex), 10000),
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
     enabled: !!listingId,
   });
 };

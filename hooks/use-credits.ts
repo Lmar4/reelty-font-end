@@ -1,19 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
-
-interface CreditCheck {
-  userId: string;
-  templateId: string;
-  features: string[];
-}
-
-interface CreditDeduction {
-  userId: string;
-  templateId: string;
-  features: string[];
-  listingId: string;
-}
 
 interface CreditLog {
   id: string;
@@ -27,20 +15,14 @@ interface UseCreditsOptions {
 }
 
 async function checkCredits(userId: string, token: string): Promise<number> {
-  const response = await fetch("/api/credits/check", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ userId }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to check credits");
-  }
-
-  const data = await response.json();
+  const data = await makeBackendRequest<{ credits: number }>(
+    "/api/credits/check",
+    {
+      method: "POST",
+      body: { userId },
+      sessionToken: token,
+    }
+  );
   return data.credits;
 }
 
@@ -55,37 +37,20 @@ async function deductCredits({
   reason?: string;
   token: string;
 }): Promise<void> {
-  const response = await fetch("/api/credits/deduct", {
+  await makeBackendRequest<void>("/api/credits/deduct", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ userId, amount, reason }),
+    body: { userId, amount, reason },
+    sessionToken: token,
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to deduct credits");
-  }
 }
 
 async function fetchCreditHistory(
   userId: string,
   token: string
 ): Promise<CreditLog[]> {
-  const response = await fetch(`/api/credits/history/${userId}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+  return makeBackendRequest<CreditLog[]>(`/api/credits/history/${userId}`, {
+    sessionToken: token,
   });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch credit history");
-  }
-
-  const { data } = await response.json();
-  return data;
 }
 
 export function useCredits(userId: string, options: UseCreditsOptions = {}) {
@@ -122,7 +87,6 @@ export function useCredits(userId: string, options: UseCreditsOptions = {}) {
       return deductCredits({ userId, amount, reason, token: token! });
     },
     onSuccess: () => {
-      // Invalidate credits query to trigger a refresh
       queryClient.invalidateQueries({ queryKey: ["credits", userId] });
       queryClient.invalidateQueries({ queryKey: ["creditHistory", userId] });
     },

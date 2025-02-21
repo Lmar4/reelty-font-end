@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-
+import { makeBackendRequest } from "@/utils/withAuth";
+import { useAuth } from "@clerk/nextjs";
 export interface CreditPackage {
   id: string;
   name: string;
@@ -9,17 +10,15 @@ export interface CreditPackage {
   credits: number;
 }
 
-async function fetchCreditPackages(): Promise<CreditPackage[]> {
+async function fetchCreditPackages(token: string): Promise<CreditPackage[]> {
   try {
-    const response = await fetch("/api/subscription/tiers");
-    if (!response.ok) {
-      throw new Error("Failed to fetch credit packages");
-    }
-
-    const { data: tiers } = await response.json();
-
-    // Convert subscription tiers to credit packages by extracting credits from features
-    return (tiers || []).map((tier: CreditPackage) => {
+    const tiers = await makeBackendRequest<CreditPackage[]>(
+      "/api/subscription/tiers",
+      {
+        sessionToken: token,
+      }
+    );
+    return tiers.map((tier) => {
       const creditFeature = tier.features.find(
         (feature) =>
           feature.toLowerCase().includes("credit") ||
@@ -42,9 +41,14 @@ async function fetchCreditPackages(): Promise<CreditPackage[]> {
 }
 
 export function useCreditPackages() {
+  const { getToken } = useAuth();
+
   return useQuery({
     queryKey: ["creditPackages"],
-    queryFn: fetchCreditPackages,
+    queryFn: async () => {
+      const token = await getToken();
+      return fetchCreditPackages(token || "");
+    },
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     retry: 3,
   });

@@ -2,15 +2,17 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
 import { SubscriptionTier } from "@/types/prisma-types";
 
-async function fetchSubscriptionTiers(): Promise<SubscriptionTier[]> {
-  const response = await fetch("/api/subscription/tiers");
-  if (!response.ok) {
-    throw new Error("Failed to fetch subscription tiers");
-  }
-  return response.json();
+async function fetchSubscriptionTiers(
+  token?: string
+): Promise<SubscriptionTier[]> {
+  if (!token) throw new Error("No token provided");
+  return makeBackendRequest<SubscriptionTier[]>("/api/subscription/tiers", {
+    sessionToken: token,
+  });
 }
 
 interface CreateCheckoutSessionParams {
@@ -23,21 +25,18 @@ interface CreateCheckoutSessionParams {
 }
 
 async function createCheckoutSession(
-  params: CreateCheckoutSessionParams
+  params: CreateCheckoutSessionParams,
+  token?: string
 ): Promise<string> {
-  const response = await fetch("/api/create-checkout-session", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(params),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to create checkout session");
-  }
-
-  const data = await response.json();
+  if (!token) throw new Error("No token provided");
+  const data = await makeBackendRequest<{ url: string }>(
+    "/api/create-checkout-session",
+    {
+      method: "POST",
+      body: params,
+      sessionToken: token,
+    }
+  );
   return data.url;
 }
 
@@ -48,20 +47,15 @@ interface UpdateSubscriptionParams {
 }
 
 async function updateSubscriptionTier(
-  data: UpdateSubscriptionParams
+  data: UpdateSubscriptionParams,
+  token?: string
 ): Promise<void> {
-  const response = await fetch("/api/subscription/tier", {
+  if (!token) throw new Error("No token provided");
+  await makeBackendRequest<void>("/api/subscription/tier", {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
+    body: data,
+    sessionToken: token,
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || "Failed to update subscription");
-  }
 }
 
 const SUBSCRIPTION_QUERY_KEY = "subscription";
@@ -73,53 +67,25 @@ export function useSubscription() {
     queryKey: [SUBSCRIPTION_QUERY_KEY],
     queryFn: async () => {
       const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/subscription/current`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to fetch subscription");
-      }
-
-      const result = await response.json();
-      return result.data;
+      if (!token) throw new Error("No token provided");
+      return makeBackendRequest<any>("/api/subscription/current", {
+        sessionToken: token,
+      });
     },
   });
 }
 
 export function useUpdateSubscription() {
   const queryClient = useQueryClient();
-  const { getToken } = useAuth();
+  const { getToken, userId } = useAuth();
 
   return useMutation({
     mutationFn: async (data: { tierId: string }) => {
       const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/subscription/tier`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update subscription");
-      }
-
-      const result = await response.json();
-      return result.data;
+      if (!token) throw new Error("Authentication token not found");
+      if (!userId) throw new Error("User ID not found");
+      await updateSubscriptionTier({ userId, tierId: data.tierId }, token);
+      return;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SUBSCRIPTION_QUERY_KEY] });
@@ -138,24 +104,11 @@ export function useCancelSubscription() {
   return useMutation({
     mutationFn: async () => {
       const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/subscription/cancel`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to cancel subscription");
-      }
-
-      const result = await response.json();
-      return result.data;
+      if (!token) throw new Error("Authentication token not found");
+      return makeBackendRequest<any>("/api/subscription/cancel", {
+        method: "POST",
+        sessionToken: token,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SUBSCRIPTION_QUERY_KEY] });
@@ -168,14 +121,24 @@ export function useCancelSubscription() {
 }
 
 export function useSubscriptionTiers() {
+  const { getToken } = useAuth();
+
   return useQuery({
     queryKey: ["subscriptionTiers"],
-    queryFn: fetchSubscriptionTiers,
+    queryFn: async () => {
+      const token = await getToken();
+      return fetchSubscriptionTiers(token || undefined);
+    },
   });
 }
 
 export function useCreateCheckoutSession() {
+  const { getToken } = useAuth();
+
   return useMutation({
-    mutationFn: createCheckoutSession,
+    mutationFn: async (params: CreateCheckoutSessionParams) => {
+      const token = await getToken();
+      return createCheckoutSession(params, token || undefined);
+    },
   });
 }

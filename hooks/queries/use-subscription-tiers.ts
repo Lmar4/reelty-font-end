@@ -1,17 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
-import { SUBSCRIPTION_TIERS } from "@/constants/subscription-tiers";
+import { makeBackendRequest } from "@/utils/withAuth";
 import type { SubscriptionTier } from "@/types/subscription";
+import { useAuth } from "@clerk/nextjs";
+
+async function fetchSubscriptionTiers(
+  token: string
+): Promise<SubscriptionTier[]> {
+  return makeBackendRequest<SubscriptionTier[]>("/api/subscription/tiers", {
+    sessionToken: token,
+  });
+}
 
 export function useSubscriptionTiers() {
+  const { getToken } = useAuth();
+
   return useQuery({
     queryKey: ["subscription-tiers"],
     queryFn: async () => {
-      // For now, we're just returning the static tiers
-      // You can modify this to fetch from an API if needed
-      return Object.values(SUBSCRIPTION_TIERS);
+      const token = await getToken();
+      return fetchSubscriptionTiers(token || "");
     },
-    // Since this data is static, we can cache it for longer
-    staleTime: Infinity,
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
     gcTime: Infinity,
   });
 }

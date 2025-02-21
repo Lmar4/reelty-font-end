@@ -6,6 +6,7 @@ import {
 } from "@/types/user-types";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
 
 const JOBS_QUERY_KEY = "jobs";
@@ -20,25 +21,13 @@ export const useJobs = (params?: {
     queryKey: [JOBS_QUERY_KEY, params],
     queryFn: async () => {
       const token = await getToken();
+      if (!token) throw new Error("No token provided");
       const searchParams = new URLSearchParams();
-      if (params?.listingId) {
-        searchParams.append("listingId", params.listingId);
-      }
-      if (params?.status) {
-        searchParams.append("status", params.status);
-      }
-
-      const response = await fetch(`/api/jobs?${searchParams}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      if (params?.listingId) searchParams.append("listingId", params.listingId);
+      if (params?.status) searchParams.append("status", params.status);
+      return makeBackendRequest<any>(`/api/jobs?${searchParams}`, {
+        sessionToken: token,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch jobs");
-      }
-
-      return response.json();
     },
   });
 };
@@ -50,17 +39,10 @@ export const useJob = (jobId: string) => {
     queryKey: [JOBS_QUERY_KEY, jobId],
     queryFn: async () => {
       const token = await getToken();
-      const response = await fetch(`/api/jobs/${jobId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      if (!token) throw new Error("No token provided");
+      return makeBackendRequest<any>(`/api/jobs/${jobId}`, {
+        sessionToken: token,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch job");
-      }
-
-      return response.json();
     },
     enabled: !!jobId,
   });
@@ -73,21 +55,12 @@ export const useCreateJob = () => {
   return useMutation({
     mutationFn: async (input: CreateVideoJobInput) => {
       const token = await getToken();
-      const response = await fetch("/api/jobs", {
+      if (!token) throw new Error("No token provided");
+      return makeBackendRequest<any>("/api/jobs", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(input),
+        body: input,
+        sessionToken: token,
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create job");
-      }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [JOBS_QUERY_KEY] });
@@ -107,20 +80,12 @@ export const useUpdateJob = (jobId: string) => {
   return useMutation({
     mutationFn: async (input: UpdateVideoJobInput) => {
       const token = await getToken();
-      const response = await fetch(`/api/jobs/${jobId}`, {
+      if (!token) throw new Error("No token provided");
+      return makeBackendRequest<any>(`/api/jobs/${jobId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(input),
+        body: input,
+        sessionToken: token,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to update job");
-      }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [JOBS_QUERY_KEY] });
@@ -140,16 +105,11 @@ export const useDeleteJob = (jobId: string) => {
   return useMutation({
     mutationFn: async () => {
       const token = await getToken();
-      const response = await fetch(`/api/jobs/${jobId}`, {
+      if (!token) throw new Error("No token provided");
+      await makeBackendRequest<void>(`/api/jobs/${jobId}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        sessionToken: token,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete job");
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [JOBS_QUERY_KEY] });
@@ -169,20 +129,12 @@ export const useRegenerateJob = (jobId: string) => {
   return useMutation({
     mutationFn: async (input: RegenerateVideoInput) => {
       const token = await getToken();
-      const response = await fetch(`/api/jobs/${jobId}/regenerate`, {
+      if (!token) throw new Error("No token provided");
+      return makeBackendRequest<any>(`/api/jobs/${jobId}/regenerate`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(input),
+        body: input,
+        sessionToken: token,
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to regenerate job");
-      }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [JOBS_QUERY_KEY] });
