@@ -53,10 +53,10 @@ export default function PhotoManager({
       <Card className='p-4'>
         <div className='grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'>
           {photos.map((photo, index) => (
-            <div key={photo.id} className='relative group'>
+            <div key={photo.uiId} className='relative group'>
               <div
                 className='relative aspect-square rounded-lg overflow-hidden cursor-pointer'
-                onClick={() => handleSelect(photo.id)}
+                onClick={() => handleSelect(photo.uiId)}
               >
                 <img
                   src={photo.previewUrl}
@@ -66,14 +66,14 @@ export default function PhotoManager({
                 <div
                   className={cn(
                     "absolute inset-0 transition-colors",
-                    selected.has(photo.id)
+                    selected.has(photo.uiId)
                       ? "bg-black/20"
                       : "bg-black/5 group-hover:bg-black/20"
                   )}
                 />
-                {selected.has(photo.id) && (
+                {selected.has(photo.uiId) && (
                   <div className='absolute top-2 right-2 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center text-white text-sm'>
-                    {Array.from(selected).indexOf(photo.id) + 1}
+                    {Array.from(selected).indexOf(photo.uiId) + 1}
                   </div>
                 )}
               </div>

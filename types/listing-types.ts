@@ -11,18 +11,20 @@ export interface VideoTemplate {
   }[];
 }
 
+export interface PhotoUpload {
+  s3Key: string;
+  filePath?: string;
+}
+
 export interface Photo {
   id: string;
   userId: string;
   listingId: string;
   filePath: string;
-  processedFilePath: string | null;
-  order: number;
+  s3Key: string;
   status: string;
-  error: string | null;
-  runwayVideoPath: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  error?: string | null;
+  processedFilePath?: string | null;
 }
 
 export interface VideoJob {
@@ -46,4 +48,28 @@ export interface VideoJob {
     startTime?: string;
     endTime?: string;
   } | null;
+}
+
+export interface CreateListingInput {
+  address: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  photoLimit?: number;
+  photos: PhotoUpload[];
+}
+
+export interface ProcessedPhoto {
+  uiId: string;
+  originalFile: File;
+  webpBlob: Blob;
+  previewUrl: string;
+  s3Key?: string;
+  status: "idle" | "processing" | "completed" | "error";
+}
+
+export interface UploadResult {
+  s3Key: string;
+  url: string;
 }

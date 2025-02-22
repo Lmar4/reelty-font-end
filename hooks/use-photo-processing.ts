@@ -3,7 +3,7 @@ import imageCompression from "browser-image-compression";
 import { v4 as uuidv4 } from "uuid";
 
 export interface ProcessedPhoto {
-  id: string;
+  uiId: string;
   originalFile: File;
   webpBlob: Blob;
   previewUrl: string;
@@ -103,7 +103,6 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
       try {
         setStatus("processing");
         setProgress(0);
-        setError(null);
 
         const processedPhotos: ProcessedPhoto[] = [];
         const totalFiles = files.length;
@@ -111,28 +110,23 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           try {
-            // Convert to WebP
             const webpBlob = await createWebPFromFile(file);
-
-            // Create preview URL
             const previewUrl = URL.createObjectURL(webpBlob);
 
             processedPhotos.push({
-              id: generateUniqueId(),
+              uiId: crypto.randomUUID(),
               originalFile: file,
               webpBlob,
               previewUrl,
               status: "processing",
             });
 
-            // Update progress
             setProgress(((i + 1) / totalFiles) * 100);
           } catch (error) {
-            console.error(`Error processing photo ${file.name}:`, error);
             processedPhotos.push({
-              id: generateUniqueId(),
+              uiId: crypto.randomUUID(),
               originalFile: file,
-              webpBlob: new Blob(), // Empty blob for failed conversion
+              webpBlob: new Blob(),
               previewUrl: URL.createObjectURL(file),
               status: "failed",
               error:
@@ -147,9 +141,6 @@ export const usePhotoProcessing = (options: UsePhotoProcessingOptions = {}) => {
         return processedPhotos;
       } catch (error) {
         setStatus("error");
-        setError(
-          error instanceof Error ? error.message : "Unknown error occurred"
-        );
         throw error;
       }
     },

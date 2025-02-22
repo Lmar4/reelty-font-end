@@ -4,6 +4,7 @@ import { makeBackendRequest } from "@/utils/withAuth";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 export const LISTINGS_QUERY_KEY = "listings";
 
@@ -23,7 +24,7 @@ interface CreateListingInput {
   address: string;
   coordinates: { lat: number; lng: number };
   photoLimit: number;
-  photos: Array<{ id: string; s3Key: string }>;
+  photos: Array<{ s3Key: string }>;
 }
 
 async function createListing(
@@ -63,32 +64,48 @@ interface UploadResponse {
   status: string;
 }
 
-export function useListings() {
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: [LISTINGS_QUERY_KEY],
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token not found");
-      return fetchListings(token);
-    },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof Error && error.message.includes("Rate limit")) {
-        return failureCount < 2;
-      }
-      return failureCount < 2;
-    },
-    retryDelay: (attemptIndex) =>
-      Math.min(1000 * Math.pow(2, attemptIndex), 30000),
-    refetchOnMount: false,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    structuralSharing: true,
-  });
+interface ApiError {
+  message: string;
+  stack?: string;
+  details?: unknown;
 }
+
+export const useListings = () => {
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchListings = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const response = await fetch("/api/listings");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch listings");
+      }
+
+      setListings(data.data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchListings();
+  }, []);
+
+  return {
+    listings,
+    isLoading,
+    error,
+    refetch: fetchListings,
+  };
+};
 
 type ListingQueryKey = readonly ["listing", string];
 
@@ -134,20 +151,33 @@ export function useCreateListing() {
           coordinates: newListing.coordinates,
           status: "creating",
           createdAt: new Date().toISOString(),
-          photos: [],
+          photos: newListing.photos.map((photo) => ({
+            id: `temp-${crypto.randomUUID()}`,
+            status: "processing",
+            s3Key: photo.s3Key,
+          })),
         };
         return old ? [...old, optimisticListing] : [optimisticListing];
       });
       return { previousListings };
     },
-    onError: (error: Error, variables, context) => {
+    onError: (error: unknown, variables, context) => {
       if (context?.previousListings) {
         queryClient.setQueryData(
           [LISTINGS_QUERY_KEY],
           context.previousListings
         );
       }
-      toast.error(error.message || "Failed to create listing");
+
+      let errorMessage = "Failed to create listing";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "object" && error !== null) {
+        const apiError = error as ApiError;
+        errorMessage = apiError.message || errorMessage;
+      }
+
+      toast.error(errorMessage);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });

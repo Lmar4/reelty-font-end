@@ -60,14 +60,15 @@ interface NewListingModalProps {
 }
 
 interface StoredPhoto {
-  id: string;
+  uiId: string;
   s3Key: string;
   url: string;
+  bucket?: string;
+  filePath?: string;
 }
 
 // First, let's define an interface for the upload result type
 interface UploadResult {
-  id: string;
   s3Key: string;
   url: string;
 }
@@ -169,10 +170,14 @@ export default function NewListingModal({
           };
         })
       ).then((photos) => {
-        setProcessedPhotos(photos);
+        const processedPhotos = photos.map((photo) => ({
+          ...photo,
+          uiId: photo.id, // Map id to uiId
+        }));
+        setProcessedPhotos(processedPhotos);
         // Auto-select first 10 photos
         setSelectedPhotos(
-          new Set(photos.slice(0, 10).map((photo) => photo.id))
+          new Set(processedPhotos.slice(0, 10).map((photo) => photo.uiId))
         );
       });
     }
@@ -220,10 +225,10 @@ export default function NewListingModal({
         }
 
         // Create ProcessedPhoto objects from the stored photos
-        const restoredPhotos: ProcessedPhoto[] = photos.map(
-          (photo: StoredPhoto) => ({
-            id: photo.id,
-            originalFile: new File([], `${photo.id}.webp`),
+        const restoredPhotos: ProcessedPhoto[] = (photos as StoredPhoto[]).map(
+          (photo) => ({
+            uiId: crypto.randomUUID(),
+            originalFile: new File([], `${photo.s3Key}.webp`),
             webpBlob: new Blob([], { type: "image/webp" }),
             previewUrl: photo.url,
             s3Key: photo.s3Key,
@@ -232,7 +237,7 @@ export default function NewListingModal({
         );
 
         setProcessedPhotos(restoredPhotos);
-        setSelectedPhotos(new Set(restoredPhotos.map((p) => p.id)));
+        setSelectedPhotos(new Set(restoredPhotos.map((p) => p.uiId)));
 
         // Restore form values
         if (sessionData.address) {
@@ -286,16 +291,17 @@ export default function NewListingModal({
   ) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
-      const totalFiles = [
-        ...processedPhotos.map((p) => p.originalFile),
-        ...newFiles,
-      ];
+
+      // Validate total files first
+      const existingFiles = processedPhotos || [];
+      const totalFiles = [...existingFiles, ...newFiles];
 
       if (totalFiles.length > maxPhotos) {
         toast.error(`Maximum ${maxPhotos} photos allowed`);
         return;
       }
 
+      // Validate file sizes
       const oversizedFiles = newFiles.filter(
         (file) => file.size > 15 * 1024 * 1024
       );
@@ -306,28 +312,24 @@ export default function NewListingModal({
         return;
       }
 
-      // Just create preview URLs initially without processing
-      const newPhotos = await Promise.all(
+      // Process new files
+      const newProcessedPhotos = await Promise.all(
         newFiles.map(async (file) => {
           const processedPhoto = (
             await photoProcessing.processPhotos([file])
           )[0];
           return {
-            id:
-              Date.now().toString(36) + Math.random().toString(36).substring(2),
+            uiId: crypto.randomUUID(), // Changed from id to uiId
             originalFile: file,
             webpBlob: processedPhoto.webpBlob,
             previewUrl: URL.createObjectURL(file),
             status: "idle" as const,
-          };
+          } satisfies ProcessedPhoto; // Add type assertion
         })
       );
 
-      setProcessedPhotos([...processedPhotos, ...newPhotos]);
-      // Auto-select first 10 photos if none are selected
-      if (selectedPhotos.size === 0) {
-        setSelectedPhotos(new Set(newPhotos.slice(0, 10).map((p) => p.id)));
-      }
+      // Update state with new photos
+      setProcessedPhotos((current) => [...current, ...newProcessedPhotos]);
     }
   };
 
@@ -363,7 +365,7 @@ export default function NewListingModal({
 
       // Filter and sort selected photos
       const selectedPhotoFiles = Array.from(selectedPhotos)
-        .map((id) => processedPhotos.find((p) => p.id === id))
+        .map((uiId) => processedPhotos.find((p) => p.uiId === uiId))
         .filter((p): p is ProcessedPhoto => p !== undefined);
 
       // If not signed in, save redirect info first
@@ -374,7 +376,7 @@ export default function NewListingModal({
         // Save complete form state with correct photo structure
         savePhotos(
           selectedPhotoFiles.map((photo) => ({
-            id: photo.id,
+            uiId: photo.uiId,
             s3Key: "", // Will be populated after actual upload
             url: photo.previewUrl, // Use preview URL temporarily
             bucket: S3_BUCKET_NAME, // Add bucket name
@@ -423,14 +425,23 @@ export default function NewListingModal({
           setProgress(Math.round(scaledProgress));
         };
 
-        // 1. Upload photos to S3 first
+        // Update S3 path construction to use consistent format
+        const getS3Key = (file: File) => {
+          const timestamp = Date.now();
+          return `properties/${userId}/listings/${timestamp}-${file.name}.webp`;
+        };
+
+        // Update file upload logic
         const filesToUpload = processedFiles.map(
           (photo) =>
-            new File([photo.webpBlob], `${photo.id}.webp`, {
-              type: "image/webp",
-            })
+            new File(
+              [photo.webpBlob],
+              getS3Key(photo.originalFile), // Use consistent naming
+              { type: "image/webp" }
+            )
         );
 
+        // Upload to S3 with consistent paths
         uploadResults = await uploadToS3(filesToUpload, true, onUploadProgress);
 
         // 2. Verify uploads completed successfully
@@ -446,7 +457,6 @@ export default function NewListingModal({
               sessionToken: token,
               body: {
                 photos: uploadResults.map((result: UploadResult) => ({
-                  id: result.id,
                   s3Key: result.s3Key,
                 })),
               },
@@ -481,11 +491,10 @@ export default function NewListingModal({
         // Save metadata to session
         savePhotos(
           uploadResults.map((result: UploadResult) => ({
-            id: result.id,
+            uiId: crypto.randomUUID(),
             s3Key: result.s3Key,
             url: `${S3_BUCKET_URL}/${result.s3Key}`,
             bucket: S3_BUCKET_NAME,
-            filePath: `${S3_BUCKET_URL}/${result.s3Key}`,
           }))
         );
       }
@@ -501,9 +510,7 @@ export default function NewListingModal({
         ...data,
         photoLimit: selectedPhotos.size,
         photos: uploadResults.map((result: UploadResult) => ({
-          id: result.id,
           s3Key: result.s3Key,
-          filePath: `${S3_BUCKET_URL}/${result.s3Key}`,
         })),
       };
 
@@ -520,7 +527,6 @@ export default function NewListingModal({
           sessionToken: token,
           body: {
             photos: uploadResults.map((result: UploadResult) => ({
-              id: result.id,
               s3Key: result.s3Key,
             })),
           },
@@ -545,37 +551,30 @@ export default function NewListingModal({
         router.push(`/dashboard/listings/${createdListing.id}`);
       }, 1000);
     } catch (error) {
-      console.error("[SUBMISSION_ERROR]", error);
-
-      // More specific error handling
-      let errorMessage = "Failed to create listing. Please try again.";
-
-      if (error instanceof Error) {
-        // Handle specific error cases
-        if (error.message.includes("address")) {
-          form.setError("address", {
-            type: "manual",
-            message: error.message,
-          });
-          errorMessage = error.message;
-        } else if (error.message.includes("photo")) {
-          errorMessage = error.message;
-        } else if (error.message.includes("verification")) {
-          errorMessage = "Failed to verify uploaded photos. Please try again.";
-        }
-
-        // Set root error for generic cases
-        form.setError("root", {
-          type: "manual",
-          message: errorMessage,
-        });
-      }
-
-      toast.error(errorMessage);
-    } finally {
       setIsSubmitting(false);
       setProgress(0);
       setStatus("");
+
+      // Properly handle different error types
+      let errorMessage = "Failed to create listing";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error
+      ) {
+        errorMessage = (error as { message: string }).message;
+      }
+
+      toast.error(errorMessage);
+
+      // Log the error for debugging
+      console.error("Listing creation error:", {
+        error,
+        data,
+        selectedPhotos: selectedPhotos.size,
+      });
     }
   };
 

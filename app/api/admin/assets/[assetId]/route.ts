@@ -28,8 +28,8 @@ export const GET = withAuthServer(async function GET(
   }
 });
 
-export const GET = withAuthServer(async function PATCH(
-  req: AuthenticatedRequest,
+export const PATCH = withAuthServer(async function PATCH(
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
@@ -40,7 +40,7 @@ export const GET = withAuthServer(async function PATCH(
       `/api/admin/assets/${assetId}`,
       {
         method: "PATCH",
-        sessionToken: req.auth.sessionToken,
+        sessionToken: request.auth.sessionToken,
         body: body,
       }
     );
@@ -55,7 +55,7 @@ export const GET = withAuthServer(async function PATCH(
   }
 });
 
-export const GET = withAuthServer(async function DELETE(
+export const DELETE = withAuthServer(async function DELETE(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {

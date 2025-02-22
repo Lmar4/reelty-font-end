@@ -75,16 +75,23 @@ export const DELETE = withAuthServer(async function DELETE(
   try {
     const { listingId } = await params;
 
-    await makeBackendRequest(`/api/listings/${listingId}`, {
+    const response = await makeBackendRequest(`/api/listings/${listingId}`, {
       method: "DELETE",
       sessionToken: request.auth.sessionToken,
     });
 
-    return new NextResponse(null, { status: 204 });
+    return Response.json({
+      success: true,
+      data: response,
+    });
   } catch (error) {
     console.error("[LISTING_DELETE]", error);
-    return new NextResponse(
-      error instanceof Error ? error.message : "Failed to delete listing",
+    return Response.json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to delete listing",
+      },
       { status: 500 }
     );
   }

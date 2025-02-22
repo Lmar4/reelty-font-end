@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { ProcessedPhoto } from "./use-photo-processing";
 
 interface ListingSessionData {
   photos: Array<{
-    id: string;
     s3Key: string;
     url: string;
   }>;
@@ -14,21 +14,28 @@ interface ListingSessionData {
 }
 
 export const useListingSession = () => {
-  const [sessionData, setSessionData] = useState<ListingSessionData | null>(null);
+  const [sessionData, setSessionData] = useState<ListingSessionData | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   // Load session data on mount
   useEffect(() => {
     try {
       const savedData = localStorage.getItem("listing_session");
-      console.log('Checking for listing session:', savedData ? 'Found' : 'Not found');
+      console.log(
+        "Checking for listing session:",
+        savedData ? "Found" : "Not found"
+      );
 
       if (savedData) {
         const parsedData = JSON.parse(savedData);
-        console.log('Parsed session data:', parsedData);
+        console.log("Parsed session data:", parsedData);
         setSessionData(parsedData);
+        setSessionId(parsedData.sessionId);
       } else {
-        console.log('No listing session found');
+        console.log("No listing session found");
         setSessionData(null);
       }
     } catch (e) {
@@ -39,19 +46,24 @@ export const useListingSession = () => {
     }
   }, []);
 
-  const savePhotos = (
-    photos: Array<{ id: string; s3Key: string; url: string }>
-  ) => {
-    const newData: ListingSessionData = {
-      photos,
-      ...(sessionData?.address ? { address: sessionData.address } : {}),
-      ...(sessionData?.coordinates
-        ? { coordinates: sessionData.coordinates }
-        : {}),
-    };
-    setSessionData(newData);
-    localStorage.setItem("listing_session", JSON.stringify(newData));
-  };
+  const savePhotos = useCallback(
+    (photos: Array<{ uiId: string; s3Key: string; url: string }>) => {
+      if (!sessionId) return;
+
+      const photoData = photos.map((photo) => ({
+        uiId: photo.uiId,
+        s3Key: photo.s3Key,
+        url: photo.url,
+        // Remove unnecessary path transformations
+      }));
+
+      sessionStorage.setItem(
+        `listing-photos-${sessionId}`,
+        JSON.stringify(photoData)
+      );
+    },
+    [sessionId]
+  );
 
   const saveAddress = (
     address: string,
@@ -72,12 +84,12 @@ export const useListingSession = () => {
     localStorage.removeItem("listing_session");
     sessionStorage.removeItem("upload_session_id");
     sessionStorage.removeItem("postSignUpRedirect");
-    
+
     // Reset state with empty data
     setSessionData({
       photos: [],
       address: undefined,
-      coordinates: undefined
+      coordinates: undefined,
     });
   };
 

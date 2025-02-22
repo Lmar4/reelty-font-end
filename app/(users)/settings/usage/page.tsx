@@ -1,11 +1,9 @@
 "use client";
 
 import { useListings } from "@/hooks/queries/use-listings";
-import { useUser } from "@clerk/nextjs";
 
 export default function Usage() {
-  const { user } = useUser();
-  const { data: listings } = useListings(user?.id || "");
+  const { data: listings } = useListings();
   const totalListings = listings?.length || 0;
   const maxListings = 1; // This should come from your subscription plan
   const usagePercentage = (totalListings / maxListings) * 100;

@@ -4,15 +4,22 @@ import Image from "next/image";
 import { Listing } from "@/types/prisma-types";
 
 interface ListingCardProps {
-  listing: Listing;
+  listing: {
+    id: string;
+    address: string;
+    photos?: Array<{ url: string }>;
+    videoJobs?: Array<{ status: string }>;
+  };
   isLoading?: boolean;
 }
 
-export const ListingCard: React.FC<ListingCardProps> = ({
-  listing,
-  isLoading,
-}) => {
-  const mainPhoto = listing?.photos?.[0];
+export const ListingCard = ({ listing, isLoading }: ListingCardProps) => {
+  // Add null checks and default values
+  const address = listing?.address || "No address provided";
+  const photos = listing?.photos || [];
+  const videoJobs = listing?.videoJobs || [];
+
+  const mainPhoto = photos?.[0];
 
   if (isLoading) {
     return (
@@ -32,8 +39,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
       <Link href={`/dashboard/${listing.id}`} className='block'>
         <div className='relative rounded-2xl overflow-hidden mb-4 group'>
           <Image
-            src={mainPhoto?.filePath || "/placeholder.jpg"}
-            alt={listing.address}
+            src={mainPhoto?.url || "/placeholder.jpg"}
+            alt={address}
             width={800}
             height={600}
             unoptimized
@@ -42,11 +49,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({
           />
           <button
             className='absolute top-2 md:top-4 right-2 md:right-4 w-8 h-8 md:w-10 md:h-10 bg-white rounded-lg flex items-center justify-center hover:bg-white/90 transition-opacity duration-200 md:opacity-0 md:group-hover:opacity-100'
-            aria-label={`View details for ${listing.address}`}
+            aria-label={`View details for ${address}`}
             tabIndex={0}
-            onClick={() => console.log(`Viewing ${listing.address}`)}
+            onClick={() => console.log(`Viewing ${address}`)}
             onKeyDown={(e) =>
-              e.key === "Enter" && console.log(`Viewing ${listing.address}`)
+              e.key === "Enter" && console.log(`Viewing ${address}`)
             }
           >
             <svg
@@ -80,7 +87,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         <div className='flex items-start justify-between gap-4'>
           <div className='min-w-0'>
             <h3 className='text-[14px] md:text-[18px] font-bold text-[#1c1c1c] leading-tight truncate'>
-              {listing.address}
+              {address}
             </h3>
           </div>
         </div>

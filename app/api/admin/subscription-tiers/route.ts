@@ -44,7 +44,7 @@ export const GET = withAuthServer(async (request) => {
     const data = await makeBackendRequest(
       `/api/admin/subscription-tiers?page=${page}&limit=${limit}`,
       {
-        sessionToken: req.auth.sessionToken,
+        sessionToken: request.auth.sessionToken,
       }
     );
     return NextResponse.json({ success: true, data });
@@ -58,14 +58,14 @@ export const GET = withAuthServer(async (request) => {
 });
 
 // POST /api/admin/subscription-tiers
-export const GET = withAuthServer(async (request) => {
+export const POST = withAuthServer(async (request) => {
   try {
     const body = await request.json();
     const validatedData = subscriptionTierSchema.parse(body);
 
     const data = await makeBackendRequest("/api/admin/subscription-tiers", {
       method: "POST",
-      sessionToken: req.auth.sessionToken,
+      sessionToken: request.auth.sessionToken,
       body: JSON.stringify(validatedData),
     });
 
@@ -86,7 +86,7 @@ export const GET = withAuthServer(async (request) => {
 });
 
 // PATCH /api/admin/subscription-tiers/:id
-export const GET = withAuthServer(async (request) => {
+export const PATCH = withAuthServer(async (request) => {
   try {
     const tierId = request.url.split("/").pop();
     if (!tierId) {
@@ -103,7 +103,7 @@ export const GET = withAuthServer(async (request) => {
       `/api/admin/subscription-tiers/${tierId}`,
       {
         method: "PATCH",
-        sessionToken: req.auth.sessionToken,
+        sessionToken: request.auth.sessionToken,
         body: JSON.stringify(validatedData),
       }
     );
