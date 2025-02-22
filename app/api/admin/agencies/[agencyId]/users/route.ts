@@ -11,14 +11,15 @@ interface AgencyUserResponse {
   inviteToken: string;
 }
 
-export const $1 = withAuthServer(
+export const GET = withAuthServer(
   async (
     req: AuthenticatedRequest,
-    { params }: { params: { agencyId: string } }
+    { params }: { params: Promise<{ agencyId: string }> }
   ) => {
     try {
+      const { agencyId } = await params;
       const data = await makeBackendRequest<AgencyUserResponse[]>(
-        `/api/admin/agencies/${params.agencyId}/users`,
+        `/api/admin/agencies/${agencyId}/users`,
         {
           sessionToken: req.auth.sessionToken,
         }
@@ -38,14 +39,15 @@ export const $1 = withAuthServer(
 export const POST = withAuthServer(
   async (
     req: AuthenticatedRequest,
-    { params }: { params: { agencyId: string } }
+    { params }: { params: Promise<{ agencyId: string }> }
   ) => {
     try {
+      const { agencyId } = await params;
       const body = await req.json();
       const { sendInvite, ...userData } = body;
 
       const data = await makeBackendRequest<AgencyUserResponse>(
-        `/api/admin/agencies/${params.agencyId}/users`,
+        `/api/admin/agencies/${agencyId}/users`,
         {
           method: "POST",
           body: userData,
