@@ -17,7 +17,7 @@ const geist = Geist({
 export const metadata: Metadata = {
   title: "Reelty | Turn listing photos into viral Reels",
   description: "Transform your listing photos into viral Reels in seconds!",
-  metadataBase: new URL("https://reelty.app"),
+  metadataBase: new URL("https://reelty.io"),
   authors: [{ name: "Reelty" }],
   creator: "Reelty",
   publisher: "Reelty",
