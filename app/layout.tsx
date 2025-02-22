@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     type: "website",
     title: "Reelty | Turn listing photos into viral Reels",
     description: "Transform your listing photos into viral Reels in seconds!",
-    url: "https://reelty.app",
+    url: "https://reelty.io",
     siteName: "Reelty",
     images: [
       {
