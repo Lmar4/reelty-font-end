@@ -17,6 +17,52 @@ const geist = Geist({
 export const metadata: Metadata = {
   title: "Reelty | Turn listing photos into viral Reels",
   description: "Transform your listing photos into viral Reels in seconds!",
+  metadataBase: new URL("https://reelty.app"),
+  authors: [{ name: "Reelty" }],
+  creator: "Reelty",
+  publisher: "Reelty",
+  keywords: [
+    "real estate",
+    "reels",
+    "video creation",
+    "listing photos",
+    "social media",
+    "automation",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Reelty | Turn listing photos into viral Reels",
+    description: "Transform your listing photos into viral Reels in seconds!",
+    url: "https://reelty.app",
+    siteName: "Reelty",
+    images: [
+      {
+        url: "/images/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Reelty - Transform listing photos into viral Reels",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Reelty | Turn listing photos into viral Reels",
+    description: "Transform your listing photos into viral Reels in seconds!",
+    images: ["/images/og.png"],
+    creator: "@reelty",
+    site: "@reelty",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     // Regular favicons
     icon: [

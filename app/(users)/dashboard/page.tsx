@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const { data: listings, isLoading: isListingsLoading } = useListings();
+  const { listings, isLoading: isListingsLoading } = useListings();
 
   const handleFilesSelected = async (files: File[]) => {
     setSelectedFiles(files);

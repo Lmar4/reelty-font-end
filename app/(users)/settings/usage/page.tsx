@@ -3,7 +3,7 @@
 import { useListings } from "@/hooks/queries/use-listings";
 
 export default function Usage() {
-  const { data: listings } = useListings();
+  const { listings } = useListings();
   const totalListings = listings?.length || 0;
   const maxListings = 1; // This should come from your subscription plan
   const usagePercentage = (totalListings / maxListings) * 100;

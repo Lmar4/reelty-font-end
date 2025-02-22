@@ -746,7 +746,7 @@ export function ListingClient({
                 />
               ))
             ) : (
-              <>
+              <div className='flex flex-col gap-4 md:flex-row'>
                 {/* <TemplateGrid
                   videoJobs={videoJobs}
                   photos={listing?.photos}
@@ -794,7 +794,7 @@ export function ListingClient({
                     isRegenerating={isGeneratingVideo}
                   />
                 ))}
-              </>
+              </div>
             )}
           </div>
         </div>

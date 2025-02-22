@@ -80,13 +80,13 @@ export const DELETE = withAuthServer(async function DELETE(
       sessionToken: request.auth.sessionToken,
     });
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       data: response,
     });
   } catch (error) {
     console.error("[LISTING_DELETE]", error);
-    return Response.json(
+    return NextResponse.json(
       {
         success: false,
         error:

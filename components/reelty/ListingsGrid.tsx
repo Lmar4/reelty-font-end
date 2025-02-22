@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useListings } from "@/hooks/queries/use-listings";
 import { useUserData } from "@/hooks/useUserData";
+import { Listing } from "@/types/prisma-types";
 
 const container = {
   hidden: { opacity: 0 },
@@ -23,9 +24,16 @@ const item = {
   show: { opacity: 1, x: 0 },
 };
 
+const transformListing = (listing: Listing) => ({
+  ...listing,
+  photos: listing.photos?.map((photo) => ({
+    url: photo.processedFilePath || photo.filePath,
+  })),
+});
+
 export function ListingsGrid() {
   const { data: userData, isLoading: isUserLoading } = useUserData();
-  const { data: listings, isLoading: isListingsLoading } = useListings();
+  const { listings, isLoading: isListingsLoading } = useListings();
 
   const isLoading = isUserLoading || isListingsLoading;
 
@@ -72,7 +80,7 @@ export function ListingsGrid() {
     >
       {listings.map((listing) => (
         <motion.div key={listing.id} variants={item}>
-          <ListingCard listing={listing} />
+          <ListingCard listing={transformListing(listing)} />
         </motion.div>
       ))}
     </motion.div>

@@ -29,7 +29,7 @@ export function useListingsContext() {
 export function ListingsProvider({ children }: { children: ReactNode }) {
   const [isCreatingListing, setIsCreatingListing] = useState(false);
   const { data: userData, isLoading: isUserLoading } = useUserData();
-  const { data: listings, isLoading: isListingsLoading } = useListings();
+  const { listings, isLoading: isListingsLoading } = useListings();
 
   const isLoading = isUserLoading || isListingsLoading;
 
