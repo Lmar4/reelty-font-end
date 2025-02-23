@@ -40,3 +40,26 @@ export interface AssetStats {
   activeAssets: number;
   totalStorage: number; // in bytes
 }
+
+// New template-specific types
+export type TemplateAssetType = "runway" | "map" | "watermark" | "music";
+
+export interface TemplateAssetMetadata {
+  templateKey?: string;
+  index?: number;
+  jobId: string;
+}
+
+export interface SharedAssets {
+  runwayVideos: Map<string, string>; // original path -> local path
+  mapVideo?: string;
+  watermark?: string;
+  music: Map<string, string>; // template -> local path
+}
+
+export interface TemplateAssetOptions {
+  type: TemplateAssetType;
+  metadata: TemplateAssetMetadata;
+  ttl?: number;
+  settings?: Record<string, any>;
+}
