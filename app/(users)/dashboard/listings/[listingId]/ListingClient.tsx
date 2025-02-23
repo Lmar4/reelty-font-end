@@ -16,6 +16,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import ListingSkeleton from "./components/ListingSkeleton";
 import { VideoJobCard } from "./components/VideoJobCard";
+import { LoadingState } from "@/components/ui/loading-state";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
@@ -46,6 +47,15 @@ interface VideoJobMetadata {
   totalFiles?: number;
   startTime?: string;
   endTime?: string;
+}
+
+interface VideoStatus {
+  isProcessing: boolean;
+  processingCount: number;
+  failedCount: number;
+  completedCount: number;
+  totalCount: number;
+  shouldEndPolling?: boolean;
 }
 
 function useListingData(
@@ -172,67 +182,66 @@ export function ListingClient({
     error: videoGenerationError,
   } = useCreateJob();
 
-  // Derived state using useMemo
-  const videoJobs = useMemo(() => {
-    console.log("[VIDEO_JOBS] Raw response:", {
-      success: videoData?.success,
-      videos: videoData?.data?.videos,
-      status: videoData?.data?.status,
-    });
+  // Update the videoJobs useMemo to group by template
+  const { videoJobs, videoStatus } = useMemo(() => {
+    const jobs = videoData?.data?.videos || [];
+    const status = videoData?.data?.status || {
+      isProcessing: false,
+      processingCount: 0,
+      failedCount: 0,
+      completedCount: 0,
+      totalCount: 0,
+    };
 
-    if (videoData?.data?.videos) {
-      console.log(
-        "[VIDEO_JOBS] Templates in response:",
-        videoData.data.videos.map((v) => ({
-          id: v.id,
-          template: v.template,
-          status: v.status,
-          createdAt: v.createdAt,
-        }))
-      );
-    }
-
-    return videoData?.data?.videos || [];
-  }, [videoData]);
-
-  const latestVideosByTemplate = useMemo(() => {
-    console.log("[VIDEO_JOBS] Processing jobs:", {
-      totalJobs: videoJobs.length,
-      templates: videoJobs.map((v) => v.template),
-      statuses: videoJobs.map((v) => v.status),
-    });
-
-    const validJobs = getValidVideoJobs(videoJobs);
-    console.log("[VIDEO_JOBS] Valid jobs:", {
-      totalValidJobs: validJobs.length,
-      templates: validJobs.map((v) => v.template),
-      statuses: validJobs.map((v) => v.status),
-    });
-
-    const groupedVideos = validJobs.reduce<Record<string, VideoJob>>(
-      (acc, job: VideoJob) => {
-        if (!job.template) return acc;
+    // Group videos by template and keep only the latest version
+    const latestByTemplate = jobs.reduce<Record<string, VideoJob>>(
+      (acc, job) => {
+        const template = job.template || "default";
         if (
-          !acc[job.template] ||
-          new Date(acc[job.template].createdAt) < new Date(job.createdAt)
+          !acc[template] ||
+          new Date(acc[template].createdAt) < new Date(job.createdAt)
         ) {
-          acc[job.template] = job;
+          acc[template] = job;
         }
         return acc;
       },
       {}
     );
-    const result = Object.values(groupedVideos);
-    console.log("[VIDEO_JOBS] Final grouped videos:", {
-      totalFinalJobs: result.length,
-      templates: result.map((v) => v.template),
-      statuses: result.map((v) => v.status),
+
+    // Convert back to array and sort by template order
+    const templateOrder = [
+      "crescendo",
+      "wave",
+      "storyteller",
+      "googlezoomintro",
+      "wesanderson",
+      "hyperpop",
+    ];
+    const sortedJobs = Object.values(latestByTemplate).sort((a, b) => {
+      const templateA = a.template || "default";
+      const templateB = b.template || "default";
+      const orderA = templateOrder.indexOf(templateA);
+      const orderB = templateOrder.indexOf(templateB);
+
+      // If both templates are in the order array, sort by order
+      if (orderA !== -1 && orderB !== -1) {
+        return orderA - orderB;
+      }
+      // If only one template is in the order array, prioritize it
+      if (orderA !== -1) return -1;
+      if (orderB !== -1) return 1;
+      // For templates not in the order array, sort by creation date
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-    return result;
-  }, [videoJobs]);
+
+    return {
+      videoJobs: sortedJobs,
+      videoStatus: status,
+    };
+  }, [videoData]);
 
   // Get the latest job
-  const videoStatus = useMemo(() => videoJobs[0], [videoJobs]);
+  const videoStatusLatest = useMemo(() => videoJobs[0], [videoJobs]);
 
   const handleRegenerateImages = async (
     photoIds: string | string[]
@@ -362,6 +371,124 @@ export function ListingClient({
     );
   };
 
+  // Add a function to render video content
+  const renderVideoContent = () => {
+    if (isLoadingVideoJobs) {
+      return (
+        <div className='flex items-center justify-center py-8'>
+          <LoadingState />
+        </div>
+      );
+    }
+
+    if (videoStatus.isProcessing) {
+      return (
+        <div className='bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6'>
+          <div className='flex items-center'>
+            <div className='flex-shrink-0'>
+              <svg
+                className='h-5 w-5 text-blue-400'
+                viewBox='0 0 20 20'
+                fill='currentColor'
+              >
+                <path
+                  fillRule='evenodd'
+                  d='M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z'
+                  clipRule='evenodd'
+                />
+              </svg>
+            </div>
+            <div className='ml-3'>
+              <h3 className='text-sm font-medium text-blue-800'>
+                Processing Videos
+              </h3>
+              <div className='mt-2 text-sm text-blue-700'>
+                <p>
+                  Processing {videoStatus.processingCount} of{" "}
+                  {videoStatus.totalCount} videos...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (videoStatus.failedCount > 0) {
+      return (
+        <div className='bg-red-50 border border-red-100 rounded-lg p-4 mb-6'>
+          <div className='flex items-center'>
+            <div className='flex-shrink-0'>
+              <svg
+                className='h-5 w-5 text-red-400'
+                viewBox='0 0 20 20'
+                fill='currentColor'
+              >
+                <path
+                  fillRule='evenodd'
+                  d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
+                  clipRule='evenodd'
+                />
+              </svg>
+            </div>
+            <div className='ml-3'>
+              <h3 className='text-sm font-medium text-red-800'>
+                Processing Failed
+              </h3>
+              <div className='mt-2 text-sm text-red-700'>
+                <p>
+                  {videoStatus.failedCount} videos failed to process. Please try
+                  again.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+        {videoJobs.map((job) => (
+          <VideoJobCard
+            key={job.id}
+            job={job}
+            listingId={listingId}
+            isPaidUser={userData?.currentTierId !== "free"}
+            onDownload={async (jobId: string) => {
+              if (job.outputFile) {
+                try {
+                  const response = await fetch(job.outputFile);
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  const filename = `${listing?.address || "property"}-${
+                    job.template || "video"
+                  }.mp4`;
+                  link.setAttribute("download", filename);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+                } catch (error) {
+                  console.error("Download failed:", error);
+                  window.open(job.outputFile, "_blank");
+                }
+              }
+            }}
+            onRegenerate={() => {
+              if (job.template) {
+                handleVideoGeneration(job.template);
+              }
+            }}
+            isRegenerating={isGeneratingVideo}
+          />
+        ))}
+      </div>
+    );
+  };
+
   // Show appropriate loading states
   if (isLoadingInitial) {
     return <ListingSkeleton />;
@@ -467,69 +594,7 @@ export function ListingClient({
         </p>
 
         {/* Templates and Videos Section with loading states */}
-        <div className='space-y-8'>
-          <div className='grid grid-cols-2 md:grid-cols-3 gap-6'>
-            {isLoadingVideoJobs ? (
-              // Skeleton loader for templates
-              [...Array(6)].map((_, i) => (
-                <div
-                  key={i}
-                  className='aspect-video bg-gray-100 rounded-lg animate-pulse'
-                />
-              ))
-            ) : (
-              <div className='flex flex-col gap-4 md:flex-row'>
-                {/* <TemplateGrid
-                  videoJobs={videoJobs}
-                  photos={listing?.photos}
-                  isLoading={isLoadingVideoJobs}
-                  userTier={userData?.currentTierId || "free"}
-                  activeJobs={videoJobs as unknown as VideoJob[]}
-                  onGenerateVideo={handleVideoGeneration}
-                  isGenerating={isGeneratingVideo}
-                /> */}
-
-                {latestVideosByTemplate.map((job) => (
-                  <VideoJobCard
-                    listingId={listingId}
-                    key={job.id}
-                    job={job}
-                    isPaidUser={userData?.currentTierId !== "free"}
-                    onDownload={async (jobId: string) => {
-                      if (job.outputFile) {
-                        try {
-                          const response = await fetch(job.outputFile);
-                          const blob = await response.blob();
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-                          const filename = `${listing?.address || "property"}-${
-                            job.template || "video"
-                          }.mp4`;
-                          link.setAttribute("download", filename);
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                        } catch (error) {
-                          console.error("Download failed:", error);
-                          // Fallback to opening in new tab if download fails
-                          window.open(job.outputFile, "_blank");
-                        }
-                      }
-                    }}
-                    onRegenerate={() => {
-                      if (job.template) {
-                        handleVideoGeneration(job.template);
-                      }
-                    }}
-                    isRegenerating={isGeneratingVideo}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <div className='space-y-8'>{renderVideoContent()}</div>
 
         <PropertySettingsModal
           isOpen={isSettingsModalOpen}
@@ -541,7 +606,7 @@ export function ListingClient({
         />
 
         {/* Error Toast */}
-        {videoStatus?.status === "FAILED" && (
+        {videoStatusLatest?.status === "FAILED" && (
           <div
             role='alert'
             className='fixed bottom-4 right-4 bg-red-50 border border-red-100 rounded-lg p-4 max-w-sm shadow-lg animate-fade-in'
@@ -562,7 +627,7 @@ export function ListingClient({
               </div>
               <div className='ml-3'>
                 <p className='text-sm text-red-600'>
-                  {videoStatus.metadata?.error ||
+                  {videoStatusLatest.metadata?.error ||
                     "Video generation failed. Please try again."}
                 </p>
               </div>

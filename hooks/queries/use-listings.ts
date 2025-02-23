@@ -70,6 +70,17 @@ interface ApiError {
   details?: unknown;
 }
 
+interface ListingLimitError {
+  currentCount: number;
+  maxAllowed: number;
+  currentTier: string;
+}
+
+interface CreateListingError {
+  message: string;
+  limitData?: ListingLimitError;
+}
+
 export const useListings = () => {
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -170,14 +181,29 @@ export function useCreateListing() {
       }
 
       let errorMessage = "Failed to create listing";
+      let limitData: ListingLimitError | undefined;
+
+      // Check if it's a listing limit error
       if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === "object" && error !== null) {
-        const apiError = error as ApiError;
-        errorMessage = apiError.message || errorMessage;
+        try {
+          const parsedError = JSON.parse(error.message);
+          if (
+            parsedError.error === "Listing limit reached" &&
+            parsedError.data
+          ) {
+            limitData = parsedError.data;
+            errorMessage = limitData
+              ? `You've reached your limit of ${limitData.maxAllowed} active listings on your ${limitData.currentTier} plan.`
+              : "You've reached your listing limit.";
+          } else {
+            errorMessage = error.message;
+          }
+        } catch {
+          errorMessage = error.message;
+        }
       }
 
-      toast.error(errorMessage);
+      throw { message: errorMessage, limitData } as CreateListingError;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });

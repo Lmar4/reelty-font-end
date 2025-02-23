@@ -30,15 +30,17 @@ export interface Photo {
 export interface VideoJob {
   id: string;
   listingId: string;
-  status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED";
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   progress: number;
-  template?: string | null;
-  inputFiles?: any;
+  template: string | null;
+  inputFiles: string[] | null;
   outputFile: string | null;
   thumbnailUrl: string | null;
   error: string | null;
   createdAt: Date;
   updatedAt: Date;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
   metadata?: {
     userMessage?: string;
     error?: string;
@@ -47,6 +49,30 @@ export interface VideoJob {
     totalFiles?: number;
     startTime?: string;
     endTime?: string;
+    currentStage?: "runway" | "template" | "upload";
+    currentSubStage?: string;
+    stepsCompleted?: string[];
+    templateResults?: Array<{
+      status: "SUCCESS" | "FAILED";
+      template: string;
+      timestamp: number;
+      processingTime: number;
+    }>;
+    templates?: Array<{
+      path: string;
+      success: boolean;
+      template: string;
+    }>;
+    defaultTemplate?: string;
+    processedTemplates?: Array<{
+      key: string;
+      path: string;
+    }>;
+    allTemplates?: Array<{
+      path: string;
+      template: string;
+      isPrimary: boolean;
+    }>;
   } | null;
 }
 

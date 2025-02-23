@@ -31,6 +31,7 @@ import usePlacesAutocomplete, {
   getLatLng,
 } from "use-places-autocomplete";
 import PhotoManager from "./PhotoManager";
+import PricingCards from "./PricingCards";
 
 // Initialize Google Maps loader
 const loader = new Loader({
@@ -109,6 +110,11 @@ export default function NewListingModal({
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [limitError, setLimitError] = useState<{
+    currentTier: string;
+    maxAllowed: number;
+  } | null>(null);
 
   const form = useForm<ListingFormData>({
     resolver: zodResolver(listingFormSchema),
@@ -335,6 +341,10 @@ export default function NewListingModal({
 
   const handleSubmit = async (data: ListingFormData) => {
     try {
+      setIsSubmitting(true);
+      setProgress(0);
+      setStatus("Creating listing...");
+
       // Get token early
       const token = await session?.getToken();
       if (!token) {
@@ -555,7 +565,19 @@ export default function NewListingModal({
       setProgress(0);
       setStatus("");
 
-      // Properly handle different error types
+      // Check if it's a listing limit error
+      if (typeof error === "object" && error !== null && "limitData" in error) {
+        const { limitData } = error as {
+          limitData?: { currentTier: string; maxAllowed: number };
+        };
+        if (limitData) {
+          setLimitError(limitData);
+          setShowPricingModal(true);
+          return;
+        }
+      }
+
+      // Handle other errors
       let errorMessage = "Failed to create listing";
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -594,6 +616,38 @@ export default function NewListingModal({
       onClose();
     }
   };
+
+  if (showPricingModal) {
+    return (
+      <div className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4'>
+        <div className='bg-white rounded-xl p-8 max-w-6xl w-full max-h-[90vh] overflow-y-auto'>
+          <div className='mb-8'>
+            <h2 className='text-2xl font-bold text-center'>
+              Upgrade Your Plan
+            </h2>
+            <p className='text-gray-600 text-center mt-2'>
+              You've reached the limit of {limitError?.maxAllowed} active
+              listings on your {limitError?.currentTier} plan. Upgrade to create
+              more listings!
+            </p>
+          </div>
+          <PricingCards
+            isModal={true}
+            onUpgradeComplete={() => {
+              setShowPricingModal(false);
+              onClose();
+            }}
+          />
+          <button
+            onClick={() => setShowPricingModal(false)}
+            className='mt-6 w-full text-gray-600 hover:text-gray-800'
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!isOpen) return null;
 

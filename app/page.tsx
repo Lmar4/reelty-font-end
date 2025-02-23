@@ -226,9 +226,7 @@ export default function Home() {
         {/* Input Section */}
         <div className='max-w-[800px] mx-auto px-4'>
           <FileUpload
-            buttonText={
-              userId ? "Select listing photos" : "Get started for free"
-            }
+            buttonText={"Select listing photos"}
             onFilesSelected={handleFilesSelected}
             uploadUrl='' // Keep empty for new listings
             maxFiles={10}

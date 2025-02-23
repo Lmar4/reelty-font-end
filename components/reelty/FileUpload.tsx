@@ -11,6 +11,7 @@ interface FileUploadProps {
   maxFiles?: number;
   maxSize?: number; // in MB
   uploadUrl?: string;
+  disabled?: boolean;
 }
 
 export default function FileUpload({
@@ -20,6 +21,7 @@ export default function FileUpload({
   maxFiles = 60,
   maxSize = 15, // 15MB default
   uploadUrl,
+  disabled = false,
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -161,19 +163,26 @@ export default function FileUpload({
       <div
         data-testid='dropzone'
         role='button'
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         aria-label='Drop files here or click to select'
+        aria-disabled={disabled}
         className={`hidden md:flex flex-col items-center justify-center gap-4 bg-gray-50 rounded-2xl border-4 border-dashed ${
           isDragging ? "border-[#8B5CF6]" : "border-gray-200"
-        } p-8 shadow-[inset_0_2px_12px_rgba(0,0,0,0.08)] transition-all`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => {
-          fileInputRef.current?.click();
-          fileInputRef.current?.focus();
-        }}
-        onKeyDown={handleKeyDown}
+        } p-8 shadow-[inset_0_2px_12px_rgba(0,0,0,0.08)] transition-all ${
+          disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+        }`}
+        onDragOver={disabled ? undefined : handleDragOver}
+        onDragLeave={disabled ? undefined : handleDragLeave}
+        onDrop={disabled ? undefined : handleDrop}
+        onClick={
+          disabled
+            ? undefined
+            : () => {
+                fileInputRef.current?.click();
+                fileInputRef.current?.focus();
+              }
+        }
+        onKeyDown={disabled ? undefined : handleKeyDown}
       >
         {/* Photo icon */}
         <div className='w-16 h-16 flex items-center justify-center'>
@@ -210,8 +219,11 @@ export default function FileUpload({
 
       {/* Mobile upload button */}
       <button
-        onClick={() => fileInputRef.current?.click()}
-        className='md:hidden w-full bg-black text-white shadow-[0_0_60px_rgba(0,0,0,0.24),0_8px_24px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.12)] rounded-xl p-4 flex items-center justify-center gap-3 active:scale-[0.98] transition-all'
+        onClick={() => !disabled && fileInputRef.current?.click()}
+        disabled={disabled}
+        className={`md:hidden w-full bg-black text-white shadow-[0_0_60px_rgba(0,0,0,0.24),0_8px_24px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.12)] rounded-xl p-4 flex items-center justify-center gap-3 ${
+          disabled ? "opacity-50 cursor-not-allowed" : "active:scale-[0.98]"
+        } transition-all`}
       >
         <img
           src='/images/photo_upload_icon.svg'
