@@ -184,7 +184,7 @@ export function ListingClient({
 
   // Update the videoJobs useMemo to group by template
   const { videoJobs, videoStatus } = useMemo(() => {
-    const jobs = videoData?.data?.videos || [];
+    const jobs = (videoData?.data?.videos || []) as VideoJob[];
     const status = videoData?.data?.status || {
       isProcessing: false,
       processingCount: 0,
@@ -195,7 +195,7 @@ export function ListingClient({
 
     // Group videos by template and keep only the latest version
     const latestByTemplate = jobs.reduce<Record<string, VideoJob>>(
-      (acc, job) => {
+      (acc: Record<string, VideoJob>, job: VideoJob) => {
         const template = job.template || "default";
         if (
           !acc[template] ||
@@ -357,7 +357,7 @@ export function ListingClient({
           showToast("Video generation started", "success");
           queryClient.invalidateQueries({ queryKey: ["listing", listingId] });
         },
-        onError: (error) => {
+        onError: (error: Error) => {
           // Revert optimistic update
           queryClient.invalidateQueries({ queryKey: ["videoJobs", listingId] });
           showToast(
@@ -449,7 +449,7 @@ export function ListingClient({
 
     return (
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-        {videoJobs.map((job) => (
+        {videoJobs.map((job: VideoJob) => (
           <VideoJobCard
             key={job.id}
             job={job}
