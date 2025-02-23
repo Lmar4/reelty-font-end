@@ -71,7 +71,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
 }) => {
   // Check if any job is currently processing
   const isProcessing = activeJobs.some(
-    (job) => job.status === "PROCESSING" || job.status === "QUEUED"
+    (job) => job.status === "PROCESSING" || job.status === "PENDING"
   );
 
   if (isLoading) {
@@ -105,7 +105,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
         const isTemplateGenerating = activeJobs.some(
           (job) =>
             job.template === template.id &&
-            (job.status === "PROCESSING" || job.status === "QUEUED")
+            (job.status === "PROCESSING" || job.status === "PENDING")
         );
 
         return (
