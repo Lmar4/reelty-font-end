@@ -87,7 +87,7 @@ export const useListings = () => {
         throw new Error(data.error || "Failed to fetch listings");
       }
 
-      setListings(data.data || []);
+      setListings(Array.isArray(data) ? data : data.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

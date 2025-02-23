@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
-import { ProcessedPhoto } from "./use-photo-processing";
+import { useCallback, useEffect, useState } from "react";
 
 interface ListingSessionData {
   photos: Array<{
