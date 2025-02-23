@@ -16,7 +16,7 @@ export const GET = withAuthServer(async function GET(
       sessionToken: request.auth.sessionToken,
     });
 
-    return NextResponse.json(listings);
+    return NextResponse.json({ success: true, data: listings });
   } catch (error) {
     console.error("[LISTINGS_GET]", error);
     return new NextResponse(

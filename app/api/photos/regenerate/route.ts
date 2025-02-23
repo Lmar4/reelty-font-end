@@ -4,12 +4,12 @@ import { makeBackendRequest } from "@/utils/withAuth";
 
 const MAX_BATCH_SIZE = 20; // Reasonable limit for batch processing
 
-export const GET = withAuthServer(async function POST(
+export const POST = withAuthServer(async function POST(
   request: AuthenticatedRequest
 ) {
   try {
     const body = await request.json();
-    const { photoIds, forceRegeneration = true } = body;
+    const { photoIds, forceRegeneration = true, regenerationContext } = body;
 
     if (!Array.isArray(photoIds) || photoIds.length === 0) {
       return new NextResponse("Invalid photo IDs", { status: 400 });
@@ -25,7 +25,9 @@ export const GET = withAuthServer(async function POST(
     const response = await makeBackendRequest<{
       success: boolean;
       message: string;
-      jobs: Array<{ id: string; listingId: string }>;
+      jobs?: Array<{ id: string; listingId: string }>;
+      jobId?: string; // For backward compatibility
+      listingId?: string; // For backward compatibility
       inaccessiblePhotoIds?: string[];
     }>("/api/photos/regenerate", {
       method: "POST",
@@ -34,6 +36,7 @@ export const GET = withAuthServer(async function POST(
         photoIds,
         forceRegeneration,
         isRegeneration: true,
+        regenerationContext,
       },
     });
 
@@ -60,30 +63,25 @@ export const GET = withAuthServer(async function POST(
     }
 
     // Handle case where response exists but jobs array is missing
-    if (!response.jobs && response.success !== false) {
-      console.error(
-        "[PHOTOS_REGENERATE] Response missing jobs array:",
-        response
-      );
-
-      // If we have an error message from backend, use it
-      if (response.message) {
+    if (!response.jobs) {
+      // Check if we have legacy format with jobId and listingId
+      if (response.jobId && response.listingId) {
+        response.jobs = [
+          {
+            id: response.jobId,
+            listingId: response.listingId,
+          },
+        ];
+      } else if (response.success !== false) {
+        console.error("[PHOTOS_REGENERATE] Invalid response format:", response);
         return NextResponse.json(
           {
             success: false,
-            message: response.message,
+            message: "Invalid response format from backend",
           },
-          { status: 400 }
+          { status: 500 }
         );
       }
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid response format from backend",
-        },
-        { status: 500 }
-      );
     }
 
     // If the response indicates failure but has a message, return that
@@ -102,7 +100,7 @@ export const GET = withAuthServer(async function POST(
     return NextResponse.json({
       success: true,
       data: {
-        jobs: response.jobs,
+        jobs: response.jobs || [],
         inaccessiblePhotoIds: response.inaccessiblePhotoIds || [],
         message: response.message || "Photos regeneration started successfully",
       },
