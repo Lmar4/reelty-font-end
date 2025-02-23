@@ -24,6 +24,8 @@ export default function DashboardPage() {
     setIsModalOpen(true);
   };
 
+  console.log("LISTINGS", listings);
+
   return (
     <>
       {/* Breadcrumb */}

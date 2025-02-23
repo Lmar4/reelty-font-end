@@ -8,6 +8,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Providers } from "@/components/providers/Providers";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import { cn } from "@/lib/utils";
+import Script from "next/script";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -162,6 +163,11 @@ export default function RootLayout({
             <QueryProvider>
               <AuthProvider>
                 <Providers>
+                  <Script
+                    defer
+                    src='https://umami-production-4123.up.railway.app/script.js'
+                    data-website-id='fb7ab82d-6fef-4efd-af3c-66f7a82af722'
+                  />
                   <main className='flex-grow flex flex-col'>{children}</main>
                   <Toaster />
                 </Providers>

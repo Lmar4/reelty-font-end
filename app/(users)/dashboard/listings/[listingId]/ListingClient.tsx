@@ -1,20 +1,21 @@
 "use client";
 
+import ErrorBoundary from "@/components/common/ErrorBoundary";
 import { useToast } from "@/components/common/Toast";
 import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
 import { useListing } from "@/hooks/queries/use-listings";
 import { usePhotoStatus } from "@/hooks/queries/use-photo-status";
 import { useVideoStatus } from "@/hooks/queries/use-video-status";
 import { useCreateJob } from "@/hooks/use-jobs";
-import type { Photo, VideoJob } from "@/types/listing-types";
+import type { VideoJob } from "@/types/listing-types";
 import type { JsonValue, Listing, User } from "@/types/prisma-types";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { TemplateGrid } from "./components/TemplateGrid";
-import { VideoJobCard } from "./components/VideoJobCard";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import ListingSkeleton from "./components/ListingSkeleton";
+import { VideoJobCard } from "./components/VideoJobCard";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
@@ -115,138 +116,19 @@ function useListingData(
   };
 }
 
-async function handleRegenerateImages(photoIds: string[]) {
-  try {
-    const response = await fetch(`/api/photos/regenerate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ photoIds }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      return { error: error.message || "Failed to regenerate images" };
-    }
-
-    return true;
-  } catch (error) {
-    console.error("[REGENERATE_ERROR]", error);
-    return { error: "Failed to regenerate images" };
-  }
+interface PhotoWithPath {
+  id: string;
+  filePath: string | null;
 }
 
-const transformPhotos = (photos: Photo[] | undefined) => {
-  if (!photos) return [];
-
-  return photos.map((photo) => {
-    // Always prefer processedFilePath if available
-    const url = photo.processedFilePath || photo.filePath;
-
-    // If the URL is a full S3 URL with query parameters, extract just the base path
-    const cleanUrl = url.includes("?") ? url.split("?")[0] : url;
-
-    return {
-      id: photo.id,
-      url: cleanUrl,
-      hasError: !!photo.error,
-      status: photo.error
-        ? ("error" as const)
-        : photo.processedFilePath
-        ? ("completed" as const)
-        : ("processing" as const),
-    };
-  });
-};
-
-const transformVideoJob = (job: any): VideoJob => ({
-  id: job.id,
-  listingId: job.listingId,
-  status: job.status,
-  progress: job.progress || 0,
-  template: job.template,
-  inputFiles: job.inputFiles,
-  outputFile: job.outputFile,
-  thumbnailUrl: job.thumbnailUrl,
-  error: job.error || null,
-  createdAt: new Date(job.createdAt),
-  updatedAt: new Date(job.updatedAt || job.createdAt),
-  metadata: {
-    userMessage: job.metadata?.userMessage,
-    error: job.metadata?.error,
-    stage: job.metadata?.stage,
-    currentFile: job.metadata?.currentFile,
-    totalFiles: job.metadata?.totalFiles,
-    startTime: job.metadata?.startTime,
-    endTime: job.metadata?.endTime,
-  },
-});
-
-const VideoGenerationProgress = ({ jobId }: { jobId: string }) => {
-  const { data: videoData } = useVideoStatus(jobId);
-
-  if (!jobId) return null;
-
-  const jobs = videoData?.data?.videos || [];
-  const jobStatus = jobs[0]; // Get the first job if it exists
-
-  if (!jobs.length) {
-    return (
-      <div className='flex items-center space-x-3'>
-        <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
-        <p className='text-sm font-medium'>Connecting to video service...</p>
-      </div>
-    );
-  }
-
-  if (!jobStatus) return null;
-
-  // Get stage-specific message
-  const getMessage = () => {
-    const stage = jobStatus.metadata?.stage;
-    switch (stage) {
-      case "webp":
-        return "Optimizing photos...";
-      case "runway":
-        return "Applying AI enhancements...";
-      case "template":
-        return "Applying video template...";
-      case "final":
-        return "Finalizing video...";
-      default:
-        return "Processing video...";
-    }
-  };
-
-  // Get detailed progress info
-  const getDetailedProgress = () => {
-    const { currentFile, totalFiles } = jobStatus.metadata || {};
-    if (currentFile && totalFiles) {
-      return `File ${currentFile} of ${totalFiles}`;
-    }
-    return `${jobStatus.progress}% complete`;
-  };
-
-  return (
-    <div className='space-y-2'>
-      <div className='flex items-center justify-between'>
-        <div className='flex items-center space-x-3'>
-          <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
-          <div>
-            <p className='text-sm font-medium'>{getMessage()}</p>
-            <p className='text-xs text-gray-500'>{getDetailedProgress()}</p>
-          </div>
-        </div>
-      </div>
-      <div className='w-full bg-gray-200 rounded-full h-1.5'>
-        <div
-          className='bg-blue-500 h-1.5 rounded-full transition-all duration-500'
-          style={{ width: `${jobStatus.progress}%` }}
-        />
-      </div>
-    </div>
+const getValidVideoJobs = (videoJobs: VideoJob[]): VideoJob[] => {
+  const sortedJobs = [...videoJobs].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
+
+  // For simplicity, just return the sorted jobs
+  // You can add more validation logic here if needed
+  return sortedJobs;
 };
 
 interface ListingClientProps {
@@ -254,200 +136,6 @@ interface ListingClientProps {
   searchParams: { [key: string]: string | string[] | undefined };
   initialListing: ExtendedListing;
 }
-
-interface PhotoStatusResponse {
-  processingCount: number;
-  failedCount: number;
-  totalCount: number;
-  photos: {
-    id: string;
-    url: string;
-    hasError: boolean;
-    status: "error" | "processing" | "completed";
-    order: number;
-  }[];
-}
-
-const usePhotoProcessingStatus = (listingId: string) => {
-  const [status, setStatus] = useState<{
-    status: "PROCESSING" | "ERROR" | "COMPLETED" | null;
-    message: string;
-    photos?: PhotoStatusResponse["photos"];
-  } | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout>();
-
-  useEffect(() => {
-    const checkStatus = async () => {
-      try {
-        const response = await fetch(
-          `/api/listings/${listingId}/photos/status`
-        );
-        if (!response.ok) throw new Error("Failed to fetch status");
-
-        const data: PhotoStatusResponse = await response.json();
-
-        if (data.processingCount > 0) {
-          setStatus({
-            status: "PROCESSING",
-            message: `Processing ${data.processingCount} of ${data.totalCount} photos...`,
-            photos: data.photos,
-          });
-        } else if (data.failedCount > 0) {
-          setStatus({
-            status: "ERROR",
-            message: `${data.failedCount} photos failed to process`,
-            photos: data.photos,
-          });
-          // Stop polling on error
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-          }
-        } else if (data.totalCount > 0) {
-          setStatus({
-            status: "COMPLETED",
-            message: "All photos processed successfully",
-            photos: data.photos,
-          });
-          // Stop polling when completed
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-          }
-        } else {
-          setStatus(null);
-          // Stop polling when no photos
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-          }
-        }
-      } catch (error) {
-        console.error("[PHOTO_STATUS_ERROR]", error);
-        setStatus({
-          status: "ERROR",
-          message: "Failed to check photo status",
-        });
-        // Stop polling on error
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      }
-    };
-
-    // Initial check
-    checkStatus();
-
-    // Start polling only if we don't have a status yet
-    if (!status) {
-      intervalRef.current = setInterval(checkStatus, 5000);
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [listingId]);
-
-  return status;
-};
-
-const getValidVideoJobs = (videoJobs: VideoJob[] = []) => {
-  // Sort by createdAt in descending order (newest first)
-  const sortedJobs = videoJobs.sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-
-  // Group jobs by their batch (jobs created within 5 minutes of each other)
-  const batches: VideoJob[][] = [];
-  let currentBatch: VideoJob[] = [];
-
-  sortedJobs.forEach((job) => {
-    if (currentBatch.length === 0) {
-      currentBatch.push(job);
-    } else {
-      const firstJobInBatch = currentBatch[0];
-      const timeDiff = Math.abs(
-        new Date(firstJobInBatch.createdAt).getTime() -
-          new Date(job.createdAt).getTime()
-      );
-
-      // If within 5 minutes, add to current batch
-      if (timeDiff < 300000) {
-        // 5 minutes
-        currentBatch.push(job);
-      } else {
-        batches.push([...currentBatch]);
-        currentBatch = [job];
-      }
-    }
-  });
-
-  // Add the last batch
-  if (currentBatch.length > 0) {
-    batches.push(currentBatch);
-  }
-
-  // For the most recent batch, if all jobs are completed, show all of them
-  const latestBatch = batches[0] || [];
-  if (
-    latestBatch.length > 0 &&
-    latestBatch.every((job) => job.status === "COMPLETED")
-  ) {
-    return latestBatch;
-  }
-
-  // Otherwise, fall back to showing only latest per template
-  const latestByTemplate = sortedJobs.reduce<Record<string, VideoJob>>(
-    (acc, job) => {
-      if (!job.template) return acc;
-      if (
-        !acc[job.template] ||
-        new Date(acc[job.template].createdAt) < new Date(job.createdAt)
-      ) {
-        acc[job.template] = job;
-      }
-      return acc;
-    },
-    {}
-  );
-
-  return Object.values(latestByTemplate);
-};
-
-const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
-  const [hasError, setHasError] = useState(false);
-
-  useEffect(() => {
-    const handleError = (error: ErrorEvent) => {
-      console.error("[ErrorBoundary]", error);
-      setHasError(true);
-    };
-
-    window.addEventListener("error", handleError);
-    return () => window.removeEventListener("error", handleError);
-  }, []);
-
-  if (hasError) {
-    return (
-      <div className='p-4 rounded-lg bg-red-50 border border-red-100'>
-        <h3 className='text-lg font-medium text-red-800'>
-          Something went wrong
-        </h3>
-        <p className='text-sm text-red-600 mt-1'>
-          Please try refreshing the page. If the problem persists, contact
-          support.
-        </p>
-        <button
-          onClick={() => window.location.reload()}
-          className='mt-2 text-sm font-medium text-red-600 hover:text-red-500'
-        >
-          Refresh Page
-        </button>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-};
 
 export function ListingClient({
   listingId,
@@ -458,7 +146,6 @@ export function ListingClient({
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
-  // Custom hooks with better error handling
   const {
     currentUser,
     userData,
@@ -484,7 +171,7 @@ export function ListingClient({
     isPending: isGeneratingVideo,
     error: videoGenerationError,
   } = useCreateJob();
-  console.log("videoJobs", videoData);
+
   // Derived state using useMemo
   const videoJobs = useMemo(() => {
     console.log("[VIDEO_JOBS] Raw response:", {
@@ -547,18 +234,63 @@ export function ListingClient({
   // Get the latest job
   const videoStatus = useMemo(() => videoJobs[0], [videoJobs]);
 
-  const handleImageRegeneration = async (photoIds: string | string[]) => {
+  const handleRegenerateImages = async (
+    photoIds: string | string[]
+  ): Promise<void> => {
     const idsArray = Array.isArray(photoIds) ? photoIds : [photoIds];
-    const result = await handleRegenerateImages(idsArray);
+    try {
+      if (!listing || !photoStatus?.photos) {
+        toast.error("No photos available");
+        return;
+      }
 
-    if (result === true) {
-      showToast(
-        `Image regeneration started for ${idsArray.length} photos`,
-        "success"
-      );
-      queryClient.invalidateQueries({ queryKey: ["listing", listingId] });
-    } else {
-      showToast(result.error || "Failed to regenerate images", "error");
+      // Debug log
+      console.log("[REGENERATE_DEBUG] Preparing request", {
+        photoIds: idsArray,
+        photosCount: listing.photos?.length || 0,
+      });
+
+      const response = await fetch(`/api/photos/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          photoIds: idsArray,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("[REGENERATE_ERROR]", data);
+        toast.error(
+          data.error || `Failed to regenerate images: ${response.status}`
+        );
+        return;
+      }
+
+      // Check for success flag in response
+      if (data.success) {
+        toast.success(
+          `Image regeneration started for ${idsArray.length} ${
+            idsArray.length === 1 ? "photo" : "photos"
+          }`
+        );
+
+        // Invalidate queries for all affected listings
+        if (data.jobs?.length > 0) {
+          data.jobs.forEach((job: { listingId: string }) => {
+            queryClient.invalidateQueries({
+              queryKey: ["listing", job.listingId],
+            });
+          });
+        }
+      } else {
+        // If success is false but response was ok, show the error message
+        toast.error(data.error || "Failed to regenerate images");
+      }
+    } catch (error) {
+      console.error("[REGENERATE_ERROR]", error);
+      toast.error("Failed to regenerate images");
     }
   };
 
@@ -804,7 +536,7 @@ export function ListingClient({
           onClose={() => setIsSettingsModalOpen(false)}
           address={initialListing.address}
           photos={photoStatus?.photos || []}
-          onRegenerateImage={handleImageRegeneration}
+          onRegenerateImage={handleRegenerateImages}
           isLoading={isLoadingPhotoStatus}
         />
 
