@@ -90,32 +90,6 @@ export default function AccountSettings() {
           <div className='flex items-center justify-between'>
             <div>
               <div className='text-[15px] font-semibold text-[#1c1c1c]'>
-                Export ready
-              </div>
-              <div className='text-[14px] text-[#1c1c1c]/60'>
-                Get notified when your exports are ready
-              </div>
-            </div>
-            <label className='relative inline-flex items-center cursor-pointer'>
-              <input
-                aria-label='Export ready'
-                type='checkbox'
-                className='sr-only peer'
-                checked={notifications.exportReady}
-                onChange={(e) =>
-                  setNotifications((prev) => ({
-                    ...prev,
-                    exportReady: e.target.checked,
-                  }))
-                }
-              />
-              <div className="w-11 h-6 bg-[#1c1c1c]/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0066FF]"></div>
-            </label>
-          </div>
-
-          <div className='flex items-center justify-between'>
-            <div>
-              <div className='text-[15px] font-semibold text-[#1c1c1c]'>
                 Product updates
               </div>
               <div className='text-[14px] text-[#1c1c1c]/60'>

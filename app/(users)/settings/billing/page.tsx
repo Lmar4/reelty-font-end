@@ -90,9 +90,11 @@ export default function BillingSettings() {
                   <h3 className='text-[18px] font-semibold text-[#1c1c1c] mb-1 capitalize'>
                     {subscription.plan}
                   </h3>
-                  <p className='text-[15px] text-[#6B7280]'>
-                    Active until {formatDate(subscription.currentPeriodEnd)}
-                  </p>
+                  {subscription.plan !== "FREE" && (
+                    <p className='text-[15px] text-[#6B7280]'>
+                      Active until {formatDate(subscription.currentPeriodEnd)}
+                    </p>
+                  )}
                   {subscription.cancelAtPeriodEnd && (
                     <p className='text-[15px] text-red-500 mt-2'>
                       Your subscription will be canceled at the end of the
