@@ -18,17 +18,17 @@ interface SubscriptionChangeEmailProps {
 }
 
 export const SubscriptionChangeEmail = ({
-  firstName = "Rob",
-  appUrl = "https://app.reelty.com",
-  oldPlanName = "Pro",
-  newPlanName = "Pro",
-  oldPlanPrice = 9.99,
-  newPlanPrice = 9.99,
-  priceDifference = 0,
-  isUpgrade = false,
-  newFeatures = [],
-  effectiveDate = "2024-01-01",
-  nextBillingDate = "2024-02-01",
+  firstName,
+  appUrl,
+  oldPlanName,
+  newPlanName,
+  oldPlanPrice,
+  newPlanPrice,
+  priceDifference,
+  isUpgrade,
+  newFeatures,
+  effectiveDate,
+  nextBillingDate,
 }: SubscriptionChangeEmailProps) => {
   return (
     <BaseLayout
@@ -41,19 +41,23 @@ export const SubscriptionChangeEmail = ({
       </Text>
 
       <Text style={theme.typography.body}>
-        Your plan has been successfully updated from {oldPlanName} to {newPlanName}, 
-        effective {effectiveDate}.
+        Your plan has been successfully updated from {oldPlanName} to{" "}
+        {newPlanName}, effective {effectiveDate}.
       </Text>
 
-      <Section style={{
-        ...theme.containers.section,
-        backgroundColor: theme.colors.background,
-      }}>
-        <Text style={{
-          ...theme.typography.h2,
-          color: theme.colors.primary,
-          marginBottom: theme.spacing.md,
-        }}>
+      <Section
+        style={{
+          ...theme.containers.section,
+          backgroundColor: theme.colors.background,
+        }}
+      >
+        <Text
+          style={{
+            ...theme.typography.h2,
+            color: theme.colors.primary,
+            marginBottom: theme.spacing.md,
+          }}
+        >
           Details
         </Text>
         <Text style={theme.typography.body}>
@@ -74,15 +78,16 @@ export const SubscriptionChangeEmail = ({
 
       {newFeatures.length > 0 && (
         <>
-          <Text style={theme.typography.h2}>
-            New Features Available:
-          </Text>
+          <Text style={theme.typography.h2}>New Features Available:</Text>
           <ul style={{ paddingLeft: theme.spacing.lg }}>
             {newFeatures.map((feature, index) => (
-              <li key={index} style={{
-                ...theme.typography.body,
-                margin: theme.spacing.xs
-              }}>
+              <li
+                key={index}
+                style={{
+                  ...theme.typography.body,
+                  margin: theme.spacing.xs,
+                }}
+              >
                 {feature}
               </li>
             ))}
@@ -91,29 +96,29 @@ export const SubscriptionChangeEmail = ({
       )}
 
       <Text style={theme.typography.body}>
-        Your subscription will renew at the new rate automatically. Manage your settings anytime.
+        Your subscription will renew at the new rate automatically. Manage your
+        settings anytime.
       </Text>
 
       <Section style={{ margin: `${theme.spacing.xl} 0` }}>
-        <a href={`${appUrl}/dashboard/settings`} style={{
-          ...theme.buttons.primary,
-          backgroundColor: theme.colors.primary,
-          borderRadius: '9999px',
-          display: 'inline-block'
-        }}>
+        <a
+          href={`${appUrl}/dashboard/settings`}
+          style={{
+            ...theme.buttons.primary,
+            backgroundColor: theme.colors.primary,
+            borderRadius: "9999px",
+            display: "inline-block",
+          }}
+        >
           Manage Subscription
         </a>
       </Section>
 
-      <Text style={theme.typography.body}>
-        Have questions? We're here.
-      </Text>
+      <Text style={theme.typography.body}>Have questions? We're here.</Text>
 
       <Hr style={{ borderColor: theme.colors.text.light }} />
 
-      <Text style={theme.typography.body}>
-        The Reelty Team
-      </Text>
+      <Text style={theme.typography.body}>The Reelty Team</Text>
     </BaseLayout>
   );
 };

@@ -14,48 +14,55 @@ interface PaymentFailureEmailProps {
 }
 
 export const PaymentFailureEmail = ({
-  firstName = "Rob",
-  appUrl = "https://app.reelty.com",
-  planName = "Pro+",
-  amount = 10.0,
-  failureReason = "Payment failed",
-  nextAttemptDate = "2024-01-01",
-  paymentMethodLast4 = "1234",
+  firstName,
+  appUrl,
+  planName,
+  amount,
+  failureReason,
+  nextAttemptDate,
+  paymentMethodLast4,
 }: PaymentFailureEmailProps) => {
   return (
-    <BaseLayout previewText="Payment Issue – Action Required">
-      <Text style={theme.typography.h1}>
-        Payment Failed
-      </Text>
+    <BaseLayout previewText='Payment Issue – Action Required'>
+      <Text style={theme.typography.h1}>Payment Failed</Text>
 
       <Text style={theme.typography.body}>
-        We couldn't process your payment of ${amount.toFixed(2)} for your {planName} subscription.
+        We couldn't process your payment of ${amount.toFixed(2)} for your{" "}
+        {planName} subscription.
       </Text>
 
-      <Section style={{
-        ...theme.containers.section,
-        backgroundColor: theme.colors.danger + '10',
-        border: `1px solid ${theme.colors.danger}20`,
-      }}>
-        <Text style={{
-          ...theme.typography.body,
-          color: theme.colors.danger
-        }}>
+      <Section
+        style={{
+          ...theme.containers.section,
+          backgroundColor: theme.colors.danger + "10",
+          border: `1px solid ${theme.colors.danger}20`,
+        }}
+      >
+        <Text
+          style={{
+            ...theme.typography.body,
+            color: theme.colors.danger,
+          }}
+        >
           <strong>Reason:</strong> {failureReason}
         </Text>
         {paymentMethodLast4 && (
-          <Text style={{
-            ...theme.typography.body,
-            color: theme.colors.danger
-          }}>
+          <Text
+            style={{
+              ...theme.typography.body,
+              color: theme.colors.danger,
+            }}
+          >
             <strong>Payment Method:</strong> Card ending in {paymentMethodLast4}
           </Text>
         )}
         {nextAttemptDate && (
-          <Text style={{
-            ...theme.typography.body,
-            color: theme.colors.danger
-          }}>
+          <Text
+            style={{
+              ...theme.typography.body,
+              color: theme.colors.danger,
+            }}
+          >
             <strong>Next Attempt:</strong> {nextAttemptDate}
           </Text>
         )}
@@ -66,12 +73,15 @@ export const PaymentFailureEmail = ({
       </Text>
 
       <Section style={{ margin: `${theme.spacing.xl} 0` }}>
-        <a href={`${appUrl}/billing/payment-methods`} style={{
-          ...theme.buttons.primary,
-          backgroundColor: theme.colors.primary,
-          borderRadius: '9999px',
-          display: 'inline-block'
-        }}>
+        <a
+          href={`${appUrl}/billing/payment-methods`}
+          style={{
+            ...theme.buttons.primary,
+            backgroundColor: theme.colors.primary,
+            borderRadius: "9999px",
+            display: "inline-block",
+          }}
+        >
           Update Payment Method
         </a>
       </Section>
@@ -82,9 +92,7 @@ export const PaymentFailureEmail = ({
 
       <Hr style={{ borderColor: theme.colors.text.light }} />
 
-      <Text style={theme.typography.body}>
-        The Reelty Team
-      </Text>
+      <Text style={theme.typography.body}>The Reelty Team</Text>
     </BaseLayout>
   );
 };

@@ -11,25 +11,28 @@ interface CreditPurchaseEmailProps {
 }
 
 const CreditPurchaseEmail = ({
-  name = "Rob",
-  credits = 10,
-  amount = 10.0,
-  purchaseDate = "2024-01-01",
+  name,
+  credits,
+  amount,
+  purchaseDate,
 }: CreditPurchaseEmailProps) => {
   return (
-    <BaseLayout previewText="Your Reelty Listing Credits Are Ready">
+    <BaseLayout previewText='Your Reelty Listing Credits Are Ready'>
       <Text style={theme.typography.h1}>Listing Credit Purchase Confirmed</Text>
-      
+
       <Text style={theme.typography.body}>
-        Thanks for your purchase! Your Listing Credits have been added to your account—you're all set to create your real estate reels.
+        Thanks for your purchase! Your Listing Credits have been added to your
+        account—you're all set to create your real estate reels.
       </Text>
-      
-      <Section style={{
-        backgroundColor: theme.colors.background,
-        padding: theme.spacing.md,
-        borderRadius: '8px',
-        margin: `${theme.spacing.md} 0`
-      }}>
+
+      <Section
+        style={{
+          backgroundColor: theme.colors.background,
+          padding: theme.spacing.md,
+          borderRadius: "8px",
+          margin: `${theme.spacing.md} 0`,
+        }}
+      >
         <Text style={theme.typography.body}>
           <strong>Credits Purchased:</strong> {credits}
         </Text>
@@ -40,29 +43,34 @@ const CreditPurchaseEmail = ({
           <strong>Purchase Date:</strong> {purchaseDate}
         </Text>
       </Section>
-      
+
       <Text style={theme.typography.body}>
         Check your{" "}
-        <a href='https://app.reelty.com/billing' style={{
-          textDecoration: 'underline'
-        }}>
+        <a
+          href='https://app.reelty.com/billing'
+          style={{
+            textDecoration: "underline",
+          }}
+        >
           billing dashboard
-        </a> to see your updated balance.
+        </a>{" "}
+        to see your updated balance.
       </Text>
 
       <Hr style={{ borderColor: theme.colors.text.light }} />
-      
-      <Text style={theme.typography.body}>
-        The Reelty Team
-      </Text>
+
+      <Text style={theme.typography.body}>The Reelty Team</Text>
 
       <Section style={{ margin: `${theme.spacing.xl} 0` }}>
-        <a href='https://app.reelty.com/billing' style={{
-          ...theme.buttons.primary,
-          backgroundColor: theme.colors.primary,
-          borderRadius: '9999px',
-          display: 'inline-block'
-        }}>
+        <a
+          href='https://app.reelty.com/billing'
+          style={{
+            ...theme.buttons.primary,
+            backgroundColor: theme.colors.primary,
+            borderRadius: "9999px",
+            display: "inline-block",
+          }}
+        >
           Update Payment Method
         </a>
       </Section>
