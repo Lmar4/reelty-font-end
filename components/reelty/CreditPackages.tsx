@@ -169,7 +169,7 @@ export default function CreditPackages() {
         <p className='text-lg text-gray-600'>
           Need more credits?{" "}
           <a
-            href='mailto:support@reelty.com'
+            href='mailto:team@reelty.io'
             className='text-blue-600 hover:underline'
           >
             Contact us

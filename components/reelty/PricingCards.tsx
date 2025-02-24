@@ -422,7 +422,7 @@ export default function PricingCards({
         <p className='text-[18px] text-[#6B7280]'>
           Need more?{" "}
           <a
-            href='mailto:support@reelty.com'
+            href='mailto:team@reelty.io'
             className='text-[#1c1c1c] hover:underline'
           >
             Let's talk!
