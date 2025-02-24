@@ -7,33 +7,42 @@ import { NextResponse } from "next/server";
 const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
 
 async function handler(request: Request) {
+  if (!webhookSecret) {
+    console.error(
+      "Error: Please add CLERK_WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local"
+    );
+    return new NextResponse("Error: Missing webhook secret", {
+      status: 500,
+    });
+  }
+
   const payload = await request.json();
-  const headersList = await headers();
-  const svixId = headersList.get("svix-id");
-  const svixTimestamp = headersList.get("svix-timestamp");
-  const svixSignature = headersList.get("svix-signature");
+  const headerPayload = await headers();
+  const svix_id = headerPayload.get("svix-id");
+  const svix_timestamp = headerPayload.get("svix-timestamp");
+  const svix_signature = headerPayload.get("svix-signature");
 
   // If there are no headers, error out
-  if (!svixId || !svixTimestamp || !svixSignature) {
-    return new NextResponse("Error occured -- no svix headers", {
+  if (!svix_id || !svix_timestamp || !svix_signature) {
+    return new NextResponse("Error: Missing svix headers", {
       status: 400,
     });
   }
 
   // Create a new Svix instance with your secret
-  const wh = new Webhook(webhookSecret || "");
+  const wh = new Webhook(webhookSecret);
   let evt: WebhookEvent;
 
   // Verify the payload with the headers
   try {
     evt = wh.verify(JSON.stringify(payload), {
-      "svix-id": svixId,
-      "svix-timestamp": svixTimestamp,
-      "svix-signature": svixSignature,
+      "svix-id": svix_id,
+      "svix-timestamp": svix_timestamp,
+      "svix-signature": svix_signature,
     }) as WebhookEvent;
   } catch (err) {
     console.error("Error verifying webhook:", err);
-    return new NextResponse("Error occured", {
+    return new NextResponse("Error: Webhook verification failed", {
       status: 400,
     });
   }
@@ -69,14 +78,17 @@ async function handler(request: Request) {
         throw new Error("Failed to sync user with backend");
       }
 
-      return NextResponse.json({ success: true });
+      // Return 200 to acknowledge receipt of the webhook
+      return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
       console.error("Error syncing user with backend:", error);
-      return new NextResponse("Error syncing user", { status: 500 });
+      // Return 500 to indicate processing failed and webhook should be retried
+      return new NextResponse("Error: Failed to sync user", { status: 500 });
     }
   }
 
-  return NextResponse.json({ success: true });
+  // Return 200 for unhandled event types
+  return NextResponse.json({ success: true }, { status: 200 });
 }
 
 export const POST = handler;
