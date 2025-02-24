@@ -64,7 +64,7 @@ async function handler(request: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${userId}`,
+          "X-API-Key": process.env.REELTY_API_KEY || "", // Add API key for webhook authentication
         },
         body: JSON.stringify({
           id: userId,
@@ -75,8 +75,19 @@ async function handler(request: Request) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to sync user with backend");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Backend sync error:", {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+        });
+        throw new Error(
+          `Failed to sync user with backend: ${response.statusText}`
+        );
       }
+
+      const data = await response.json();
+      console.log("User synced successfully:", data);
 
       // Return 200 to acknowledge receipt of the webhook
       return NextResponse.json({ success: true }, { status: 200 });
