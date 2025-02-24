@@ -5,6 +5,7 @@ import { SubscriptionChangeEmail } from "@/emails/SubscriptionChangeEmail";
 import { PaymentFailureEmail } from "@/emails/PaymentFailureEmail";
 import CreditPurchaseEmail from "@/emails/CreditPurchaseEmail";
 import LowBalanceEmail from "@/emails/LowBalanceEmail";
+import VideoGeneratedEmail from "@/emails/VideoGeneratedEmail";
 
 if (!process.env.PLUNK_PUBLIC_API_KEY) {
   throw new Error("Missing PLUNK_PUBLIC_API_KEY environment variable");
@@ -261,4 +262,32 @@ export const sendPaymentFailureEmail = async (
     subject: "Action Required: Payment Failed - Reelty Subscription",
     body: emailHtml,
   });
+};
+
+export const sendVideoGeneratedEmail = async (
+  email: string,
+  firstName: string,
+  listingAddress: string,
+  listingId: string
+) => {
+  try {
+    const listingUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/listings/${listingId}`;
+
+    const emailHtml = render(
+      VideoGeneratedEmail({
+        firstName,
+        listingAddress,
+        listingUrl,
+      })
+    );
+
+    await plunk.emails.send({
+      to: email,
+      subject: `Your Reelty Videos for ${listingAddress} Are Ready! 🎥`,
+      body: emailHtml,
+    });
+  } catch (error) {
+    console.error("[SEND_VIDEO_GENERATED_EMAIL]", error);
+    throw new Error("Failed to send video generation email");
+  }
 };
