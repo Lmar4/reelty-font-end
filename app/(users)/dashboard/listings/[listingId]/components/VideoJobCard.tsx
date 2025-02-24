@@ -1,10 +1,12 @@
 "use client";
 
+import React from "react";
 import { VideoJob } from "@/types/listing-types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { formatDistanceToNow } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 interface VideoJobCardProps {
   job: VideoJob;
@@ -13,6 +15,7 @@ interface VideoJobCardProps {
   isRegenerating?: boolean;
   onDownload: (jobId: string) => void;
   onRegenerate: () => void;
+  downloadCount?: number;
 }
 
 export function VideoJobCard({
@@ -22,49 +25,35 @@ export function VideoJobCard({
   isRegenerating,
   onDownload,
   onRegenerate,
+  downloadCount = 0,
 }: VideoJobCardProps) {
   const isProcessing = job.status === "PROCESSING";
-  const isFailed = job.status === "FAILED";
   const isCompleted = job.status === "COMPLETED";
+  const isFailed = job.status === "FAILED";
+  const isDownloadLimited = !isPaidUser && downloadCount >= 1;
+
+  // Get the processed template path
+  const processedTemplate = job.metadata?.processedTemplates?.find(
+    (template) => template.key === job.template
+  );
+  const videoUrl = processedTemplate?.path || job.outputFile;
 
   const renderStatus = () => {
     if (isProcessing) {
       return (
-        <div className='flex items-center space-x-2 text-blue-600'>
-          <LoadingSpinner className='h-4 w-4' />
-          <span>Processing...</span>
+        <div className='flex items-center text-blue-600'>
+          <LoadingSpinner className='h-4 w-4 mr-2' />
+          <span className='text-sm'>Processing</span>
         </div>
       );
     }
 
     if (isFailed) {
-      return (
-        <div className='flex items-center space-x-2 text-red-600'>
-          <svg className='h-5 w-5' viewBox='0 0 20 20' fill='currentColor'>
-            <path
-              fillRule='evenodd'
-              d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
-              clipRule='evenodd'
-            />
-          </svg>
-          <span>Failed</span>
-        </div>
-      );
+      return <span className='text-sm text-red-600'>Failed</span>;
     }
 
     if (isCompleted) {
-      return (
-        <div className='flex items-center space-x-2 text-green-600'>
-          <svg className='h-5 w-5' viewBox='0 0 20 20' fill='currentColor'>
-            <path
-              fillRule='evenodd'
-              d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z'
-              clipRule='evenodd'
-            />
-          </svg>
-          <span>Ready</span>
-        </div>
-      );
+      return <span className='text-sm text-green-600'>Ready</span>;
     }
 
     return null;
@@ -73,13 +62,19 @@ export function VideoJobCard({
   return (
     <Card className='overflow-hidden'>
       <div className='aspect-video relative'>
-        {job.outputFile ? (
-          <video
-            src={job.outputFile}
-            className='w-full h-full object-cover'
-            controls
-            poster={job.thumbnailUrl || undefined}
-          />
+        {videoUrl ? (
+          <>
+            <video
+              src={videoUrl}
+              className='w-full h-full object-cover'
+              controls
+            />
+            {!isPaidUser && (
+              <div className='absolute top-2 right-2'>
+                <Badge variant='secondary'>Free Trial</Badge>
+              </div>
+            )}
+          </>
         ) : (
           <div className='w-full h-full bg-gray-100 flex items-center justify-center'>
             <svg
@@ -118,15 +113,30 @@ export function VideoJobCard({
           </div>
         )}
 
+        {!isPaidUser && (
+          <div className='mb-4'>
+            <p className='text-xs text-amber-600'>
+              Free trial videos include watermark
+            </p>
+            <p className='text-xs text-gray-500'>
+              {downloadCount}/1 downloads used
+            </p>
+          </div>
+        )}
+
         <div className='flex space-x-2'>
-          {isCompleted && (
+          {isCompleted && videoUrl && (
             <Button
               onClick={() => onDownload(job.id)}
-              disabled={!isPaidUser}
+              disabled={!isPaidUser && isDownloadLimited}
               className='flex-1'
               variant={isPaidUser ? "default" : "outline"}
             >
-              {isPaidUser ? "Download" : "Upgrade to Download"}
+              {!isPaidUser && isDownloadLimited
+                ? "Download Limit Reached"
+                : isPaidUser
+                ? "Download"
+                : "Download (Free Trial)"}
             </Button>
           )}
 

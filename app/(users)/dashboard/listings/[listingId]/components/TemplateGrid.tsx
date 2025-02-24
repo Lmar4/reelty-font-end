@@ -2,217 +2,259 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-import { VideoJob, VideoTemplate, Photo } from "@/types/listing-types";
-import ListingSkeleton from "./ListingSkeleton";
+import { VideoJob } from "@/types/listing-types";
+import { Badge } from "@/components/ui/badge";
+import { SubscriptionTier } from "@/constants/subscription-tiers";
+import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import PricingCards from "@/components/reelty/PricingCards";
+import { useTemplates, Template } from "@/hooks/queries/use-templates";
 
-const TEMPLATES = [
-  {
-    id: "crescendo",
-    name: "Crescendo",
-    description:
-      "A dynamic template that builds momentum with progressively longer clips",
-    thumbnailUrl: "/images/templates/crescendo.jpg",
-  },
-  {
-    id: "wave",
-    name: "Wave",
-    description:
-      "An engaging rhythm that alternates between quick glimpses and lingering views",
-    thumbnailUrl: "/images/templates/wave.jpg",
-  },
-  {
-    id: "storyteller",
-    name: "Storyteller",
-    description:
-      "A narrative-driven template that guides viewers through the property story",
-    thumbnailUrl: "/images/templates/storyteller.jpg",
-  },
-  {
-    id: "googlezoomintro",
-    name: "Google Zoom Intro",
-    description:
-      "Start with a dramatic Google Maps zoom into the property location, followed by property highlights",
-    thumbnailUrl: "/images/templates/googlezoomintro.jpg",
-  },
-  {
-    id: "wesanderson",
-    name: "Wes Anderson",
-    description:
-      "Symmetrical compositions with nostalgic color grading inspired by Wes Anderson's distinctive style",
-    thumbnailUrl: "/images/templates/wesanderson.jpg",
-  },
-  {
-    id: "hyperpop",
-    name: "Hyperpop",
-    description:
-      "Fast-paced, energetic cuts with rapid transitions and dynamic movement",
-    thumbnailUrl: "/images/templates/hyperpop.jpg",
-  },
-];
+interface PhotoStatus {
+  id: string;
+  url: string;
+  hasError: boolean;
+  status: "error" | "processing" | "completed";
+  order: number;
+}
 
 interface TemplateGridProps {
   videoJobs: VideoJob[];
-  photos: Photo[] | undefined;
+  photos: PhotoStatus[];
   isLoading: boolean;
   userTier: string;
   activeJobs: VideoJob[];
   onGenerateVideo: (templateId: string) => void;
+  onDownload?: (jobId: string) => void;
   isGenerating?: boolean;
+  downloadCount?: number;
 }
 
 export const TemplateGrid: React.FC<TemplateGridProps> = ({
   videoJobs,
   photos,
-  isLoading,
+  isLoading: isLoadingProps,
   userTier,
   activeJobs,
   onGenerateVideo,
+  onDownload,
   isGenerating = false,
 }) => {
-  // Check if any job is currently processing
-  const isProcessing = activeJobs.some(
-    (job) => job.status === "PROCESSING" || job.status === "PENDING"
-  );
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const isFreeTier = userTier === SubscriptionTier.FREE;
+
+  // Fetch templates
+  const { data: templates, isLoading: isLoadingTemplates } = useTemplates();
+  const isLoading = isLoadingProps || isLoadingTemplates;
 
   if (isLoading) {
     return (
-      <>
-        <ListingSkeleton />
-        <ListingSkeleton />
-        <ListingSkeleton />
-      </>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+        {[...Array(6)].map((_, i) => (
+          <Card key={i} className='animate-pulse'>
+            <div className='aspect-[9/16] bg-gray-200' />
+            <div className='p-4 space-y-3'>
+              <div className='h-4 bg-gray-200 rounded w-1/2' />
+              <div className='h-8 bg-gray-200 rounded' />
+            </div>
+          </Card>
+        ))}
+      </div>
     );
   }
 
-  // Group jobs by template
-  const jobsByTemplate = videoJobs.reduce<Record<string, VideoJob[]>>(
+  if (!templates) {
+    return null;
+  }
+
+  // Get a random photo URL to use as fallback thumbnail
+  const getRandomPhotoUrl = () => {
+    if (!photos || photos.length === 0) return null;
+    const completedPhotos = photos.filter(
+      (p) => p.status === "completed" && !p.hasError
+    );
+    if (completedPhotos.length === 0) return null;
+    const randomIndex = Math.floor(Math.random() * completedPhotos.length);
+    return completedPhotos[randomIndex].url;
+  };
+
+  // Get video URL for a specific template from the metadata
+  const getVideoUrlForTemplate = (template: Template, job: VideoJob) => {
+    // First check if this is the main template's video
+    if (job.template === template.key && job.outputFile) {
+      return job.outputFile;
+    }
+
+    // Then check in processedTemplates
+    const processedVideo = job.metadata?.processedTemplates?.find(
+      (t) => t.key === template.key || t.path.includes(`/${template.key}.mp4`)
+    );
+
+    return processedVideo?.path;
+  };
+
+  // Group jobs by template and get the latest job for each template
+  const latestJobsByTemplate = videoJobs.reduce<Record<string, VideoJob>>(
     (acc, job) => {
       if (!job.template) return acc;
-      if (!acc[job.template]) {
-        acc[job.template] = [];
+
+      // If we don't have this template yet, or if this job is newer than what we have
+      if (
+        !acc[job.template] ||
+        new Date(job.createdAt) > new Date(acc[job.template].createdAt)
+      ) {
+        acc[job.template] = job;
       }
-      acc[job.template].push(job);
       return acc;
     },
     {}
   );
 
+  const handleDownloadClick = (templateKey: string, job: VideoJob) => {
+    if (!job) return;
+
+    const template = templates.find((t) => t.key === templateKey);
+    const isPremium = template?.tiers.includes("pro");
+
+    if (isPremium && isFreeTier) {
+      setShowPricingModal(true);
+    } else if (onDownload) {
+      onDownload(job.id);
+    }
+  };
+
+  // Get the main job that contains all processed videos
+  const mainJob = Object.values(latestJobsByTemplate).find(
+    (job) =>
+      job.metadata?.processedTemplates?.length &&
+      job.metadata?.processedTemplates?.length > 0
+  );
+
+  const fallbackThumbnail = getRandomPhotoUrl();
+
   return (
     <>
-      {TEMPLATES.map((template) => {
-        const templateJobs = jobsByTemplate[template.id] || [];
-        const latestJob = templateJobs[0];
-        const isTemplateGenerating = activeJobs.some(
-          (job) =>
-            job.template === template.id &&
-            (job.status === "PROCESSING" || job.status === "PENDING")
-        );
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+        {templates
+          .sort((a, b) => {
+            // First sort by FREE vs PRO
+            const aIsFree = a.tiers.includes("FREE");
+            const bIsFree = b.tiers.includes("FREE");
+            if (aIsFree !== bIsFree) {
+              return aIsFree ? -1 : 1;
+            }
+            // Then sort by order within each group
+            return a.order - b.order;
+          })
+          .map((template) => {
+            const latestJob = mainJob || latestJobsByTemplate[template.key];
+            const isProcessing = activeJobs.some(
+              (job) =>
+                job.template === template.key &&
+                (job.status === "PROCESSING" || job.status === "PENDING")
+            );
 
-        return (
-          <Card
-            key={template.id}
-            className='relative overflow-hidden group hover:shadow-lg transition-all duration-200'
-          >
-            <div className='relative aspect-video bg-gray-100'>
-              {latestJob?.thumbnailUrl ? (
-                <Image
-                  src={latestJob.thumbnailUrl}
-                  alt={template.name}
-                  fill
-                  className='object-cover'
-                />
-              ) : (
-                <div className='absolute inset-0 flex items-center justify-center'>
-                  <div className='text-center p-4'>
-                    <h3 className='text-lg font-semibold text-gray-900'>
-                      {template.name}
-                    </h3>
-                    <p className='text-sm text-gray-500 mt-1'>
-                      {template.description}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className='p-4'>
-              {latestJob?.thumbnailUrl ? (
-                <>
-                  <h3 className='font-semibold text-gray-900'>
-                    {template.name}
-                  </h3>
-                  <p className='text-sm text-gray-500 mt-1'>
-                    {template.description}
-                  </p>
-                </>
-              ) : null}
-              <Button
-                onClick={() => onGenerateVideo(template.id)}
-                disabled={
-                  isTemplateGenerating || !photos?.length || isGenerating
-                }
-                className='w-full mt-4'
-                variant={latestJob ? "outline" : "default"}
-              >
-                {isTemplateGenerating ? (
-                  <div className='flex items-center space-x-2'>
-                    <Loader2 className='w-4 h-4 animate-spin' />
-                    <span>Generating...</span>
-                  </div>
-                ) : latestJob ? (
-                  "Regenerate Video"
-                ) : (
-                  "Generate Video"
+            const videoUrl = latestJob
+              ? getVideoUrlForTemplate(template, latestJob)
+              : null;
+            const isPremium = !template.tiers.includes("FREE") && isFreeTier;
+
+            return (
+              <Card
+                key={template.key}
+                className={cn(
+                  "overflow-hidden rounded-lg",
+                  isPremium && "opacity-90"
                 )}
-              </Button>
-            </div>
-          </Card>
-        );
-      })}
-
-      {isProcessing && (
-        <div className='col-span-full'>
-          <Card className='p-6 space-y-4'>
-            <div className='flex items-center space-x-4'>
-              <div className='w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center'>
-                <Loader2 className='w-6 h-6 text-blue-600 animate-spin' />
-              </div>
-              <div>
-                <h3 className='text-lg font-semibold'>Generating Your Video</h3>
-                <p className='text-sm text-gray-500'>
-                  {activeJobs[0]?.metadata?.stage === "webp"
-                    ? "Optimizing your photos for the best quality..."
-                    : activeJobs[0]?.metadata?.stage === "runway"
-                    ? "Applying AI enhancements to your photos..."
-                    : activeJobs[0]?.metadata?.stage === "template"
-                    ? "Creating your video with the selected template..."
-                    : activeJobs[0]?.metadata?.stage === "final"
-                    ? "Finalizing your video..."
-                    : "Processing your video..."}
-                </p>
-              </div>
-            </div>
-
-            <div className='space-y-2'>
-              <div className='w-full bg-gray-100 rounded-full h-2'>
-                <div
-                  className='bg-blue-600 h-2 rounded-full transition-all duration-500'
-                  style={{ width: `${activeJobs[0]?.progress || 0}%` }}
-                />
-              </div>
-              <div className='flex justify-between text-sm text-gray-500'>
-                <span>Progress: {activeJobs[0]?.progress || 0}%</span>
-                {activeJobs[0]?.metadata?.currentFile &&
-                  activeJobs[0]?.metadata?.totalFiles && (
-                    <span>
-                      Processing file {activeJobs[0].metadata.currentFile} of{" "}
-                      {activeJobs[0].metadata.totalFiles}
-                    </span>
+              >
+                <div className='relative bg-gray-100 aspect-[9/16]'>
+                  {videoUrl && !isPremium ? (
+                    <video
+                      src={videoUrl}
+                      className='w-full h-full object-cover'
+                      controls
+                      poster={
+                        template.thumbnailUrl || fallbackThumbnail || undefined
+                      }
+                    />
+                  ) : (
+                    <div
+                      className={cn(
+                        "relative w-full h-full",
+                        isPremium && "grayscale"
+                      )}
+                    >
+                      <video
+                        src={videoUrl || undefined}
+                        className='w-full h-full object-cover'
+                        poster={
+                          template.thumbnailUrl ||
+                          fallbackThumbnail ||
+                          undefined
+                        }
+                      />
+                    </div>
                   )}
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
+                </div>
+
+                <div className='p-4'>
+                  <div className='flex items-center justify-between mb-4'>
+                    <h3 className='text-[15px] font-medium text-gray-900 flex w-full justify-between'>
+                      {template.name}
+                      {!template.tiers.includes("FREE") && (
+                        <Badge
+                          variant='outline'
+                          className='ml-2 bg-black text-white text-[11px] font-medium px-1.5 py-0.5 rounded'
+                        >
+                          Pro
+                        </Badge>
+                      )}
+                    </h3>
+                  </div>
+
+                  <Button
+                    onClick={() =>
+                      latestJob?.status === "COMPLETED"
+                        ? handleDownloadClick(template.key, latestJob)
+                        : onGenerateVideo(template.key)
+                    }
+                    disabled={
+                      isProcessing ||
+                      !photos.length ||
+                      isGenerating ||
+                      isPremium
+                    }
+                    className={cn(
+                      "w-full bg-black hover:bg-black/90 text-white",
+                      isPremium &&
+                        "bg-gray-200 hover:bg-gray-200 text-gray-500 cursor-not-allowed"
+                    )}
+                  >
+                    {isProcessing ? (
+                      <div className='flex items-center justify-center space-x-2'>
+                        <Loader2 className='w-4 h-4 animate-spin' />
+                        <span>Generating...</span>
+                      </div>
+                    ) : (
+                      "Download HD"
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            );
+          })}
+      </div>
+
+      <Dialog open={showPricingModal} onOpenChange={setShowPricingModal}>
+        <DialogContent className='max-w-4xl'>
+          <PricingCards
+            isModal
+            currentTier={userTier}
+            onUpgradeComplete={() => setShowPricingModal(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

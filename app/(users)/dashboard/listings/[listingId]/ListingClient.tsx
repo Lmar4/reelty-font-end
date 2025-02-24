@@ -1,25 +1,28 @@
 "use client";
 
+import { VideoJob } from "@/types/listing-types";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
-import { useToast } from "@/components/common/Toast";
 import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
 import { useListing } from "@/hooks/queries/use-listings";
 import { usePhotoStatus } from "@/hooks/queries/use-photo-status";
 import { useVideoStatus } from "@/hooks/queries/use-video-status";
 import { useCreateJob } from "@/hooks/use-jobs";
-import type { VideoJob } from "@/types/listing-types";
+import { useUserData } from "@/hooks/useUserData";
 import type { JsonValue, Listing, User } from "@/types/prisma-types";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import ListingSkeleton from "./components/ListingSkeleton";
 import { VideoJobCard } from "./components/VideoJobCard";
 import { LoadingState } from "@/components/ui/loading-state";
+import { TemplateGrid } from "./components/TemplateGrid";
+import { sendVideoGeneratedEmail } from "@/lib/plunk";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
+  videoJobs?: VideoJob[];
 }
 
 interface UserData
@@ -39,16 +42,6 @@ function parseCoordinates(value: JsonValue | null): Coordinates | null {
   return null;
 }
 
-interface VideoJobMetadata {
-  userMessage?: string;
-  error?: string;
-  stage?: "webp" | "runway" | "template" | "final" | "initializing";
-  currentFile?: number;
-  totalFiles?: number;
-  startTime?: string;
-  endTime?: string;
-}
-
 interface VideoStatus {
   isProcessing: boolean;
   processingCount: number;
@@ -56,6 +49,10 @@ interface VideoStatus {
   completedCount: number;
   totalCount: number;
   shouldEndPolling?: boolean;
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
 }
 
 function useListingData(
@@ -153,8 +150,9 @@ export function ListingClient({
   initialListing,
 }: ListingClientProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const { showToast } = useToast();
+  const [downloadCount, setDownloadCount] = useState(0);
   const queryClient = useQueryClient();
+  const [hasNotifiedCompletion, setHasNotifiedCompletion] = useState(false);
 
   const {
     currentUser,
@@ -182,82 +180,88 @@ export function ListingClient({
     error: videoGenerationError,
   } = useCreateJob();
 
-  // Update the videoJobs useMemo to group by template
-  const { videoJobs, videoStatus } = useMemo(() => {
-    const jobs = (videoData?.data?.videos || []) as VideoJob[];
-    const status = videoData?.data?.status || {
-      isProcessing: false,
-      processingCount: 0,
-      failedCount: 0,
-      completedCount: 0,
-      totalCount: 0,
-    };
-
-    // Group videos by template and keep only the latest version
-    const latestByTemplate = jobs.reduce<Record<string, VideoJob>>(
-      (acc: Record<string, VideoJob>, job: VideoJob) => {
-        const template = job.template || "default";
-        if (
-          !acc[template] ||
-          new Date(acc[template].createdAt) < new Date(job.createdAt)
-        ) {
-          acc[template] = job;
-        }
-        return acc;
-      },
-      {}
-    );
-
-    // Convert back to array and sort by template order
-    const templateOrder = [
-      "crescendo",
-      "wave",
-      "storyteller",
-      "googlezoomintro",
-      "wesanderson",
-      "hyperpop",
-    ];
-    const sortedJobs = Object.values(latestByTemplate).sort((a, b) => {
-      const templateA = a.template || "default";
-      const templateB = b.template || "default";
-      const orderA = templateOrder.indexOf(templateA);
-      const orderB = templateOrder.indexOf(templateB);
-
-      // If both templates are in the order array, sort by order
-      if (orderA !== -1 && orderB !== -1) {
-        return orderA - orderB;
-      }
-      // If only one template is in the order array, prioritize it
-      if (orderA !== -1) return -1;
-      if (orderB !== -1) return 1;
-      // For templates not in the order array, sort by creation date
+  // Group video jobs by template
+  const videoJobs = useMemo(() => {
+    if (!listing?.videoJobs) return [];
+    return listing.videoJobs.sort((a: VideoJob, b: VideoJob) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+  }, [listing?.videoJobs]);
 
-    return {
-      videoJobs: sortedJobs,
-      videoStatus: status,
-    };
-  }, [videoData]);
+  // Get active jobs
+  const activeJobs = useMemo(() => {
+    if (!videoJobs?.length) return [];
+    return videoJobs.filter(
+      (job: VideoJob) => job.status === "PROCESSING" || job.status === "PENDING"
+    );
+  }, [videoJobs]);
 
-  // Get the latest job
-  const videoStatusLatest = useMemo(() => videoJobs[0], [videoJobs]);
+  // Only show loading state when we don't have the initial listing data
+  const isLoading = isLoadingInitial || !listing;
 
-  const handleRegenerateImages = async (
-    photoIds: string | string[]
-  ): Promise<void> => {
+  // Handle video generation
+  const handleVideoGeneration = async (templateId: string) => {
+    if (!listing || !photoStatus?.photos?.length) return;
+
+    try {
+      await createVideoJob({
+        listingId,
+        template: templateId,
+        inputFiles: photoStatus.photos
+          .map((photo) => photo.url)
+          .filter(Boolean),
+      });
+    } catch (error) {
+      console.error("Failed to generate video:", error);
+      toast.error("Failed to generate video. Please try again.");
+    }
+  };
+
+  // Handle download
+  const handleDownload = async (jobId: string) => {
+    const job = videoJobs.find((j) => j.id === jobId);
+    if (!job) return;
+
+    // Get the processed template path
+    const processedTemplate = job.metadata?.processedTemplates?.find(
+      (template: { key: string; path: string }) => template.key === job.template
+    );
+    const videoUrl = processedTemplate?.path || job.outputFile;
+
+    if (videoUrl) {
+      try {
+        const response = await fetch(videoUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        const filename = `${listing?.address || "property"}-${
+          job.template || "video"
+        }.mp4`;
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        // Increment download count for free users
+        if (userData?.currentTierId === "FREE") {
+          setDownloadCount((prev) => prev + 1);
+        }
+      } catch (error) {
+        console.error("Download failed:", error);
+        window.open(videoUrl, "_blank");
+      }
+    }
+  };
+
+  // Handle regenerate images
+  const handleRegenerateImages = async (photoIds: string | string[]) => {
     const idsArray = Array.isArray(photoIds) ? photoIds : [photoIds];
     try {
       if (!listing || !photoStatus?.photos) {
         toast.error("No photos available");
         return;
       }
-
-      // Debug log
-      console.log("[REGENERATE_DEBUG] Preparing request", {
-        photoIds: idsArray,
-        photosCount: listing.photos?.length || 0,
-      });
 
       const response = await fetch(`/api/photos/regenerate`, {
         method: "POST",
@@ -277,7 +281,6 @@ export function ListingClient({
         return;
       }
 
-      // Check for success flag in response
       if (data.success) {
         toast.success(
           `Image regeneration started for ${idsArray.length} ${
@@ -285,7 +288,6 @@ export function ListingClient({
           }`
         );
 
-        // Invalidate queries for all affected listings
         if (data.jobs?.length > 0) {
           data.jobs.forEach((job: { listingId: string }) => {
             queryClient.invalidateQueries({
@@ -294,7 +296,6 @@ export function ListingClient({
           });
         }
       } else {
-        // If success is false but response was ok, show the error message
         toast.error(data.error || "Failed to regenerate images");
       }
     } catch (error) {
@@ -303,191 +304,80 @@ export function ListingClient({
     }
   };
 
-  // Optimistic updates for video generation
-  const handleVideoGeneration = (templateId: string) => {
-    if (!listing?.photos?.length) {
-      showToast("No photos available for video generation", "error");
-      return;
-    }
+  // Add the checkAndNotifyVideoCompletion function
+  const checkAndNotifyVideoCompletion = async (videoJobs: VideoJob[]) => {
+    // If we've already sent a notification for this session, don't send again
+    if (hasNotifiedCompletion) return;
 
-    const processedPhotos = listing.photos
-      .filter((photo) => photo.processedFilePath && !photo.error)
-      .map((photo) => photo.processedFilePath!)
-      .filter(Boolean);
+    // Get the latest job for each template
+    const latestJobsByTemplate = new Map<string, VideoJob>();
 
-    if (!processedPhotos.length) {
-      showToast("No processed photos available for video generation", "error");
-      return;
-    }
-
-    // Update the optimistic job to include all required properties
-    const optimisticJob: VideoJob = {
-      id: `temp-${Date.now()}`,
-      listingId,
-      template: templateId,
-      status: "PROCESSING",
-      progress: 0,
-      inputFiles: processedPhotos,
-      outputFile: null,
-      thumbnailUrl: null,
-      error: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      metadata: {
-        stage: "webp",
-        userMessage: "Starting video generation...",
-      },
-    };
-
-    queryClient.setQueryData(["videoJobs", listingId], (old: any) => ({
-      ...old,
-      data: {
-        videos: [optimisticJob, ...(old?.data?.videos || [])],
-      },
-    }));
-
-    createVideoJob(
-      {
-        listingId,
-        template: templateId,
-        inputFiles: processedPhotos,
-      },
-      {
-        onSuccess: () => {
-          showToast("Video generation started", "success");
-          queryClient.invalidateQueries({ queryKey: ["listing", listingId] });
-        },
-        onError: (error: Error) => {
-          // Revert optimistic update
-          queryClient.invalidateQueries({ queryKey: ["videoJobs", listingId] });
-          showToast(
-            error instanceof Error
-              ? error.message
-              : "Failed to start video generation",
-            "error"
-          );
-        },
+    videoJobs.forEach((job) => {
+      if (!job.template) return; // Skip jobs without a template
+      const existing = latestJobsByTemplate.get(job.template);
+      if (!existing || new Date(job.createdAt) > new Date(existing.createdAt)) {
+        latestJobsByTemplate.set(job.template, job);
       }
-    );
+    });
+
+    // Check if all templates have their latest job completed
+    const allTemplatesCompleted = [
+      "crescendo",
+      "wave",
+      "storyteller",
+      "googlezoomintro",
+      "wesanderson",
+      "hyperpop",
+    ].every((template) => {
+      const latestJob = latestJobsByTemplate.get(template);
+      return latestJob?.status === "COMPLETED";
+    });
+
+    if (allTemplatesCompleted && !hasNotifiedCompletion) {
+      try {
+        // Type guard for currentUser and listing
+        if (!currentUser?.email || !listing?.address) {
+          console.warn("Missing required data for email notification");
+          return;
+        }
+
+        // At this point we know these values exist, but TypeScript needs help
+        const userEmail: string = currentUser.email;
+        const listingAddress: string = listing.address;
+
+        await sendVideoGeneratedEmail(
+          userEmail,
+          "there", // Use a default value since we don't have a reliable name
+          listingAddress,
+          listingId
+        );
+
+        // Mark as notified to prevent duplicate emails
+        setHasNotifiedCompletion(true);
+
+        // Store in localStorage to prevent notifications on page reloads
+        localStorage.setItem(`notified_${listingId}`, "true");
+      } catch (error) {
+        console.error("Failed to send completion notification:", error);
+      }
+    }
   };
 
-  // Add a function to render video content
-  const renderVideoContent = () => {
-    if (isLoadingVideoJobs) {
-      return (
-        <div className='flex items-center justify-center py-8'>
-          <LoadingState />
-        </div>
-      );
+  // Add useEffect for checking completion status
+  useEffect(() => {
+    if (videoJobs?.length > 0 && currentUser?.email && listing?.address) {
+      // Check if we've already notified for this listing
+      const hasNotified = localStorage.getItem(`notified_${listingId}`);
+      if (!hasNotified) {
+        checkAndNotifyVideoCompletion(videoJobs);
+      }
     }
+  }, [videoJobs, currentUser, listing]);
 
-    if (videoStatus.isProcessing) {
-      return (
-        <div className='bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6'>
-          <div className='flex items-center'>
-            <div className='flex-shrink-0'>
-              <svg
-                className='h-5 w-5 text-blue-400'
-                viewBox='0 0 20 20'
-                fill='currentColor'
-              >
-                <path
-                  fillRule='evenodd'
-                  d='M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z'
-                  clipRule='evenodd'
-                />
-              </svg>
-            </div>
-            <div className='ml-3'>
-              <h3 className='text-sm font-medium text-blue-800'>
-                Processing Videos
-              </h3>
-              <div className='mt-2 text-sm text-blue-700'>
-                <p>
-                  Processing {videoStatus.processingCount} of{" "}
-                  {videoStatus.totalCount} videos...
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (videoStatus.failedCount > 0) {
-      return (
-        <div className='bg-red-50 border border-red-100 rounded-lg p-4 mb-6'>
-          <div className='flex items-center'>
-            <div className='flex-shrink-0'>
-              <svg
-                className='h-5 w-5 text-red-400'
-                viewBox='0 0 20 20'
-                fill='currentColor'
-              >
-                <path
-                  fillRule='evenodd'
-                  d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
-                  clipRule='evenodd'
-                />
-              </svg>
-            </div>
-            <div className='ml-3'>
-              <h3 className='text-sm font-medium text-red-800'>
-                Processing Failed
-              </h3>
-              <div className='mt-2 text-sm text-red-700'>
-                <p>
-                  {videoStatus.failedCount} videos failed to process. Please try
-                  again.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-        {videoJobs.map((job: VideoJob) => (
-          <VideoJobCard
-            key={job.id}
-            job={job}
-            listingId={listingId}
-            isPaidUser={userData?.currentTierId !== "free"}
-            onDownload={async (jobId: string) => {
-              if (job.outputFile) {
-                try {
-                  const response = await fetch(job.outputFile);
-                  const blob = await response.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.href = url;
-                  const filename = `${listing?.address || "property"}-${
-                    job.template || "video"
-                  }.mp4`;
-                  link.setAttribute("download", filename);
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  window.URL.revokeObjectURL(url);
-                } catch (error) {
-                  console.error("Download failed:", error);
-                  window.open(job.outputFile, "_blank");
-                }
-              }
-            }}
-            onRegenerate={() => {
-              if (job.template) {
-                handleVideoGeneration(job.template);
-              }
-            }}
-            isRegenerating={isGeneratingVideo}
-          />
-        ))}
-      </div>
-    );
-  };
+  // Add useEffect to reset notification state when listingId changes
+  useEffect(() => {
+    setHasNotifiedCompletion(false);
+  }, [listingId]);
 
   // Show appropriate loading states
   if (isLoadingInitial) {
@@ -594,7 +484,19 @@ export function ListingClient({
         </p>
 
         {/* Templates and Videos Section with loading states */}
-        <div className='space-y-8'>{renderVideoContent()}</div>
+        <div className='space-y-8'>
+          <TemplateGrid
+            videoJobs={videoJobs}
+            photos={photoStatus?.photos || []}
+            isLoading={isLoading}
+            userTier={userData?.currentTierId || "FREE"}
+            activeJobs={activeJobs}
+            onGenerateVideo={handleVideoGeneration}
+            onDownload={handleDownload}
+            isGenerating={isGeneratingVideo}
+            downloadCount={downloadCount}
+          />
+        </div>
 
         <PropertySettingsModal
           isOpen={isSettingsModalOpen}
@@ -604,36 +506,6 @@ export function ListingClient({
           onRegenerateImage={handleRegenerateImages}
           isLoading={isLoadingPhotoStatus}
         />
-
-        {/* Error Toast */}
-        {videoStatusLatest?.status === "FAILED" && (
-          <div
-            role='alert'
-            className='fixed bottom-4 right-4 bg-red-50 border border-red-100 rounded-lg p-4 max-w-sm shadow-lg animate-fade-in'
-          >
-            <div className='flex items-start'>
-              <div className='flex-shrink-0'>
-                <svg
-                  className='h-5 w-5 text-red-400'
-                  viewBox='0 0 20 20'
-                  fill='currentColor'
-                >
-                  <path
-                    fillRule='evenodd'
-                    d='M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z'
-                    clipRule='evenodd'
-                  />
-                </svg>
-              </div>
-              <div className='ml-3'>
-                <p className='text-sm text-red-600'>
-                  {videoStatusLatest.metadata?.error ||
-                    "Video generation failed. Please try again."}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </ErrorBoundary>
   );

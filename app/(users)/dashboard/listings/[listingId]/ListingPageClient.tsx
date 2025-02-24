@@ -16,7 +16,7 @@ export default function ListingPageClient({
 
   if (isLoading) {
     return (
-      <div className='flex-1 space-y-4 p-8 pt-6'>
+      <div className='flex-1 space-y-4 md:p-8 pt-6'>
         <LoadingState />
       </div>
     );
@@ -27,7 +27,7 @@ export default function ListingPageClient({
       notFound();
     }
     return (
-      <div className='flex-1 space-y-4 p-8 pt-6'>
+      <div className='flex-1 space-y-4 md:p-8 pt-6'>
         <div className='text-center'>
           <h2 className='text-lg font-semibold text-gray-900'>
             Failed to load listing
@@ -41,7 +41,7 @@ export default function ListingPageClient({
   }
 
   return (
-    <div className='flex-1 space-y-4 p-8 pt-6'>
+    <div className='flex-1 space-y-4 md:p-8 pt-6'>
       <ListingClient
         listingId={listingId}
         initialListing={listing}
