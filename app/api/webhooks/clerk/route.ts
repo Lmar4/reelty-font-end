@@ -79,6 +79,4 @@ async function handler(request: Request) {
   return NextResponse.json({ success: true });
 }
 
-export const GET = handler;
 export const POST = handler;
-export const PUT = handler;
