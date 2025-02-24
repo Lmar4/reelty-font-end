@@ -19,9 +19,12 @@ interface VideoResponse {
   };
 }
 
-const transformVideoJob = (job: any): VideoJob => ({
+const transformVideoJob = (job: VideoJob) => ({
   id: job.id,
   listingId: job.listingId,
+  userId: job.userId,
+  position: job.position,
+  priority: job.priority,
   status: job.status,
   progress: job.progress || 0,
   template: job.template,

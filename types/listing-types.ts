@@ -67,6 +67,7 @@ export interface VideoJob {
     processedTemplates?: Array<{
       key: string;
       path: string;
+      thumbnailUrl?: string;
     }>;
     allTemplates?: Array<{
       path: string;
@@ -88,6 +89,8 @@ export interface VideoJob {
   // Relations
   user?: User;
   listing?: Listing;
+
+  thumbnailUrl?: string;
 }
 
 export interface CreateListingInput {
