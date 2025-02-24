@@ -1,3 +1,5 @@
+import type { User, Listing } from "./prisma-types";
+
 export interface VideoTemplate {
   id: string;
   name: string;
@@ -29,18 +31,16 @@ export interface Photo {
 
 export interface VideoJob {
   id: string;
+  userId: string;
   listingId: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   progress: number;
-  template: string | null;
-  inputFiles: string[] | null;
-  outputFile: string | null;
-  thumbnailUrl: string | null;
-  error: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  startedAt?: Date | null;
-  completedAt?: Date | null;
+  template?: string | null;
+  inputFiles?: string[] | null;
+  outputFile?: string | null;
+  error?: string | null;
+  position: number;
+  priority: number;
   metadata?: {
     userMessage?: string;
     error?: string;
@@ -73,7 +73,21 @@ export interface VideoJob {
       template: string;
       isPrimary: boolean;
     }>;
+    mapVideo?: {
+      path: string;
+      coordinates: { lat: number; lng: number };
+      generatedAt: string;
+    };
+    lastUpdated?: string;
   } | null;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  user?: User;
+  listing?: Listing;
 }
 
 export interface CreateListingInput {
