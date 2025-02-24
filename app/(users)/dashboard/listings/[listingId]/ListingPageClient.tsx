@@ -7,10 +7,16 @@ import { ListingClient } from "./ListingClient";
 
 interface ListingPageClientProps {
   listingId: string;
+  fallbackTier: {
+    maxActiveListings: number;
+    name: string;
+    currentCount: number;
+  };
 }
 
 export default function ListingPageClient({
   listingId,
+  fallbackTier,
 }: ListingPageClientProps) {
   const { data: listing, isLoading, error } = useListing(listingId);
 

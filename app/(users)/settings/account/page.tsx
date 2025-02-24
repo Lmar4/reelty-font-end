@@ -10,7 +10,6 @@ export default function AccountSettings() {
   );
   const [notifications, setNotifications] = useState({
     reelsReady: true,
-    exportReady: true,
     productUpdates: true,
   });
 
