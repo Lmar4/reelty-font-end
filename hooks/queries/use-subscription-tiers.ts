@@ -1,7 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { makeBackendRequest } from "@/utils/withAuth";
 import type { SubscriptionTier } from "@/types/subscription";
-import { useAuth } from "@clerk/nextjs";
+import { useBaseQuery } from "./useBaseQuery";
 
 async function fetchSubscriptionTiers(
   token: string
@@ -12,15 +11,12 @@ async function fetchSubscriptionTiers(
 }
 
 export function useSubscriptionTiers() {
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: ["subscription-tiers"],
-    queryFn: async () => {
-      const token = await getToken();
-      return fetchSubscriptionTiers(token || "");
-    },
-    staleTime: 1000 * 60 * 60, // Cache for 1 hour
-    gcTime: Infinity,
-  });
+  return useBaseQuery<SubscriptionTier[]>(
+    ["subscription-tiers"],
+    (token) => fetchSubscriptionTiers(token),
+    {
+      staleTime: 1000 * 60 * 60, // Cache for 1 hour
+      gcTime: Infinity,
+    }
+  );
 }

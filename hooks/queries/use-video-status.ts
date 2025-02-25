@@ -1,8 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { VideoJob } from "@/types/listing-types";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
+import { useBaseQuery } from "./useBaseQuery";
 
 interface VideoResponse {
   success: boolean;
@@ -50,18 +49,12 @@ const MAX_INTERVAL = 30000; // Max 30 seconds
 const MAX_RETRIES = 30; // Stop after 30 retries
 
 export const useVideoStatus = (listingId: string) => {
-  const { getToken } = useAuth();
   const [retryCount, setRetryCount] = useState(0);
   const [interval, setInterval] = useState(INITIAL_INTERVAL);
 
-  return useQuery<VideoResponse, Error>({
-    queryKey: ["videos", listingId],
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) {
-        throw new Error("No session token available");
-      }
-
+  return useBaseQuery<VideoResponse>(
+    ["videos", listingId],
+    async (token) => {
       const response = await makeBackendRequest<VideoResponse>(
         `/api/listings/${listingId}/latest-videos`,
         {
@@ -79,34 +72,36 @@ export const useVideoStatus = (listingId: string) => {
 
       return response;
     },
-    refetchInterval: (query) => {
-      if (retryCount >= MAX_RETRIES) {
-        return false;
-      }
+    {
+      refetchInterval: (query) => {
+        if (retryCount >= MAX_RETRIES) {
+          return false;
+        }
 
-      const data = query.state.data;
-      if (data?.data?.status?.shouldEndPolling) {
-        return false;
-      }
+        const data = query.state.data;
+        if (data?.data?.status?.shouldEndPolling) {
+          return false;
+        }
 
-      setRetryCount((prev) => prev + 1);
-      return interval;
-    },
-    retry: (failureCount, error) => {
-      if (error.message.includes("404")) return false;
-      if (error.message.includes("429")) {
-        setInterval((prev) => Math.min(prev * 2, MAX_INTERVAL));
+        setRetryCount((prev) => prev + 1);
+        return interval;
+      },
+      retry: (failureCount, error) => {
+        if (error.message.includes("404")) return false;
+        if (error.message.includes("429")) {
+          setInterval((prev) => Math.min(prev * 2, MAX_INTERVAL));
+          return failureCount < MAX_RETRIES;
+        }
         return failureCount < MAX_RETRIES;
-      }
-      return failureCount < MAX_RETRIES;
-    },
-    retryDelay: (attemptIndex) => {
-      return Math.min(1000 * Math.pow(2, attemptIndex), MAX_INTERVAL);
-    },
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    staleTime: 30000,
-    gcTime: 5 * 60 * 1000,
-    enabled: !!listingId,
-  });
+      },
+      retryDelay: (attemptIndex) => {
+        return Math.min(1000 * Math.pow(2, attemptIndex), MAX_INTERVAL);
+      },
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      staleTime: 30000,
+      gcTime: 5 * 60 * 1000,
+      enabled: !!listingId,
+    }
+  );
 };

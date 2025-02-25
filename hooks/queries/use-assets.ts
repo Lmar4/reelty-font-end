@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeBackendRequest } from "@/utils/withAuth";
 import type {
   Asset,
@@ -9,6 +9,7 @@ import type {
   UpdateAssetInput,
 } from "@/types/asset-types";
 import { useAuth } from "@clerk/nextjs";
+import { useBaseQuery } from "./useBaseQuery";
 
 const ASSETS_QUERY_KEY = "assets";
 
@@ -17,17 +18,13 @@ interface UseAssetsOptions extends GetAssetsParams {
 }
 
 async function getAssets(
-  params?: GetAssetsParams,
-  token?: string
+  token: string,
+  params?: GetAssetsParams
 ): Promise<Asset[]> {
   const searchParams = new URLSearchParams();
   if (params?.type) searchParams.set("type", params.type);
   if (params?.includeInactive !== undefined)
     searchParams.set("includeInactive", String(params.includeInactive));
-
-  if (!token) {
-    throw new Error("Authentication token is required");
-  }
 
   return makeBackendRequest<Asset[]>(
     `/api/admin/assets?${searchParams.toString()}`,
@@ -79,17 +76,13 @@ async function deleteAsset(id: string, token?: string): Promise<void> {
 }
 
 export function useAssets(options?: UseAssetsOptions) {
-  const { initialData, ...params } = options ?? {};
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: [ASSETS_QUERY_KEY, params],
-    queryFn: async () => {
-      const token = await getToken();
-      return getAssets(params, token || undefined);
-    },
-    initialData,
-  });
+  return useBaseQuery<Asset[]>(
+    [ASSETS_QUERY_KEY, options],
+    (token) => getAssets(token, options),
+    {
+      initialData: options?.initialData,
+    }
+  );
 }
 
 export function useCreateAsset() {

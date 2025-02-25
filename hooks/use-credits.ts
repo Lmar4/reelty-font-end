@@ -1,7 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
+import { useBaseQuery } from "./queries/useBaseQuery";
 
 interface CreditLog {
   id: string;
@@ -14,7 +15,7 @@ interface UseCreditsOptions {
   enabled?: boolean;
 }
 
-async function checkCredits(userId: string, token: string): Promise<number> {
+async function checkCredits(token: string, userId: string): Promise<number> {
   const data = await makeBackendRequest<{ credits: number }>(
     "/api/credits/check",
     {
@@ -45,8 +46,8 @@ async function deductCredits({
 }
 
 async function fetchCreditHistory(
-  userId: string,
-  token: string
+  token: string,
+  userId: string
 ): Promise<CreditLog[]> {
   return makeBackendRequest<CreditLog[]>(`/api/credits/history/${userId}`, {
     sessionToken: token,
@@ -57,23 +58,21 @@ export function useCredits(userId: string, options: UseCreditsOptions = {}) {
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
 
-  const creditsQuery = useQuery({
-    queryKey: ["credits", userId],
-    queryFn: async () => {
-      const token = await getToken();
-      return checkCredits(userId, token!);
-    },
-    enabled: !!userId && options.enabled !== false,
-  });
+  const creditsQuery = useBaseQuery(
+    ["credits", userId],
+    (token) => checkCredits(token, userId),
+    {
+      enabled: !!userId && options.enabled !== false,
+    }
+  );
 
-  const historyQuery = useQuery({
-    queryKey: ["creditHistory", userId],
-    queryFn: async () => {
-      const token = await getToken();
-      return fetchCreditHistory(userId, token!);
-    },
-    enabled: !!userId && options.enabled !== false,
-  });
+  const historyQuery = useBaseQuery(
+    ["creditHistory", userId],
+    (token) => fetchCreditHistory(token, userId),
+    {
+      enabled: !!userId && options.enabled !== false,
+    }
+  );
 
   const deductMutation = useMutation({
     mutationFn: async ({
@@ -109,7 +108,7 @@ export function useCreditCheck() {
   return useMutation({
     mutationFn: async () => {
       const token = await getToken();
-      return checkCredits(userId!, token!);
+      return checkCredits(token!, userId!);
     },
     onError: (error) => {
       console.error("[CREDIT_CHECK_ERROR]", error);

@@ -1,15 +1,15 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
 import { SubscriptionTier } from "@/types/prisma-types";
+import { useBaseQuery } from "./useBaseQuery";
 
 async function fetchSubscriptionTiers(
-  token?: string
+  token: string
 ): Promise<SubscriptionTier[]> {
-  if (!token) throw new Error("No token provided");
   return makeBackendRequest<SubscriptionTier[]>("/api/subscription/tiers", {
     sessionToken: token,
   });
@@ -61,17 +61,10 @@ async function updateSubscriptionTier(
 const SUBSCRIPTION_QUERY_KEY = "subscription";
 
 export function useSubscription() {
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: [SUBSCRIPTION_QUERY_KEY],
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) throw new Error("No token provided");
-      return makeBackendRequest<any>("/api/subscription/current", {
-        sessionToken: token,
-      });
-    },
+  return useBaseQuery([SUBSCRIPTION_QUERY_KEY], (token) => {
+    return makeBackendRequest<any>("/api/subscription/current", {
+      sessionToken: token,
+    });
   });
 }
 
@@ -121,15 +114,9 @@ export function useCancelSubscription() {
 }
 
 export function useSubscriptionTiers() {
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: ["subscriptionTiers"],
-    queryFn: async () => {
-      const token = await getToken();
-      return fetchSubscriptionTiers(token || undefined);
-    },
-  });
+  return useBaseQuery(["subscriptionTiers"], (token) =>
+    fetchSubscriptionTiers(token)
+  );
 }
 
 export function useCreateCheckoutSession() {

@@ -1,5 +1,7 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useBaseQuery } from "./useBaseQuery";
+import { makeBackendRequest } from "@/utils/withAuth";
 
 interface PaymentMethod {
   id: string;
@@ -15,21 +17,21 @@ interface SetupIntentResponse {
 }
 
 export function usePaymentMethods(customerId?: string) {
-  return useQuery({
-    queryKey: ["paymentMethods", customerId],
-    queryFn: async () => {
+  return useBaseQuery<PaymentMethod[]>(
+    ["paymentMethods", customerId],
+    async (token) => {
       if (!customerId) return [];
-      const response = await fetch(
-        `/api/payment/methods?customerId=${customerId}`
+      return makeBackendRequest<PaymentMethod[]>(
+        `/api/payment/methods?customerId=${customerId}`,
+        {
+          sessionToken: token,
+        }
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch payment methods");
-      }
-      const data = await response.json();
-      return data.data as PaymentMethod[];
     },
-    enabled: !!customerId,
-  });
+    {
+      enabled: !!customerId,
+    }
+  );
 }
 
 export function useCreateSetupIntent() {

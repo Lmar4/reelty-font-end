@@ -2,9 +2,9 @@
 import { Listing } from "@/types/prisma-types";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { useAuth } from "@clerk/nextjs";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useBaseQuery } from "./useBaseQuery";
 
 export const LISTINGS_QUERY_KEY = "listings";
 
@@ -82,63 +82,22 @@ interface CreateListingError {
 }
 
 export const useListings = () => {
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchListings = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await fetch("/api/listings");
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch listings");
-      }
-
-      setListings(Array.isArray(data) ? data : data.data || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchListings();
-  }, []);
-
-  return {
-    listings,
-    isLoading,
-    error,
-    refetch: fetchListings,
-  };
+  return useBaseQuery<Listing[]>([LISTINGS_QUERY_KEY], (token) =>
+    fetchListings(token)
+  );
 };
 
 type ListingQueryKey = readonly ["listing", string];
 
 export const useListing = (listingId: string, initialData?: Listing) => {
-  const { getToken } = useAuth();
-
-  return useQuery<Listing, Error, Listing, ListingQueryKey>({
-    queryKey: ["listing", listingId] as const,
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) throw new Error("Authentication token not found");
-      return fetchListingById(listingId, token);
-    },
-    initialData,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error.message?.includes("404")) return false;
-      return failureCount < 3;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
+  return useBaseQuery<Listing>(
+    ["listing", listingId] as ListingQueryKey,
+    (token) => fetchListingById(listingId, token),
+    {
+      enabled: !!listingId,
+      initialData,
+    }
+  );
 };
 
 export function useCreateListing() {

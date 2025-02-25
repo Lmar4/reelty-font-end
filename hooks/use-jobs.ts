@@ -5,9 +5,10 @@ import {
   UpdateVideoJobInput,
 } from "@/types/user-types";
 import { useAuth } from "@clerk/nextjs";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
+import { useBaseQuery } from "./queries/useBaseQuery";
 
 const JOBS_QUERY_KEY = "jobs";
 
@@ -15,37 +16,28 @@ export const useJobs = (params?: {
   listingId?: string;
   status?: JobStatus;
 }) => {
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: [JOBS_QUERY_KEY, params],
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) throw new Error("No token provided");
-      const searchParams = new URLSearchParams();
-      if (params?.listingId) searchParams.append("listingId", params.listingId);
-      if (params?.status) searchParams.append("status", params.status);
-      return makeBackendRequest<any>(`/api/jobs?${searchParams}`, {
-        sessionToken: token,
-      });
-    },
+  return useBaseQuery([JOBS_QUERY_KEY, params], async (token) => {
+    const searchParams = new URLSearchParams();
+    if (params?.listingId) searchParams.append("listingId", params.listingId);
+    if (params?.status) searchParams.append("status", params.status);
+    return makeBackendRequest<any>(`/api/jobs?${searchParams}`, {
+      sessionToken: token,
+    });
   });
 };
 
 export const useJob = (jobId: string) => {
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: [JOBS_QUERY_KEY, jobId],
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) throw new Error("No token provided");
+  return useBaseQuery(
+    [JOBS_QUERY_KEY, jobId],
+    async (token) => {
       return makeBackendRequest<any>(`/api/jobs/${jobId}`, {
         sessionToken: token,
       });
     },
-    enabled: !!jobId,
-  });
+    {
+      enabled: !!jobId,
+    }
+  );
 };
 
 export const useCreateJob = () => {

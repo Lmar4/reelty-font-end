@@ -1,16 +1,17 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { User } from "@/types/prisma-types";
 import { UserResource, toPartialUser } from "@/types/api-types";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { useBaseQuery } from "./useBaseQuery";
 
 const USER_QUERY_KEY = "user";
 
 async function fetchUserData(
-  userId: string,
-  token: string
+  token: string,
+  userId: string
 ): Promise<Partial<User>> {
   const userResource = await makeBackendRequest<UserResource>(
     `/api/users/${userId}`,
@@ -39,32 +40,32 @@ async function updateUser(
 }
 
 export function useUserData() {
-  const { userId, getToken } = useAuth();
+  const { userId } = useAuth();
 
-  return useQuery<Partial<User> | undefined>({
-    queryKey: [USER_QUERY_KEY, userId],
-    queryFn: async () => {
-      if (!userId) return undefined;
-      const token = await getToken();
-      if (!token) return undefined;
-      return fetchUserData(userId, token);
+  return useBaseQuery<Partial<User> | undefined>(
+    [USER_QUERY_KEY, userId],
+    async (token) => {
+      if (!userId) return Promise.resolve(undefined);
+      return fetchUserData(token, userId);
     },
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    retry: (failureCount, error) => {
-      if (error instanceof Error && error.message.includes("Rate limit")) {
+    {
+      enabled: !!userId,
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      retry: (failureCount, error) => {
+        if (error instanceof Error && error.message.includes("Rate limit")) {
+          return failureCount < 2;
+        }
         return failureCount < 2;
-      }
-      return failureCount < 2;
-    },
-    retryDelay: (attemptIndex) =>
-      Math.min(1000 * Math.pow(2, attemptIndex), 30000),
-    refetchOnMount: false,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    structuralSharing: true,
-  });
+      },
+      retryDelay: (attemptIndex) =>
+        Math.min(1000 * Math.pow(2, attemptIndex), 30000),
+      refetchOnMount: false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      structuralSharing: true,
+    }
+  );
 }
 
 export function useUpdateUser() {

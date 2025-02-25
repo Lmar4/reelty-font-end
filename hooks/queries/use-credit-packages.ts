@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { useAuth } from "@clerk/nextjs";
+import { useBaseQuery } from "./useBaseQuery";
+
 export interface CreditPackage {
   id: string;
   name: string;
@@ -41,15 +41,12 @@ async function fetchCreditPackages(token: string): Promise<CreditPackage[]> {
 }
 
 export function useCreditPackages() {
-  const { getToken } = useAuth();
-
-  return useQuery({
-    queryKey: ["creditPackages"],
-    queryFn: async () => {
-      const token = await getToken();
-      return fetchCreditPackages(token || "");
-    },
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
-    retry: 3,
-  });
+  return useBaseQuery<CreditPackage[]>(
+    ["creditPackages"],
+    (token) => fetchCreditPackages(token),
+    {
+      staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+      retry: 3,
+    }
+  );
 }
