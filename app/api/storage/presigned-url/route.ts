@@ -43,6 +43,12 @@ const corsHeaders = {
     "x-amz-content-sha256",
     "x-amz-date",
     "x-amz-security-token",
+    "x-amz-checksum-algorithm",
+    "x-amz-meta-originalfilename",
+    "x-amz-meta-temporary",
+    "x-amz-meta-sessionid",
+    "x-amz-meta-expiresat",
+    "x-amz-meta-userid",
     "*",
   ].join(", "),
   "Access-Control-Expose-Headers": [
@@ -50,6 +56,7 @@ const corsHeaders = {
     "x-amz-server-side-encryption",
     "x-amz-request-id",
     "x-amz-id-2",
+    "x-amz-checksum-algorithm",
   ].join(", "),
 } as const;
 
@@ -121,7 +128,7 @@ export async function POST(request: Request) {
       ? `users/${userId}/listings/${randomString}.${fileExtension}` // Authenticated users: store in their listings directory
       : `temp/${uploadSessionId}/${randomString}.${fileExtension}`; // Guest users: store in temp directory
 
-    // Create the presigned URL
+    // Create the presigned URL with properly formatted metadata
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET,
       Key: key,
@@ -130,10 +137,11 @@ export async function POST(request: Request) {
       Metadata: {
         ...(isTemporary && {
           temporary: "true",
-          sessionId: uploadSessionId,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+          sessionid: uploadSessionId,
+          expiresat: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
         }),
-        ...(userId && { userId }),
+        ...(userId && { userid: userId }),
+        originalfilename: filename, // S3 metadata keys must be lowercase
       },
     });
 
@@ -146,7 +154,26 @@ export async function POST(request: Request) {
       origin: request.headers.get("origin"),
     });
 
-    const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+    // Configure signed headers
+    const signedHeadersOptions = {
+      expiresIn: 3600,
+      signableHeaders: new Set([
+        "host",
+        "content-type",
+        "x-amz-acl",
+        "x-amz-content-sha256",
+        "x-amz-date",
+        "x-amz-security-token",
+        "x-amz-checksum-algorithm",
+        "x-amz-meta-originalfilename",
+        "x-amz-meta-temporary",
+        "x-amz-meta-sessionid",
+        "x-amz-meta-expiresat",
+        "x-amz-meta-userid",
+      ]),
+    };
+
+    const url = await getSignedUrl(s3, command, signedHeadersOptions);
 
     console.log("[PRESIGNED_URL] Generated successfully:", {
       key,
