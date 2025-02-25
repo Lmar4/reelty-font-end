@@ -52,16 +52,18 @@ export function useS3Upload() {
         body: JSON.stringify({
           filename: file.name,
           contentType: file.type,
-          // Only set isTemporary and use uploadId as sessionId for guest users
+          // For listings, always use the properties/userId/listings path structure
+          ...(isListing && {
+            path: userId
+              ? `users/${userId}/listings` // For authenticated users
+              : `temp/${uploadId}/listings`, // For temporary uploads
+          }),
+          // Only set isTemporary for guest users
           ...(isListing &&
             !userId && {
               isTemporary: true,
-              sessionId: uploadId, // Use uploadId as sessionId for each file
+              sessionId: uploadId,
             }),
-          // For authenticated users, we don't need temporary storage
-          ...(userId && {
-            isTemporary: false,
-          }),
         }),
       }).then(async (r) => {
         if (!r.ok) {

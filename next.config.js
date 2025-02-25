@@ -11,7 +11,9 @@ const nextConfig = {
       },
     ],
   },
-  // ... rest of your config
+  env: {
+    PLUNK_PUBLIC_API_KEY: process.env.PLUNK_PUBLIC_API_KEY,
+  },
 };
 
 module.exports = nextConfig;
