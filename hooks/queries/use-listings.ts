@@ -82,9 +82,17 @@ interface CreateListingError {
 }
 
 export const useListings = () => {
-  return useBaseQuery<Listing[]>([LISTINGS_QUERY_KEY], (token) =>
+  const query = useBaseQuery<Listing[]>([LISTINGS_QUERY_KEY], (token) =>
     fetchListings(token)
   );
+
+  // Return an object with the same structure as the previous implementation
+  return {
+    listings: query.data || [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
 };
 
 type ListingQueryKey = readonly ["listing", string];
