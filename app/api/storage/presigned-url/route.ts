@@ -33,31 +33,10 @@ const s3 = new S3Client({
 
 // CORS headers
 const corsHeaders = {
-  "Access-Control-Allow-Origin":
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.reelty.io",
+  "Access-Control-Allow-Origin": "*", // Allow all origins for testing
   "Access-Control-Allow-Methods": "GET, PUT, POST, DELETE, HEAD, OPTIONS",
-  "Access-Control-Allow-Headers": [
-    "Authorization",
-    "Content-Type",
-    "x-amz-acl",
-    "x-amz-content-sha256",
-    "x-amz-date",
-    "x-amz-security-token",
-    "x-amz-checksum-algorithm",
-    "x-amz-meta-originalfilename",
-    "x-amz-meta-temporary",
-    "x-amz-meta-sessionid",
-    "x-amz-meta-expiresat",
-    "x-amz-meta-userid",
-    "*",
-  ].join(", "),
-  "Access-Control-Expose-Headers": [
-    "ETag",
-    "x-amz-server-side-encryption",
-    "x-amz-request-id",
-    "x-amz-id-2",
-    "x-amz-checksum-algorithm",
-  ].join(", "),
+  "Access-Control-Allow-Headers": "*", // Allow all headers for testing
+  "Access-Control-Expose-Headers": "*", // Expose all headers for testing
 } as const;
 
 // Helper to generate a unique session ID for temporary uploads
@@ -157,20 +136,6 @@ export async function POST(request: Request) {
     // Configure signed headers
     const signedHeadersOptions = {
       expiresIn: 3600,
-      signableHeaders: new Set([
-        "host",
-        "content-type",
-        "x-amz-acl",
-        "x-amz-content-sha256",
-        "x-amz-date",
-        "x-amz-security-token",
-        "x-amz-checksum-algorithm",
-        "x-amz-meta-originalfilename",
-        "x-amz-meta-temporary",
-        "x-amz-meta-sessionid",
-        "x-amz-meta-expiresat",
-        "x-amz-meta-userid",
-      ]),
     };
 
     const url = await getSignedUrl(s3, command, signedHeadersOptions);

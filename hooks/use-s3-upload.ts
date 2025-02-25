@@ -87,10 +87,10 @@ export function useS3Upload() {
           body: file,
           headers: {
             "Content-Type": file.type,
-            "x-amz-acl": "private",
-            "x-amz-checksum-algorithm": "CRC32",
-            // Add any custom metadata if needed
-            "x-amz-meta-original-filename": file.name,
+            // Remove problematic headers that are causing AccessDenied errors
+            // "x-amz-acl": "private",
+            // "x-amz-checksum-algorithm": "CRC32",
+            // "x-amz-meta-original-filename": file.name,
           },
         });
 
