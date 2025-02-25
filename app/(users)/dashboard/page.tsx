@@ -68,13 +68,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Add loading state for user data */}
-      {isUserLoading && (
-        <div className='flex items-center justify-center py-12'>
-          <LoadingState size='lg' />
-        </div>
-      )}
-
       {/* Only show content when user data is loaded */}
       {!isUserLoading && (
         <>

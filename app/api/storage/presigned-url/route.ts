@@ -127,7 +127,6 @@ export async function POST(request: Request) {
       Key: key,
       ContentType: contentType,
       ACL: "private",
-      ChecksumAlgorithm: "CRC32",
       Metadata: {
         ...(isTemporary && {
           temporary: "true",
