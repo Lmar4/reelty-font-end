@@ -12,7 +12,7 @@ import NewListingModal from "@/components/reelty/NewListingModal";
 import { useUserData } from "@/hooks/useUserData";
 
 export default function DashboardPage() {
-  const { data: user } = useUserData();
+  const { data: user, isLoading: isUserLoading } = useUserData();
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -25,6 +25,11 @@ export default function DashboardPage() {
   };
 
   console.log("LISTINGS", listings);
+  console.log("User data:", {
+    user,
+    currentTier: user?.currentTier,
+    maxPhotos: user?.currentTier?.maxPhotosPerListing,
+  });
 
   return (
     <>
@@ -63,19 +68,33 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Listings Grid */}
-      {listings && listings.length > 0 && <ListingGrid listings={listings} />}
-      {isModalOpen && (
-        <NewListingModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedFiles([]);
-            router.refresh();
-          }}
-          initialFiles={selectedFiles}
-          maxPhotos={user?.currentTier?.maxPhotosPerListing || 10}
-        />
+      {/* Add loading state for user data */}
+      {isUserLoading && (
+        <div className='flex items-center justify-center py-12'>
+          <LoadingState size='lg' />
+        </div>
+      )}
+
+      {/* Only show content when user data is loaded */}
+      {!isUserLoading && (
+        <>
+          {/* Listings Grid */}
+          {listings && listings.length > 0 && (
+            <ListingGrid listings={listings} />
+          )}
+          {isModalOpen && (
+            <NewListingModal
+              isOpen={isModalOpen}
+              onClose={() => {
+                setIsModalOpen(false);
+                setSelectedFiles([]);
+                router.refresh();
+              }}
+              initialFiles={selectedFiles}
+              maxPhotos={user?.currentTier?.maxPhotosPerListing || 10}
+            />
+          )}
+        </>
       )}
     </>
   );
