@@ -19,14 +19,11 @@ export async function POST(
     const { listingId } = await params;
     const body = await request.json();
 
-    // Add unique IDs to each photo if they don't have one
+    // Ensure we only send the s3Key for each photo
     if (body.photos && Array.isArray(body.photos)) {
-      body.photos = body.photos.map(
-        (photo: { id?: string; s3Key: string }) => ({
-          ...photo,
-          id: photo.id || crypto.randomUUID(), // Add a UUID if id doesn't exist
-        })
-      );
+      body.photos = body.photos.map((photo: { s3Key: string }) => ({
+        s3Key: photo.s3Key,
+      }));
     }
 
     // Forward the request to our backend
