@@ -33,9 +33,24 @@ const s3 = new S3Client({
 
 // CORS headers
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Origin":
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.reelty.io",
+  "Access-Control-Allow-Methods": "GET, PUT, POST, DELETE, HEAD, OPTIONS",
+  "Access-Control-Allow-Headers": [
+    "Authorization",
+    "Content-Type",
+    "x-amz-acl",
+    "x-amz-content-sha256",
+    "x-amz-date",
+    "x-amz-security-token",
+    "*",
+  ].join(", "),
+  "Access-Control-Expose-Headers": [
+    "ETag",
+    "x-amz-server-side-encryption",
+    "x-amz-request-id",
+    "x-amz-id-2",
+  ].join(", "),
 } as const;
 
 // Helper to generate a unique session ID for temporary uploads
@@ -108,9 +123,11 @@ export async function POST(request: Request) {
 
     // Create the presigned URL
     const command = new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET, // We validated this earlier
+      Bucket: process.env.AWS_BUCKET,
       Key: key,
       ContentType: contentType,
+      ACL: "private",
+      ChecksumAlgorithm: "CRC32",
       Metadata: {
         ...(isTemporary && {
           temporary: "true",
@@ -121,7 +138,22 @@ export async function POST(request: Request) {
       },
     });
 
+    // Add debug logging
+    console.log("[PRESIGNED_URL] Generating URL:", {
+      isTemporary,
+      hasUserId: !!userId,
+      key,
+      contentType,
+      origin: request.headers.get("origin"),
+    });
+
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+
+    console.log("[PRESIGNED_URL] Generated successfully:", {
+      key,
+      hasUrl: !!url,
+      sessionId: isTemporary ? uploadSessionId : undefined,
+    });
 
     return new Response(
       JSON.stringify({
@@ -141,9 +173,11 @@ export async function POST(request: Request) {
       }
     );
   } catch (error) {
-    console.error("[PRESIGNED_URL_ERROR]", {
+    console.error("[PRESIGNED_URL_ERROR] Detailed error:", {
       error: error instanceof Error ? error.message : "Unknown error",
       stack: error instanceof Error ? error.stack : undefined,
+      headers: Object.fromEntries(request.headers.entries()),
+      origin: request.headers.get("origin"),
     });
 
     return new Response(

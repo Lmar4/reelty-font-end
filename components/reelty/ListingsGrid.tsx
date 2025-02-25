@@ -53,7 +53,7 @@ export function ListingsGrid() {
           title='Create your first Reelty!'
           description='You have not created any listing Reels yet. Get started by creating your first one.'
           action={{
-            label: "Create Listing",
+            label: "Generate Reels",
             onClick: () =>
               document
                 .querySelector<HTMLElement>(

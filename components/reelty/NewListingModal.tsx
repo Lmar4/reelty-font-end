@@ -913,7 +913,7 @@ export default function NewListingModal({
                     <path d='M5 17l1 2.5L8.5 21l-2.5 1L5 24l-1-2.5L1.5 21l2.5-1L5 17z' />
                     <path d='M18 17l1 2.5L21.5 21l-2.5 1L18 24l-1-2.5L14.5 21l2.5-1L18 17z' />
                   </svg>
-                  Create Listing
+                  Generate Reels
                 </>
               )}
             </button>

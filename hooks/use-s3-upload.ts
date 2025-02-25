@@ -75,17 +75,48 @@ export function useS3Upload() {
         throw new Error("Invalid presigned URL response");
       }
 
-      // Upload file
-      const uploadResponse = await fetch(presignedUrl.url, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
-      });
+      // Upload file with proper headers and error handling
+      try {
+        console.log("[S3_UPLOAD] Starting upload:", {
+          key: presignedUrl.key,
+          contentType: file.type,
+        });
 
-      if (!uploadResponse.ok) {
-        throw new Error(`Failed to upload file: ${uploadResponse.statusText}`);
+        const uploadResponse = await fetch(presignedUrl.url, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+            "x-amz-acl": "private",
+            "x-amz-checksum-algorithm": "CRC32",
+            // Add any custom metadata if needed
+            "x-amz-meta-original-filename": file.name,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error("[S3_UPLOAD] Upload failed:", {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText,
+            error: errorText,
+            headers: Object.fromEntries(uploadResponse.headers.entries()),
+          });
+          throw new Error(
+            `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`
+          );
+        }
+
+        console.log("[S3_UPLOAD] Upload successful:", {
+          key: presignedUrl.key,
+          status: uploadResponse.status,
+        });
+      } catch (error) {
+        console.error("[S3_UPLOAD] Upload error:", {
+          error: error instanceof Error ? error.message : "Unknown error",
+          key: presignedUrl.key,
+        });
+        throw error;
       }
 
       // Track progress
