@@ -15,7 +15,7 @@ export async function ensureUserDefaultTier(
       "/api/subscription/ensure-tier",
       {
         method: "POST",
-        body: JSON.stringify({ userId }),
+        body: { userId },
         sessionToken,
       }
     )) as Response;

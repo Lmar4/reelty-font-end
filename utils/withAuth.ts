@@ -21,47 +21,66 @@ interface RequestOptions {
 // Main request function
 export async function makeBackendRequest<T>(
   endpoint: string,
-  options: RequestOptions
+  options: {
+    method?: string;
+    body?: any;
+    sessionToken: string;
+  }
 ): Promise<T> {
-  const { method = "GET", body, sessionToken, headers = {} } = options;
+  const { method = "GET", body, sessionToken } = options;
+
+  const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}${endpoint}`;
 
   try {
-    console.debug("[REQUEST]", {
-      endpoint,
-      method,
-      hasToken: !!sessionToken,
-      tokenPreview: sessionToken ? `${sessionToken.slice(0, 10)}...` : null,
-    });
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(url, {
       method,
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${sessionToken}`,
-        ...headers,
+        "Content-Type": "application/json",
       },
-      ...(body && { body: JSON.stringify(body) }),
+      body:
+        typeof body === "string"
+          ? body
+          : body
+          ? JSON.stringify(body)
+          : undefined,
     });
 
-    const json = (await response.json()) as BackendResponse<T>;
-
-    if (!response.ok || !json.success) {
-      throw new Error(json.error || `HTTP error! status: ${response.status}`);
-    }
-
-    return json.data as T; // Unwrap data here
-  } catch (error) {
-    console.error("[REQUEST_ERROR]", {
-      endpoint,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-
-    if (error instanceof Error) {
-      if (error.message.includes("401") || error.message.includes("403")) {
-        throw new Error("Session expired or invalid");
+    // First check if the response is ok
+    if (!response.ok) {
+      // Try to parse error as JSON, but handle case where it's not JSON
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error ||
+            errorData.message ||
+            `Request failed with status ${response.status}`
+        );
+      } else {
+        // Handle non-JSON error responses
+        const errorText = await response.text();
+        throw new Error(
+          errorText || `Request failed with status ${response.status}`
+        );
       }
     }
 
+    // Check if response is empty
+    const text = await response.text();
+    if (!text) {
+      return {} as T;
+    }
+
+    // Parse JSON safely
+    try {
+      return JSON.parse(text) as T;
+    } catch (e) {
+      console.error("Failed to parse JSON response:", text);
+      throw new Error("Invalid JSON response from server");
+    }
+  } catch (error) {
+    console.error("API request failed:", error);
     throw error;
   }
 }
