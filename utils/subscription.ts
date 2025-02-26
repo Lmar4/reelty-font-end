@@ -1,4 +1,4 @@
-import { makeBackendRequest } from "./withAuth";
+import { makeBackendRequest, ApiResponse } from "./withAuth";
 
 interface DefaultTier {
   maxActiveListings: number;
@@ -11,28 +11,19 @@ export async function ensureUserDefaultTier(
   sessionToken: string
 ): Promise<DefaultTier> {
   try {
-    const response = (await makeBackendRequest(
+    const response = await makeBackendRequest<DefaultTier>(
       "/api/subscription/ensure-tier",
       {
         method: "POST",
         body: { userId },
         sessionToken,
       }
-    )) as Response;
+    );
 
-    if (!response.ok) {
-      // Return default free tier values if request fails
-      return {
-        maxActiveListings: 1,
-        name: "Free Trial",
-        currentCount: 0,
-      };
-    }
-
-    const data = await response.json();
-    return data.tier;
+    return response;
   } catch (error) {
     // Return default free tier values if request fails
+    console.error("Failed to ensure user tier:", error);
     return {
       maxActiveListings: 1,
       name: "Free Trial",

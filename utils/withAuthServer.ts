@@ -5,10 +5,11 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
 // Types
-export interface BackendResponse<T> {
+export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+  message?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -24,6 +25,27 @@ type ApiHandler = (
   ...args: any[]
 ) => Promise<NextResponse>;
 
+// Helper function to create consistent responses
+export function createApiResponse<T>(
+  success: boolean,
+  data?: T,
+  message?: string,
+  error?: string
+): NextResponse {
+  return new NextResponse(
+    JSON.stringify({
+      success,
+      ...(data !== undefined && { data }),
+      ...(message && { message }),
+      ...(error && { error }),
+    }),
+    {
+      status: success ? 200 : error ? 400 : 500,
+      headers: { "Content-Type": "application/json" },
+    }
+  );
+}
+
 export function withAuthServer(handler: ApiHandler) {
   return async (request: Request, ...args: any[]) => {
     try {
@@ -31,24 +53,25 @@ export function withAuthServer(handler: ApiHandler) {
       const user = await currentUser();
 
       if (!session) {
-        return new NextResponse(
-          JSON.stringify({ error: "No active session" }),
-          { status: 401, headers: { "Content-Type": "application/json" } }
+        return createApiResponse(
+          false,
+          undefined,
+          undefined,
+          "No active session"
         );
       }
 
       if (!user) {
-        return new NextResponse(JSON.stringify({ error: "User not found" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        });
+        return createApiResponse(false, undefined, undefined, "User not found");
       }
 
       const token = await session.getToken();
       if (!token) {
-        return new NextResponse(
-          JSON.stringify({ error: "No session token available" }),
-          { status: 401, headers: { "Content-Type": "application/json" } }
+        return createApiResponse(
+          false,
+          undefined,
+          undefined,
+          "No session token available"
         );
       }
 
@@ -61,13 +84,13 @@ export function withAuthServer(handler: ApiHandler) {
       return handler(authenticatedRequest, ...args);
     } catch (error) {
       console.error("[AUTH_ERROR]", error);
-      return new NextResponse(
-        JSON.stringify({
-          error: `Authentication error: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
+      return createApiResponse(
+        false,
+        undefined,
+        undefined,
+        `Authentication error: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   };
