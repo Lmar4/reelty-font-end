@@ -1,4 +1,11 @@
-import { User, UserRole, SubscriptionStatus } from './prisma-types';
+import { User, UserRole, SubscriptionStatus } from "./prisma-types";
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T | null;
+  error?: string;
+  message?: string;
+}
 
 // Type for User data returned from the API
 export interface UserResource {
@@ -14,17 +21,17 @@ export interface UserResource {
 // Type guard to check if a UserResource has all required User fields
 export function isFullUser(user: UserResource): user is User {
   return (
-    'password' in user &&
-    'stripeCustomerId' in user &&
-    'stripeSubscriptionId' in user &&
-    'stripePriceId' in user &&
-    'stripeProductId' in user &&
-    'subscriptionPeriodEnd' in user &&
-    'currentTierId' in user &&
-    'lastLoginAt' in user &&
-    'createdAt' in user &&
-    'updatedAt' in user &&
-    'agencyId' in user
+    "password" in user &&
+    "stripeCustomerId" in user &&
+    "stripeSubscriptionId" in user &&
+    "stripePriceId" in user &&
+    "stripeProductId" in user &&
+    "subscriptionPeriodEnd" in user &&
+    "currentTierId" in user &&
+    "lastLoginAt" in user &&
+    "createdAt" in user &&
+    "updatedAt" in user &&
+    "agencyId" in user
   );
 }
 

@@ -1,3 +1,10 @@
+import type {
+  VideoJobMetadata,
+  ListingMetadata,
+  PhotoMetadata,
+  AssetMetadata,
+} from "./metadata-types";
+
 // Types to replace Prisma runtime types
 export type Decimal = string | number;
 export type JsonValue =
@@ -49,6 +56,10 @@ export interface User {
   createdAt: Date;
   updatedAt: Date;
 
+  // Notification settings
+  notificationReelsReady: boolean;
+  notificationProductUpdates: boolean;
+
   // Agency related fields
   agencyId: string | null;
   agencyOwnerId: string | null;
@@ -80,20 +91,21 @@ export interface User {
 
 export interface SubscriptionTier {
   id: string;
+  tierId: string;
   name: string;
   description: string;
   stripePriceId: string;
   stripeProductId: string;
   features: string[];
   monthlyPrice: number;
-  planType: "PAY_AS_YOU_GO" | "MONTHLY";
+  planType: PlanType;
   creditsPerInterval: number;
   hasWatermark: boolean;
   maxPhotosPerListing: number;
   maxReelDownloads: number | null;
   maxActiveListings: number;
   premiumTemplatesEnabled: boolean;
-  metadata?: Record<string, any>;
+  metadata: JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
 
@@ -101,14 +113,18 @@ export interface SubscriptionTier {
   users?: User[];
   templates?: Template[];
   assets?: Asset[];
+  subscriptionHistory?: SubscriptionHistory[];
 }
 
 export interface Template {
   id: string;
   name: string;
   description: string;
+  key: string;
   tiers: string[];
   order: number;
+  sequence: JsonValue;
+  durations: JsonValue;
   thumbnailUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -150,20 +166,21 @@ export interface Asset {
   description: string | null;
   filePath: string;
   type: AssetType;
-  subscriptionTier: string;
+  subscriptionTierId: string;
   isActive: boolean;
+  isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
+  metadata: AssetMetadata | null;
 
   // Relations
-  tier?: SubscriptionTier;
+  subscriptionTier?: SubscriptionTier;
 }
 
 export interface ListingCredit {
   id: string;
   userId: string;
   creditsRemaining: number;
-  expiryDate: Date;
   createdAt: Date;
   updatedAt: Date;
 
@@ -176,17 +193,12 @@ export interface Listing {
   userId: string;
   address: string;
   description: string | null;
-  coordinates: JsonValue;
+  coordinates: JsonValue | null;
   status: string;
   photoLimit: number;
+  metadata: ListingMetadata | null;
   createdAt: Date;
   updatedAt: Date;
-  videoJobId?: string;
-  videoUrl?: string;
-  reels?: {
-    url: string;
-    type: string;
-  }[];
 
   // Relations
   user?: User;
@@ -199,10 +211,12 @@ export interface Photo {
   userId: string;
   listingId: string;
   filePath: string;
+  s3Key: string;
   processedFilePath: string | null;
   order: number;
   status: string;
   error: string | null;
+  metadata: PhotoMetadata | null;
   runwayVideoPath: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -218,30 +232,18 @@ export interface VideoJob {
   listingId: string;
   status: VideoGenerationStatus;
   progress: number;
-  template?: string | null;
-  inputFiles?: any | null;
-  outputFile?: string | null;
-  thumbnailUrl?: string | null;
-  error?: string | null;
+  template: string | null;
+  inputFiles: JsonValue | null;
+  outputFile: string | null;
+  thumbnailUrl: string | null;
+  error: string | null;
   position: number;
   priority: number;
-  metadata?: {
-    processedTemplates?: Array<{
-      key: string;
-      path: string;
-    }>;
-    userMessage?: string;
-    error?: string;
-    stage?: string;
-    currentFile?: string;
-    totalFiles?: number;
-    startTime?: string;
-    endTime?: string;
-  } | null;
+  metadata: VideoJobMetadata | null;
   createdAt: Date;
   updatedAt: Date;
-  startedAt?: Date | null;
-  completedAt?: Date | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
 
   // Relations
   user?: User;
@@ -296,23 +298,13 @@ export interface SubscriptionLog {
   user?: User;
 }
 
-export interface ProcessedAsset {
-  id: string;
-  type: string;
-  path: string;
-  hash: string;
-  settings: JsonValue | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface SubscriptionHistory {
   id: string;
   userId: string;
+  status: SubscriptionStatus;
   tierId: string;
   startDate: Date;
   endDate: Date | null;
-  status: SubscriptionStatus;
   createdAt: Date;
   updatedAt: Date;
 
@@ -355,4 +347,45 @@ export interface VideoGenerationJob {
   // Relations
   user?: User;
   agency?: User | null;
+}
+
+export interface ProcessedAsset {
+  id: string;
+  type: string;
+  path: string;
+  cacheKey: string;
+  hash: string;
+  settings: JsonValue | null;
+  metadata: JsonValue | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CachedAsset {
+  id: string;
+  type: string;
+  path: string;
+  cacheKey: string;
+  metadata: JsonValue;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CacheLock {
+  id: string;
+  key: string;
+  owner: string | null;
+  expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ListingLock {
+  id: string;
+  listingId: string;
+  jobId: string;
+  processId: string;
+  expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
