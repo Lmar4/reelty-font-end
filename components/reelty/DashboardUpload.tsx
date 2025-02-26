@@ -25,9 +25,20 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   const { userId } = useAuth();
   const { data: userData } = useUserData();
   console.log("userData", userData);
-  const hasReachedLimit =
-    (userData?.listings?.length ?? 0) >=
-    (userData?.currentTier?.maxActiveListings ?? 0);
+
+  // Calculate total remaining credits from all credit records
+  const totalCreditsRemaining =
+    userData?.listingCredits?.reduce(
+      (total, credit) => total + (credit.creditsRemaining || 0),
+      0
+    ) ?? 0;
+
+  // User has reached limit if they have no credits remaining
+  const hasReachedLimit = totalCreditsRemaining <= 0;
+
+  // For debugging
+  console.log("Credits remaining:", totalCreditsRemaining);
+  console.log("Has reached limit:", hasReachedLimit);
 
   // Check for stored listing data and pending files on mount
   useEffect(() => {
