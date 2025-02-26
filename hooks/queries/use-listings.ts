@@ -153,6 +153,7 @@ export function useCreateListing() {
       // Check if it's a listing limit error
       if (error instanceof Error) {
         try {
+          // First try to parse as JSON
           const parsedError = JSON.parse(error.message);
           if (
             parsedError.error === "Listing limit reached" &&
@@ -162,14 +163,29 @@ export function useCreateListing() {
             errorMessage = limitData
               ? `You've reached your limit of ${limitData.maxAllowed} active listings on your ${limitData.currentTier} plan.`
               : "You've reached your listing limit.";
+          } else if (parsedError.error === "Insufficient credits") {
+            errorMessage =
+              "You don't have enough credits to create a new listing.";
           } else {
-            errorMessage = error.message;
+            errorMessage =
+              parsedError.error || parsedError.message || error.message;
           }
-        } catch {
+        } catch (parseError) {
+          // If not JSON, use the error message directly
           errorMessage = error.message;
         }
+      } else if (typeof error === "object" && error !== null) {
+        // Handle non-Error objects
+        const errorObj = error as Record<string, any>;
+        errorMessage =
+          errorObj.message || errorObj.error || "Unknown error occurred";
       }
 
+      console.error("[CREATE_LISTING_ERROR]", {
+        error,
+        errorMessage,
+        limitData,
+      });
       throw { message: errorMessage, limitData } as CreateListingError;
     },
     onSuccess: (data) => {

@@ -451,24 +451,44 @@ export default function NewListingModal({
         );
 
         // Upload to S3 with consistent paths
-        uploadResults = await uploadToS3(filesToUpload, true, onUploadProgress);
-
-        // Log upload results for debugging
-        console.log("[LISTING_CREATION] Upload results:", {
-          resultsType: typeof uploadResults,
-          isArray: Array.isArray(uploadResults),
-          length: Array.isArray(uploadResults) ? uploadResults.length : "N/A",
-          results: uploadResults,
-        });
-
-        // Ensure uploadResults is an array
-        if (!Array.isArray(uploadResults)) {
-          console.error(
-            "[LISTING_CREATION] Upload results is not an array:",
-            uploadResults
+        try {
+          uploadResults = await uploadToS3(
+            filesToUpload,
+            true,
+            onUploadProgress
           );
+
+          // Log upload results for debugging
+          console.log("[LISTING_CREATION] Upload results:", {
+            resultsType: typeof uploadResults,
+            isArray: Array.isArray(uploadResults),
+            length: Array.isArray(uploadResults) ? uploadResults.length : "N/A",
+            results: uploadResults,
+          });
+
+          // Ensure uploadResults is an array
+          if (!Array.isArray(uploadResults)) {
+            console.error(
+              "[LISTING_CREATION] Upload results is not an array:",
+              uploadResults
+            );
+            uploadResults = [];
+            throw new Error(
+              "Upload failed: Invalid response format from server"
+            );
+          }
+
+          if (uploadResults.length === 0) {
+            throw new Error("No files were uploaded successfully");
+          }
+        } catch (uploadError) {
+          console.error("[LISTING_CREATION] Upload error:", uploadError);
           uploadResults = [];
-          throw new Error("Upload failed: Invalid response format from server");
+          throw new Error(
+            uploadError instanceof Error
+              ? `Upload failed: ${uploadError.message}`
+              : "Upload failed: Unknown error"
+          );
         }
 
         // 2. Verify uploads completed successfully
@@ -601,6 +621,11 @@ export default function NewListingModal({
         uploadResultsType: typeof uploadResults,
         uploadResultsIsArray: Array.isArray(uploadResults),
       });
+
+      // Ensure uploadResults is always an array to prevent "e is not iterable" error
+      if (!Array.isArray(uploadResults)) {
+        uploadResults = [];
+      }
 
       // Check if it's a listing limit error
       if (typeof error === "object" && error !== null && "limitData" in error) {
