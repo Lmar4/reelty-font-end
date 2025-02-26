@@ -2,46 +2,37 @@ import { VideoJob } from "@/types/prisma-types";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { useState } from "react";
 import { useBaseQuery } from "./useBaseQuery";
+import { ApiResponse } from "@/types/api-types";
 
-interface VideoResponse {
-  success: boolean;
-  data: {
-    videos: VideoJob[];
-    status: {
-      isProcessing: boolean;
-      processingCount: number;
-      failedCount: number;
-      completedCount: number;
-      totalCount: number;
-      shouldEndPolling?: boolean;
-    };
-  };
+interface VideoStatus {
+  isProcessing: boolean;
+  processingCount: number;
+  failedCount: number;
+  completedCount: number;
+  totalCount: number;
+  shouldEndPolling?: boolean;
 }
 
-const transformVideoJob = (job: VideoJob) => ({
-  id: job.id,
-  listingId: job.listingId,
-  userId: job.userId,
-  position: job.position,
-  priority: job.priority,
-  status: job.status,
-  progress: job.progress || 0,
-  template: job.template,
-  inputFiles: job.inputFiles,
-  outputFile: job.outputFile,
-  thumbnailUrl: job.thumbnailUrl,
-  error: job.error || null,
+interface VideoResponseData {
+  videos: VideoJob[];
+  status: VideoStatus;
+}
+
+type VideoResponse = ApiResponse<VideoResponseData>;
+
+const transformVideoJob = (job: VideoJob): VideoJob => ({
+  ...job,
   createdAt: new Date(job.createdAt),
   updatedAt: new Date(job.updatedAt || job.createdAt),
-  metadata: {
-    userMessage: job.metadata?.userMessage,
-    error: job.metadata?.error,
-    stage: job.metadata?.stage,
-    currentFile: job.metadata?.currentFile,
-    totalFiles: job.metadata?.totalFiles,
-    startTime: job.metadata?.startTime,
-    endTime: job.metadata?.endTime,
-  },
+  startedAt: job.startedAt ? new Date(job.startedAt) : null,
+  completedAt: job.completedAt ? new Date(job.completedAt) : null,
+  metadata: job.metadata
+    ? {
+        ...job.metadata,
+        startTime: job.metadata.startTime || undefined,
+        endTime: job.metadata.endTime || undefined,
+      }
+    : null,
 });
 
 const INITIAL_INTERVAL = 2000; // Start with 2 seconds
@@ -67,8 +58,10 @@ export const useVideoStatus = (listingId: string) => {
       setRetryCount(0);
       setInterval(INITIAL_INTERVAL);
 
-      // Transform video jobs
-      response.data.videos = response.data.videos.map(transformVideoJob);
+      // Transform video jobs if they exist
+      if (response.data?.videos) {
+        response.data.videos = response.data.videos.map(transformVideoJob);
+      }
 
       return response;
     },

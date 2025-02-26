@@ -187,6 +187,7 @@ export function useCreateListing() {
             updatedAt: new Date(),
             error: null,
             runwayVideoPath: null,
+            metadata: null,
           })) || [],
       };
 
