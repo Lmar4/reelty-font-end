@@ -8,7 +8,7 @@ import { logger } from "@/utils/logger";
 // Define the API response type
 interface UserApiResponse {
   success: boolean;
-  data: User;
+  data: { data: User };
 }
 
 async function getUserData(token: string, userId: string): Promise<User> {
@@ -34,7 +34,7 @@ async function getUserData(token: string, userId: string): Promise<User> {
   logger.debug("Received user data:", result);
 
   // Return just the data property
-  return result.data;
+  return result.data.data;
 }
 
 export function useUserData() {

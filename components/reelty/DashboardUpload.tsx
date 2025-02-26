@@ -24,12 +24,10 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { userId } = useAuth();
   const { data: userData } = useUserData();
-  console.log("userId", userId);
-  console.log("userData", userData);
 
   // Calculate total remaining credits from all credit records
-  const totalCreditsRemaining = 3;
-  // userData?.data?.listingCredits?.creditsRemaining;
+  const totalCreditsRemaining =
+    userData?.listingCredits?.[0]?.creditsRemaining ?? 0;
 
   // User has reached limit if they have no credits remaining
   const hasReachedLimit = totalCreditsRemaining <= 0;
