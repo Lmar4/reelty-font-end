@@ -4,6 +4,12 @@ import { useBaseQuery } from "./queries/useBaseQuery";
 import type { User } from "@/types/prisma-types";
 import { useAuth } from "@clerk/nextjs";
 
+// Define the API response type
+interface UserApiResponse {
+  success: boolean;
+  data: User;
+}
+
 async function getUserData(token: string, userId: string): Promise<User> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
@@ -21,7 +27,7 @@ async function getUserData(token: string, userId: string): Promise<User> {
     throw new Error(error.error || "Failed to fetch user data");
   }
 
-  const result = await response.json();
+  const result = (await response.json()) as UserApiResponse;
   return result.data;
 }
 
