@@ -5,5 +5,5 @@ import type { UserRole } from "@/types/prisma-types";
 
 export function useRole(): UserRole {
   const { data: userData } = useUserData();
-  return userData?.role || "USER";
+  return userData?.data?.role || "USER";
 }
