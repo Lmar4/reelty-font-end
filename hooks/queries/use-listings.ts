@@ -101,6 +101,8 @@ interface CreateListingError {
 }
 
 export const useListings = () => {
+  const { getToken } = useAuth();
+
   const query = useBaseQuery<ApiResponse<Listing[]>>(
     [LISTINGS_QUERY_KEY],
     async (token) => {
@@ -110,14 +112,22 @@ export const useListings = () => {
           sessionToken: token,
         }
       );
-      if (!response.success || !response.data) {
-        throw new Error(response.error || "Failed to fetch listings");
+
+      // If we have a successful response with data, return it
+      if (response.success && Array.isArray(response.data)) {
+        return response;
       }
-      return response;
+
+      // If we have an error message, throw it
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      // If we don't have data but the response was successful, return empty array
+      return { success: true, data: [] };
     }
   );
 
-  // Return an object with the same structure as the previous implementation
   return {
     listings: query.data?.data || [],
     isLoading: query.isLoading,

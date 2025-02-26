@@ -53,31 +53,6 @@ export async function makeBackendRequest<T>(
 
   try {
     let token = sessionToken;
-    let userId: string | undefined = undefined;
-
-    // Handle client-side auth
-    if (!token && typeof window !== "undefined") {
-      try {
-        const auth = useAuth();
-        // Wait for auth to be ready
-        if (!auth.isLoaded) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
-        // Get token and user ID
-        const authToken = await auth.getToken();
-        token = authToken ?? undefined;
-        userId = auth.userId ?? undefined;
-
-        // Double check we have what we need
-        if (!token || !userId) {
-          throw new AuthError(401, "User not authenticated");
-        }
-      } catch (authError) {
-        console.error("[Auth Error]:", authError);
-        throw new AuthError(401, "Authentication failed");
-      }
-    }
 
     // Final token check
     if (!token) {
@@ -89,12 +64,11 @@ export async function makeBackendRequest<T>(
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        ...(userId && { "X-User-Id": userId }),
         ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,
-      credentials: "include", // Changed back to 'include' to send cookies
-      mode: "cors", // Explicitly set CORS mode
+      credentials: "include",
+      mode: "cors",
     });
 
     // Handle response
@@ -119,18 +93,7 @@ export async function makeBackendRequest<T>(
     }
 
     try {
-      const parsedResponse = JSON.parse(text) as ApiResponse<T>;
-
-      if ("success" in parsedResponse) {
-        if (!parsedResponse.success) {
-          throw new ApiError(
-            response.status,
-            parsedResponse.error || "Request failed"
-          );
-        }
-        return parsedResponse.data ?? (parsedResponse as T);
-      }
-
+      const parsedResponse = JSON.parse(text);
       return parsedResponse as T;
     } catch (e) {
       console.error("Failed to parse JSON response:", text);
