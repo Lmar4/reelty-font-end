@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import type { VideoGenerationStatus } from "@/types/prisma-types";
 
 interface VideoJobCardProps {
   job: VideoJob;
@@ -34,7 +35,7 @@ export function VideoJobCard({
 
   // Get the processed template path
   const processedTemplate = job.metadata?.processedTemplates?.find(
-    (template) => template.key === job.template
+    (template: { key: string; path: string }) => template.key === job.template
   );
   const videoUrl = processedTemplate?.path || job.outputFile;
 

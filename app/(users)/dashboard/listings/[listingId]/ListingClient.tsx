@@ -1,24 +1,21 @@
 "use client";
 
-import { VideoJob } from "@/types/listing-types";
 import ErrorBoundary from "@/components/common/ErrorBoundary";
 import { PropertySettingsModal } from "@/components/modals/PropertySettingsModal";
 import { useListing } from "@/hooks/queries/use-listings";
 import { usePhotoStatus } from "@/hooks/queries/use-photo-status";
 import { useVideoStatus } from "@/hooks/queries/use-video-status";
 import { useCreateJob } from "@/hooks/use-jobs";
-import { useUserData } from "@/hooks/useUserData";
+import { sendVideoGeneratedEmail } from "@/lib/plunk";
+import { VideoJob } from "@/types/listing-types";
 import type { JsonValue, Listing, User } from "@/types/prisma-types";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import ListingSkeleton from "./components/ListingSkeleton";
-import { VideoJobCard } from "./components/VideoJobCard";
-import { LoadingState } from "@/components/ui/loading-state";
 import { TemplateGrid } from "./components/TemplateGrid";
-import { sendVideoGeneratedEmail } from "@/lib/plunk";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
@@ -182,9 +179,15 @@ export function ListingClient({
 
   // Group video jobs by template
   const videoJobs = useMemo(() => {
-    if (!listing?.videoJobs) return [];
-    return listing.videoJobs.sort((a: VideoJob, b: VideoJob) => {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    if (!listing?.videoJobs || !Array.isArray(listing.videoJobs)) return [];
+
+    return [...listing.videoJobs].sort((a: VideoJob, b: VideoJob) => {
+      // Both createdAt dates should be Date objects from the schema
+      const dateA =
+        a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const dateB =
+        b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
     });
   }, [listing?.videoJobs]);
 

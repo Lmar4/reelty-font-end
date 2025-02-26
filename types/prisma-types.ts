@@ -24,11 +24,12 @@ export type SubscriptionStatus =
   | "UNPAID"
   | "INACTIVE";
 
-export type VideoGenerationStatus =
-  | "PENDING"
-  | "PROCESSING"
-  | "COMPLETED"
-  | "FAILED";
+export enum VideoGenerationStatus {
+  PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+}
 
 export interface User {
   id: string; // Clerk ID
@@ -218,23 +219,29 @@ export interface VideoJob {
   status: VideoGenerationStatus;
   progress: number;
   template?: string | null;
-  inputFiles?: any;
+  inputFiles?: any | null;
   outputFile?: string | null;
+  thumbnailUrl?: string | null;
   error?: string | null;
   position: number;
   priority: number;
   metadata?: {
-    stage?: "webp" | "runway" | "template" | "final";
-    currentFile?: number;
-    totalFiles?: number;
+    processedTemplates?: Array<{
+      key: string;
+      path: string;
+    }>;
+    userMessage?: string;
     error?: string;
+    stage?: string;
+    currentFile?: string;
+    totalFiles?: number;
     startTime?: string;
     endTime?: string;
   } | null;
-  startedAt?: Date | null;
-  completedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  startedAt?: Date | null;
+  completedAt?: Date | null;
 
   // Relations
   user?: User;

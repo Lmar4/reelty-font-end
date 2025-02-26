@@ -10,6 +10,15 @@ import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import PricingCards from "@/components/reelty/PricingCards";
 import { useTemplates, Template } from "@/hooks/queries/use-templates";
+import type {
+  VideoJob as PrismaVideoJob,
+  VideoGenerationStatus,
+} from "@/types/prisma-types";
+
+interface ProcessedTemplate {
+  key: string;
+  path: string;
+}
 
 interface PhotoStatus {
   id: string;
@@ -88,7 +97,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
 
     // Then check in processedTemplates
     const processedVideo = job.metadata?.processedTemplates?.find(
-      (t) => t.key === template.key || t.path.includes(`/${template.key}.mp4`)
+      (t: ProcessedTemplate) =>
+        t.key === template.key || t.path.includes(`/${template.key}.mp4`)
     );
 
     return processedVideo?.path;

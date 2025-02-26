@@ -1,4 +1,9 @@
-import type { User, Listing } from "./prisma-types";
+import type {
+  User,
+  Listing,
+  VideoGenerationStatus,
+  VideoJob,
+} from "./prisma-types";
 
 export interface VideoTemplate {
   id: string;
@@ -29,70 +34,6 @@ export interface Photo {
   processedFilePath?: string | null;
 }
 
-export interface VideoJob {
-  id: string;
-  userId: string;
-  listingId: string;
-  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
-  progress: number;
-  template?: string | null;
-  inputFiles?: string[] | null;
-  outputFile?: string | null;
-  error?: string | null;
-  position: number;
-  priority: number;
-  metadata?: {
-    userMessage?: string;
-    error?: string;
-    stage?: "webp" | "runway" | "template" | "final";
-    currentFile?: number;
-    totalFiles?: number;
-    startTime?: string;
-    endTime?: string;
-    currentStage?: "runway" | "template" | "upload";
-    currentSubStage?: string;
-    stepsCompleted?: string[];
-    templateResults?: Array<{
-      status: "SUCCESS" | "FAILED";
-      template: string;
-      timestamp: number;
-      processingTime: number;
-    }>;
-    templates?: Array<{
-      path: string;
-      success: boolean;
-      template: string;
-    }>;
-    defaultTemplate?: string;
-    processedTemplates?: Array<{
-      key: string;
-      path: string;
-      thumbnailUrl?: string;
-    }>;
-    allTemplates?: Array<{
-      path: string;
-      template: string;
-      isPrimary: boolean;
-    }>;
-    mapVideo?: {
-      path: string;
-      coordinates: { lat: number; lng: number };
-      generatedAt: string;
-    };
-    lastUpdated?: string;
-  } | null;
-  startedAt?: Date | null;
-  completedAt?: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-
-  // Relations
-  user?: User;
-  listing?: Listing;
-
-  thumbnailUrl?: string;
-}
-
 export interface CreateListingInput {
   address: string;
   coordinates?: {
@@ -116,3 +57,10 @@ export interface UploadResult {
   s3Key: string;
   url: string;
 }
+
+export interface ExtendedListing extends Listing {
+  currentJobId?: string;
+  videoJobs?: VideoJob[];
+}
+
+export type { VideoGenerationStatus, VideoJob };
