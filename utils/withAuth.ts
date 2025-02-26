@@ -25,9 +25,10 @@ export async function makeBackendRequest<T>(
     method?: string;
     body?: any;
     sessionToken: string;
+    headers?: Record<string, string>;
   }
 ): Promise<T> {
-  const { method = "GET", body, sessionToken } = options;
+  const { method = "GET", body, sessionToken, headers = {} } = options;
 
   const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}${endpoint}`;
 
@@ -37,6 +38,7 @@ export async function makeBackendRequest<T>(
       headers: {
         Authorization: `Bearer ${sessionToken}`,
         "Content-Type": "application/json",
+        ...headers,
       },
       body:
         typeof body === "string"
