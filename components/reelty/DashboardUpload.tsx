@@ -24,7 +24,7 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { userId } = useAuth();
   const { data: userData } = useUserData();
-
+  console.log("userData", userData);
   const hasReachedLimit =
     (userData?.listings?.length ?? 0) >=
     (userData?.currentTier?.maxActiveListings ?? 0);
