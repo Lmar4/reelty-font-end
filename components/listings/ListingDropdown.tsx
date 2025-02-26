@@ -42,10 +42,18 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
     try {
       const response = await fetch(`/api/listings/${listingId}`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies for authentication
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to delete listing");
+        const errorMessage = data.error || "Failed to delete listing";
+        console.error("[DELETE_ERROR]", { status: response.status, data });
+        throw new Error(errorMessage);
       }
 
       // Remove the individual listing from cache if it exists
@@ -55,7 +63,10 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
       // Rollback on error
       queryClient.setQueryData([LISTINGS_QUERY_KEY, user?.id], previousData);
       console.error("[DELETE_ERROR]", error);
-      showToast("Failed to delete listing", "error");
+      showToast(
+        error instanceof Error ? error.message : "Failed to delete listing",
+        "error"
+      );
     }
   };
 
