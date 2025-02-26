@@ -141,7 +141,7 @@ export function AssetManagementSection() {
         header: "Subscription Tier",
         cell: ({ row }) => (
           <Badge variant='outline'>
-            {row.original.tier?.name || "Unknown"}
+            {row.original.subscriptionTier?.name || "Unknown"}
           </Badge>
         ),
       },

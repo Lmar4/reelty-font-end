@@ -241,9 +241,12 @@ export function EditAssetDialog({
             <div>
               <Label htmlFor='tier'>Subscription Tier</Label>
               <Select
-                value={formData.subscriptionTier}
+                value={formData.subscriptionTier?.id}
                 onValueChange={(value) =>
-                  setFormData({ ...formData, subscriptionTier: value })
+                  setFormData({
+                    ...formData,
+                    subscriptionTier: value as unknown as SubscriptionTier,
+                  })
                 }
                 required
               >

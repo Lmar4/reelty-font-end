@@ -258,7 +258,7 @@ export default function AssetManagementSection({
                 <TableCell>{asset.name}</TableCell>
                 <TableCell>{asset.description}</TableCell>
                 <TableCell>{asset.type}</TableCell>
-                <TableCell>{asset.subscriptionTier}</TableCell>
+                <TableCell>{asset.subscriptionTier?.name}</TableCell>
                 <TableCell>
                   <Switch
                     checked={asset.isActive}

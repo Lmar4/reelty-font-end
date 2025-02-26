@@ -2,41 +2,24 @@ import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { logger } from "@/utils/logger";
 import { NextResponse } from "next/server";
+import { VideoJob } from "@/types/prisma-types";
+import { ApiResponse } from "@/types/api-types";
 
-interface VideoResponse {
-  success: boolean;
-  data: {
-    videos: {
-      id: string;
-      status: string;
-      outputFile: string | null;
-      thumbnailUrl: string | null;
-      createdAt: string;
-      metadata?: {
-        templateResults?: Array<{
-          template: string;
-          status: "SUCCESS" | "FAILED";
-          error?: string;
-          timestamp: number;
-          processingTime?: number;
-        }>;
-        mapVideo?: {
-          path: string;
-          coordinates: { lat: number; lng: number };
-          generatedAt: string;
-        };
-      };
-    }[];
-    status: {
-      isProcessing: boolean;
-      processingCount: number;
-      failedCount: number;
-      completedCount: number;
-      totalCount: number;
-      shouldEndPolling?: boolean;
-    };
-  };
+interface VideoStatus {
+  isProcessing: boolean;
+  processingCount: number;
+  failedCount: number;
+  completedCount: number;
+  totalCount: number;
+  shouldEndPolling?: boolean;
 }
+
+interface VideoResponseData {
+  videos: VideoJob[];
+  status: VideoStatus;
+}
+
+type VideoResponse = ApiResponse<VideoResponseData>;
 
 // GET /api/listings/[listingId]/videos
 // Returns all videos for a listing, including status and metadata
