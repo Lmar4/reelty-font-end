@@ -8,16 +8,30 @@ import { useBaseQuery } from "./useBaseQuery";
 
 export const LISTINGS_QUERY_KEY = "listings";
 
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+}
+
 async function fetchListings(token: string): Promise<Listing[]> {
-  return makeBackendRequest<Listing[]>("/api/listings", {
-    sessionToken: token,
-  });
+  const response = await makeBackendRequest<ApiResponse<Listing[]>>(
+    "/api/listings",
+    {
+      sessionToken: token,
+    }
+  );
+  return response.data;
 }
 
 async function fetchListingById(id: string, token: string): Promise<Listing> {
-  return makeBackendRequest<Listing>(`/api/listings/${id}`, {
-    sessionToken: token,
-  });
+  const response = await makeBackendRequest<ApiResponse<Listing>>(
+    `/api/listings/${id}`,
+    {
+      sessionToken: token,
+    }
+  );
+  return response.data;
 }
 
 interface CreateListingInput {
@@ -40,11 +54,15 @@ async function createListing(
         }
       : null,
   };
-  return makeBackendRequest<Listing>("/api/listings", {
-    method: "POST",
-    body: requestBody,
-    sessionToken: token,
-  });
+  const response = await makeBackendRequest<ApiResponse<Listing>>(
+    "/api/listings",
+    {
+      method: "POST",
+      body: requestBody,
+      sessionToken: token,
+    }
+  );
+  return response.data;
 }
 
 interface UploadPhotoInput {
@@ -120,23 +138,43 @@ export function useCreateListing() {
       return createListing(input, token);
     },
     onMutate: async (newListing) => {
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: [LISTINGS_QUERY_KEY] });
-      const previousListings = queryClient.getQueryData([LISTINGS_QUERY_KEY]);
-      queryClient.setQueryData([LISTINGS_QUERY_KEY], (old: any) => {
-        const optimisticListing = {
-          id: "temp-" + Date.now(),
-          address: newListing.address,
-          coordinates: newListing.coordinates,
-          status: "creating",
-          createdAt: new Date().toISOString(),
-          photos: newListing.photos.map((photo) => ({
+
+      // Snapshot the previous value
+      const previousListings =
+        queryClient.getQueryData<Listing[]>([LISTINGS_QUERY_KEY]) || [];
+
+      // Create an optimistic listing
+      const optimisticListing: Partial<Listing> = {
+        id: `temp-${Date.now()}`,
+        address: newListing.address,
+        coordinates: newListing.coordinates,
+        status: "creating",
+        createdAt: new Date(),
+        photos:
+          newListing.photos?.map((photo) => ({
             id: `temp-${crypto.randomUUID()}`,
+            userId: userId || "",
+            listingId: `temp-${Date.now()}`,
             status: "processing",
             s3Key: photo.s3Key,
-          })),
-        };
-        return old ? [...old, optimisticListing] : [optimisticListing];
-      });
+            filePath: "",
+            processedFilePath: null,
+            order: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            error: null,
+            runwayVideoPath: null,
+          })) || [],
+      };
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<Listing[]>(
+        [LISTINGS_QUERY_KEY],
+        [...previousListings, optimisticListing as Listing]
+      );
+
       return { previousListings };
     },
     onError: (error: unknown, variables, context) => {
@@ -150,19 +188,18 @@ export function useCreateListing() {
       let errorMessage = "Failed to create listing";
       let limitData: ListingLimitError | undefined;
 
-      // Check if it's a listing limit error
       if (error instanceof Error) {
         try {
-          // First try to parse as JSON
           const parsedError = JSON.parse(error.message);
           if (
             parsedError.error === "Listing limit reached" &&
             parsedError.data
           ) {
             limitData = parsedError.data;
-            errorMessage = limitData
-              ? `You've reached your limit of ${limitData.maxAllowed} active listings on your ${limitData.currentTier} plan.`
-              : "You've reached your listing limit.";
+            errorMessage =
+              (limitData &&
+                `You've reached your limit of ${limitData.maxAllowed} active listings on your ${limitData.currentTier} plan.`) ||
+              "You've reached your listing limit.";
           } else if (parsedError.error === "Insufficient credits") {
             errorMessage =
               "You don't have enough credits to create a new listing.";
@@ -170,15 +207,9 @@ export function useCreateListing() {
             errorMessage =
               parsedError.error || parsedError.message || error.message;
           }
-        } catch (parseError) {
-          // If not JSON, use the error message directly
+        } catch {
           errorMessage = error.message;
         }
-      } else if (typeof error === "object" && error !== null) {
-        // Handle non-Error objects
-        const errorObj = error as Record<string, any>;
-        errorMessage =
-          errorObj.message || errorObj.error || "Unknown error occurred";
       }
 
       console.error("[CREATE_LISTING_ERROR]", {
@@ -186,9 +217,12 @@ export function useCreateListing() {
         errorMessage,
         limitData,
       });
+
+      toast.error(errorMessage);
       throw { message: errorMessage, limitData } as CreateListingError;
     },
     onSuccess: (data) => {
+      // Invalidate and refetch
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
       toast.success("Listing created successfully!");
     },
