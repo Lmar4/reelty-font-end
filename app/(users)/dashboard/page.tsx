@@ -12,12 +12,20 @@ import NewListingModal from "@/components/reelty/NewListingModal";
 import { useUserData } from "@/hooks/useUserData";
 
 export default function DashboardPage() {
-  const { data: user, isLoading: isUserLoading } = useUserData();
+  const {
+    data: user,
+    isLoading: isUserLoading,
+    error: userError,
+  } = useUserData();
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const { listings, isLoading: isListingsLoading } = useListings();
+  const {
+    listings,
+    isLoading: isListingsLoading,
+    error: listingsError,
+  } = useListings();
 
   const handleFilesSelected = async (files: File[]) => {
     setSelectedFiles(files);
@@ -30,6 +38,26 @@ export default function DashboardPage() {
     currentTier: user?.currentTier,
     maxPhotos: user?.currentTier?.maxPhotosPerListing,
   });
+
+  if (listingsError || userError) {
+    return (
+      <div className='p-4 bg-red-50 rounded-lg mt-8'>
+        <h2 className='text-xl font-semibold text-red-700 mb-2'>
+          Error loading dashboard
+        </h2>
+        <p className='text-red-600'>
+          {listingsError ? `Listings error: ${listingsError.message}` : ""}
+          {userError ? `User data error: ${userError.message}` : ""}
+        </p>
+        <button
+          onClick={() => router.refresh()}
+          className='mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700'
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
