@@ -1,4 +1,4 @@
-import { VideoJob } from "@/types/listing-types";
+import { VideoJob } from "@/types/prisma-types";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { useState } from "react";
 import { useBaseQuery } from "./useBaseQuery";

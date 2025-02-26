@@ -1,10 +1,11 @@
 "use client";
-import { Listing } from "@/types/prisma-types";
+import { Listing, VideoJob } from "@/types/prisma-types";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useBaseQuery } from "./useBaseQuery";
+import type { ExtendedListing } from "@/types/listing-types";
 
 export const LISTINGS_QUERY_KEY = "listings";
 
@@ -115,10 +116,30 @@ export const useListings = () => {
 
 type ListingQueryKey = readonly ["listing", string];
 
-export const useListing = (listingId: string, initialData?: Listing) => {
-  return useBaseQuery<Listing>(
-    ["listing", listingId] as ListingQueryKey,
-    (token) => fetchListingById(listingId, token),
+export const useListing = (
+  listingId: string,
+  initialData?: ExtendedListing
+) => {
+  return useBaseQuery<ExtendedListing>(
+    ["listing", listingId],
+    async (token) => {
+      const response = await makeBackendRequest<ApiResponse<Listing>>(
+        `/api/listings/${listingId}`,
+        {
+          sessionToken: token,
+        }
+      );
+
+      // Convert the regular Listing to ExtendedListing
+      const extendedListing: ExtendedListing = {
+        ...response.data,
+        videoJobs: Array.isArray(response.data.videoJobs)
+          ? response.data.videoJobs
+          : [],
+      };
+
+      return extendedListing;
+    },
     {
       enabled: !!listingId,
       initialData,
