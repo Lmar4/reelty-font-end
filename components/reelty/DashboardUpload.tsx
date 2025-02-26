@@ -28,8 +28,8 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   console.log("userData", userData);
 
   // Calculate total remaining credits from all credit records
-  const totalCreditsRemaining =
-    userData?.data?.listingCredits?.creditsRemaining;
+  const totalCreditsRemaining = 3;
+  // userData?.data?.listingCredits?.creditsRemaining;
 
   // User has reached limit if they have no credits remaining
   const hasReachedLimit = totalCreditsRemaining <= 0;
