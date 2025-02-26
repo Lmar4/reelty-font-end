@@ -23,26 +23,14 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { userId } = useAuth();
-  const { data: userData } = useUserData();
-  console.log("userData", userData);
-  console.log(
-    "userData",
-    userData?.data?.listingCredits?.[0]?.creditsRemaining
-  );
+  const { data } = useUserData();
 
-  // Calculate total remaining credits from all credit records
+  // Calculate total remaining credits from the first listing credit record
   const totalCreditsRemaining =
-    userData?.data?.listingCredits?.reduce(
-      (total, credit) => total + (credit.creditsRemaining || 0),
-      0
-    ) || 0;
+    data?.listingCredits?.[0]?.creditsRemaining ?? 0;
 
   // User has reached limit if they have no credits remaining
   const hasReachedLimit = totalCreditsRemaining <= 0;
-
-  // For debugging
-  console.log("Credits remaining:", totalCreditsRemaining);
-  console.log("Has reached limit:", hasReachedLimit);
 
   // Check for stored listing data and pending files on mount
   useEffect(() => {
@@ -151,15 +139,15 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
             </h2>
             <p className='text-gray-600 text-center mt-2'>
               You've reached the limit of{" "}
-              {userData?.data?.currentTier?.maxActiveListings ?? 0} active
-              listings on your {userData?.data?.currentTier?.name ?? "current"}
+              {data?.currentTier?.maxActiveListings ?? 0} active listings on
+              your {data?.currentTier?.name ?? "current"}
               plan. Upgrade to create more listings!
             </p>
           </div>
           <PricingCards
             isModal={true}
-            currentTier={userData?.data?.currentTier?.id}
-            currentStatus={userData?.data?.subscriptionStatus}
+            currentTier={data?.currentTier?.id}
+            currentStatus={data?.subscriptionStatus}
             onUpgradeComplete={() => {
               setShowPricingModal(false);
             }}

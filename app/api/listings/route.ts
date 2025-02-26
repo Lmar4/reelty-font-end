@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/withAuth";
+import { makeBackendRequest, ApiResponse } from "@/utils/withAuth";
 import { Listing } from "@/types/prisma-types";
 
 export const GET = withAuthServer(async function GET(
@@ -11,16 +11,28 @@ export const GET = withAuthServer(async function GET(
     const query = searchParams.toString();
     const url = query ? `/api/listings?${query}` : "/api/listings";
 
-    const listings = await makeBackendRequest<Listing[]>(url, {
+    const response = await makeBackendRequest<ApiResponse<Listing[]>>(url, {
       method: "GET",
       sessionToken: request.auth.sessionToken,
     });
 
-    return NextResponse.json({ success: true, data: listings });
+    if (!response.success || !response.data) {
+      throw new Error(response.error || "Failed to fetch listings");
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: response.data,
+    });
   } catch (error) {
     console.error("[LISTINGS_GET]", error);
-    return new NextResponse(
-      error instanceof Error ? error.message : "Failed to fetch listings",
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to fetch listings",
+        data: null,
+      },
       { status: 500 }
     );
   }

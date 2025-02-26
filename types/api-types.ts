@@ -1,4 +1,12 @@
-import { User, UserRole, SubscriptionStatus } from "./prisma-types";
+import {
+  User,
+  UserRole,
+  SubscriptionStatus,
+  PlanType,
+  SubscriptionTier,
+  Listing,
+  ListingCredit as PrismaListingCredit,
+} from "./prisma-types";
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -7,19 +15,43 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+export interface ListingCredit
+  extends Omit<PrismaListingCredit, "createdAt" | "updatedAt"> {
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ListingBasicInfo extends Pick<Listing, "id" | "status"> {}
+
+export interface SubscriptionTierInfo
+  extends Omit<SubscriptionTier, "createdAt" | "updatedAt"> {
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Type for User data returned from the API
-export interface UserResource {
-  id: string;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  role: UserRole;
-  subscriptionStatus: SubscriptionStatus;
-  // Add any other fields that the API actually returns
+export interface UserResource
+  extends Omit<
+    User,
+    | "createdAt"
+    | "updatedAt"
+    | "subscriptionPeriodEnd"
+    | "lastLoginAt"
+    | "currentTier"
+    | "listingCredits"
+    | "listings"
+  > {
+  createdAt: string;
+  updatedAt: string;
+  subscriptionPeriodEnd: string | null;
+  lastLoginAt: string | null;
+  currentTier: SubscriptionTierInfo | null;
+  listingCredits: ListingCredit[];
+  listings: ListingBasicInfo[];
 }
 
 // Type guard to check if a UserResource has all required User fields
-export function isFullUser(user: UserResource): user is User {
+export function isFullUser(user: UserResource): user is UserResource {
   return (
     "password" in user &&
     "stripeCustomerId" in user &&
@@ -31,7 +63,8 @@ export function isFullUser(user: UserResource): user is User {
     "lastLoginAt" in user &&
     "createdAt" in user &&
     "updatedAt" in user &&
-    "agencyId" in user
+    "agencyId" in user &&
+    "bulkDiscountId" in user
   );
 }
 

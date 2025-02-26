@@ -16,6 +16,7 @@ export interface AuthenticatedRequest extends Request {
   auth: {
     sessionToken: string;
     userId: string;
+    role?: string;
   };
 }
 
@@ -25,12 +26,24 @@ type ApiHandler = (
   ...args: any[]
 ) => Promise<NextResponse>;
 
+// Error class to match backend
+export class AuthError extends Error {
+  public statusCode: number;
+
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.name = "AuthError";
+    this.statusCode = statusCode;
+  }
+}
+
 // Helper function to create consistent responses
 export function createApiResponse<T>(
   success: boolean,
   data?: T,
   message?: string,
-  error?: string
+  error?: string,
+  statusCode: number = 200
 ): NextResponse {
   return new NextResponse(
     JSON.stringify({
@@ -40,58 +53,89 @@ export function createApiResponse<T>(
       ...(error && { error }),
     }),
     {
-      status: success ? 200 : error ? 400 : 500,
+      status: statusCode,
       headers: { "Content-Type": "application/json" },
     }
   );
 }
 
+// Validate request helper
+async function validateRequest(request: Request) {
+  const session = await auth();
+  const user = await currentUser();
+
+  if (!session?.userId || !user) {
+    throw new AuthError(401, "Invalid or missing session");
+  }
+
+  const token = await session.getToken();
+  if (!token) {
+    throw new AuthError(401, "No session token available");
+  }
+
+  return {
+    token,
+    userId: user.id,
+    user,
+  };
+}
+
 export function withAuthServer(handler: ApiHandler) {
   return async (request: Request, ...args: any[]) => {
     try {
-      const session = await auth();
-      const user = await currentUser();
+      const { token, userId, user } = await validateRequest(request);
 
-      if (!session) {
-        return createApiResponse(
-          false,
-          undefined,
-          undefined,
-          "No active session"
-        );
-      }
-
-      if (!user) {
-        return createApiResponse(false, undefined, undefined, "User not found");
-      }
-
-      const token = await session.getToken();
-      if (!token) {
-        return createApiResponse(
-          false,
-          undefined,
-          undefined,
-          "No session token available"
-        );
-      }
-
+      // Create authenticated request object
       const authenticatedRequest = request as AuthenticatedRequest;
       authenticatedRequest.auth = {
         sessionToken: token,
-        userId: user.id,
+        userId: userId,
       };
+
+      // Add role if available from user metadata
+      const userRole = user.publicMetadata?.role as string | undefined;
+      if (userRole) {
+        authenticatedRequest.auth.role = userRole;
+      }
 
       return handler(authenticatedRequest, ...args);
     } catch (error) {
       console.error("[AUTH_ERROR]", error);
+
+      if (error instanceof AuthError) {
+        return createApiResponse(
+          false,
+          undefined,
+          undefined,
+          error.message,
+          error.statusCode
+        );
+      }
+
       return createApiResponse(
         false,
         undefined,
         undefined,
-        `Authentication error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        "Authentication failed",
+        401
       );
     }
   };
+}
+
+// Admin middleware
+export function withAdminAuth(handler: ApiHandler) {
+  return withAuthServer(async (request: AuthenticatedRequest, ...args) => {
+    if (request.auth.role !== "ADMIN") {
+      return createApiResponse(
+        false,
+        undefined,
+        undefined,
+        "Unauthorized: Admin access required",
+        403
+      );
+    }
+
+    return handler(request, ...args);
+  });
 }

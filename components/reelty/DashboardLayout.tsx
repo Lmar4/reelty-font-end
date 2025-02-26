@@ -10,7 +10,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: userData, isLoading } = useUserData();
-  const isPaidMember = userData?.data?.subscriptionStatus === "ACTIVE";
+  const isPaidMember = userData?.subscriptionStatus === "ACTIVE";
   const showBanner = !isLoading && !isPaidMember;
 
   return (

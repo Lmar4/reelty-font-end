@@ -101,13 +101,25 @@ interface CreateListingError {
 }
 
 export const useListings = () => {
-  const query = useBaseQuery<Listing[]>([LISTINGS_QUERY_KEY], (token) =>
-    fetchListings(token)
+  const query = useBaseQuery<ApiResponse<Listing[]>>(
+    [LISTINGS_QUERY_KEY],
+    async (token) => {
+      const response = await makeBackendRequest<ApiResponse<Listing[]>>(
+        "/api/listings",
+        {
+          sessionToken: token,
+        }
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.error || "Failed to fetch listings");
+      }
+      return response;
+    }
   );
 
   // Return an object with the same structure as the previous implementation
   return {
-    listings: query.data || [],
+    listings: query.data?.data || [],
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
