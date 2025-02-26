@@ -179,17 +179,17 @@ export function ListingClient({
 
   // Group video jobs by template
   const videoJobs = useMemo(() => {
-    if (!listing?.videoJobs || !Array.isArray(listing.videoJobs)) return [];
+    const jobs = listing?.videoJobs || videoData?.data?.videos || [];
+    if (!Array.isArray(jobs)) return [];
 
-    return [...listing.videoJobs].sort((a: VideoJob, b: VideoJob) => {
-      // Both createdAt dates should be Date objects from the schema
+    return [...jobs].sort((a: VideoJob, b: VideoJob) => {
       const dateA =
         a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
       const dateB =
         b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [listing?.videoJobs]);
+  }, [listing?.videoJobs, videoData?.data?.videos]);
 
   // Get active jobs
   const activeJobs = useMemo(() => {

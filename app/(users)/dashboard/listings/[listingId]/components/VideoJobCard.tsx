@@ -35,7 +35,7 @@ export function VideoJobCard({
 
   // Get the processed template path
   const processedTemplate = job.metadata?.processedTemplates?.find(
-    (template: { key: string; path: string }) => template.key === job.template
+    (template) => template.key === job.template
   );
   const videoUrl = processedTemplate?.path || job.outputFile;
 
