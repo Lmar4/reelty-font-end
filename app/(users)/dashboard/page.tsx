@@ -32,13 +32,6 @@ export default function DashboardPage() {
     setIsModalOpen(true);
   };
 
-  console.log("LISTINGS", listings);
-  console.log("User data:", {
-    user,
-    currentTier: user?.currentTier,
-    maxPhotos: user?.currentTier?.maxPhotosPerListing,
-  });
-
   if (listingsError || userError) {
     return (
       <div className='p-4 bg-red-50 rounded-lg mt-8'>

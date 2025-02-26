@@ -8,10 +8,13 @@ import { logger } from "@/utils/logger";
 // Define the API response type
 interface UserApiResponse {
   success: boolean;
-  data: { data: User };
+  data: User; // The user data is in the data property
 }
 
-async function getUserData(token: string, userId: string): Promise<User> {
+async function getUserData(
+  token: string,
+  userId: string
+): Promise<UserApiResponse> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
     {
@@ -33,8 +36,8 @@ async function getUserData(token: string, userId: string): Promise<User> {
   // Log the received data for debugging
   logger.debug("Received user data:", result);
 
-  // Return just the data property
-  return result.data.data;
+  // Return the entire response including success and data
+  return result;
 }
 
 export function useUserData() {

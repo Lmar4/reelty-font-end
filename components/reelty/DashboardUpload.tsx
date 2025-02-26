@@ -24,10 +24,15 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const { userId } = useAuth();
   const { data: userData } = useUserData();
+  console.log("userData", userData);
+  console.log(
+    "userData",
+    userData?.data?.listingCredits?.[0]?.creditsRemaining
+  );
 
   // Calculate total remaining credits from all credit records
   const totalCreditsRemaining =
-    userData?.listingCredits?.reduce(
+    userData?.data?.listingCredits?.reduce(
       (total, credit) => total + (credit.creditsRemaining || 0),
       0
     ) || 0;
@@ -146,15 +151,15 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
             </h2>
             <p className='text-gray-600 text-center mt-2'>
               You've reached the limit of{" "}
-              {userData?.currentTier?.maxActiveListings ?? 0} active listings on
-              your {userData?.currentTier?.name ?? "current"} plan. Upgrade to
-              create more listings!
+              {userData?.data?.currentTier?.maxActiveListings ?? 0} active
+              listings on your {userData?.data?.currentTier?.name ?? "current"}
+              plan. Upgrade to create more listings!
             </p>
           </div>
           <PricingCards
             isModal={true}
-            currentTier={userData?.currentTier?.id}
-            currentStatus={userData?.subscriptionStatus}
+            currentTier={userData?.data?.currentTier?.id}
+            currentStatus={userData?.data?.subscriptionStatus}
             onUpgradeComplete={() => {
               setShowPricingModal(false);
             }}
