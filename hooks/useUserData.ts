@@ -8,6 +8,7 @@ async function getUserData(token: string, userId: string): Promise<User> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
     {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
