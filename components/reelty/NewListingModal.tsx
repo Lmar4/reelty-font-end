@@ -340,6 +340,7 @@ export default function NewListingModal({
   };
 
   const handleSubmit = async (data: ListingFormData) => {
+    let uploadResults: any = null; // Define uploadResults at the top level of the function
     try {
       setIsSubmitting(true);
       setProgress(0);
@@ -404,8 +405,6 @@ export default function NewListingModal({
         );
       }
 
-      let uploadResults;
-
       // If we have a session with already uploaded photos, use those
       if (
         sessionData &&
@@ -454,6 +453,24 @@ export default function NewListingModal({
         // Upload to S3 with consistent paths
         uploadResults = await uploadToS3(filesToUpload, true, onUploadProgress);
 
+        // Log upload results for debugging
+        console.log("[LISTING_CREATION] Upload results:", {
+          resultsType: typeof uploadResults,
+          isArray: Array.isArray(uploadResults),
+          length: Array.isArray(uploadResults) ? uploadResults.length : "N/A",
+          results: uploadResults,
+        });
+
+        // Ensure uploadResults is an array
+        if (!Array.isArray(uploadResults)) {
+          console.error(
+            "[LISTING_CREATION] Upload results is not an array:",
+            uploadResults
+          );
+          uploadResults = [];
+          throw new Error("Upload failed: Invalid response format from server");
+        }
+
         // 2. Verify uploads completed successfully
         setStatus("Verifying uploads...");
         let verificationAttempts = 0;
@@ -466,9 +483,11 @@ export default function NewListingModal({
               method: "POST",
               sessionToken: token,
               body: {
-                photos: uploadResults.map((result: UploadResult) => ({
-                  s3Key: result.s3Key,
-                })),
+                photos: Array.isArray(uploadResults)
+                  ? uploadResults.map((result: UploadResult) => ({
+                      s3Key: result.s3Key,
+                    }))
+                  : [],
               },
             });
             // If verification succeeds, break out of the loop
@@ -500,12 +519,14 @@ export default function NewListingModal({
 
         // Save metadata to session
         savePhotos(
-          uploadResults.map((result: UploadResult) => ({
-            uiId: crypto.randomUUID(),
-            s3Key: result.s3Key,
-            url: `${S3_BUCKET_URL}/${result.s3Key}`,
-            bucket: S3_BUCKET_NAME,
-          }))
+          Array.isArray(uploadResults)
+            ? uploadResults.map((result: UploadResult) => ({
+                uiId: crypto.randomUUID(),
+                s3Key: result.s3Key,
+                url: `${S3_BUCKET_URL}/${result.s3Key}`,
+                bucket: S3_BUCKET_NAME,
+              }))
+            : []
         );
       }
 
@@ -519,9 +540,11 @@ export default function NewListingModal({
       const listingData = {
         ...data,
         photoLimit: selectedPhotos.size,
-        photos: uploadResults.map((result: UploadResult) => ({
-          s3Key: result.s3Key,
-        })),
+        photos: Array.isArray(uploadResults)
+          ? uploadResults.map((result: UploadResult) => ({
+              s3Key: result.s3Key,
+            }))
+          : [],
       };
 
       const createdListing = await createListing.mutateAsync(listingData);
@@ -536,9 +559,11 @@ export default function NewListingModal({
           method: "POST",
           sessionToken: token,
           body: {
-            photos: uploadResults.map((result: UploadResult) => ({
-              s3Key: result.s3Key,
-            })),
+            photos: Array.isArray(uploadResults)
+              ? uploadResults.map((result: UploadResult) => ({
+                  s3Key: result.s3Key,
+                }))
+              : [],
           },
         }
       );
@@ -565,6 +590,18 @@ export default function NewListingModal({
       setProgress(0);
       setStatus("");
 
+      // Log detailed error information
+      console.error("[LISTING_CREATION] Error details:", {
+        error,
+        errorType: typeof error,
+        errorMessage: error instanceof Error ? error.message : "Unknown error",
+        errorStack: error instanceof Error ? error.stack : undefined,
+        data,
+        selectedPhotos: selectedPhotos.size,
+        uploadResultsType: typeof uploadResults,
+        uploadResultsIsArray: Array.isArray(uploadResults),
+      });
+
       // Check if it's a listing limit error
       if (typeof error === "object" && error !== null && "limitData" in error) {
         const { limitData } = error as {
@@ -590,13 +627,6 @@ export default function NewListingModal({
       }
 
       toast.error(errorMessage);
-
-      // Log the error for debugging
-      console.error("Listing creation error:", {
-        error,
-        data,
-        selectedPhotos: selectedPhotos.size,
-      });
     }
   };
 

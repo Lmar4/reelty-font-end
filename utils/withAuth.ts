@@ -1,8 +1,4 @@
 import { useAuth } from "@clerk/nextjs";
-import { NextResponse } from "next/server";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
 // Types
 export interface BackendResponse<T> {
