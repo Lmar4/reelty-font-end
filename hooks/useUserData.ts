@@ -3,6 +3,7 @@
 import { useBaseQuery } from "./queries/useBaseQuery";
 import type { User } from "@/types/prisma-types";
 import { useAuth } from "@clerk/nextjs";
+import { logger } from "@/utils/logger";
 
 // Define the API response type
 interface UserApiResponse {
@@ -28,6 +29,11 @@ async function getUserData(token: string, userId: string): Promise<User> {
   }
 
   const result = (await response.json()) as UserApiResponse;
+
+  // Log the received data for debugging
+  logger.debug("Received user data:", result);
+
+  // Return just the data property
   return result.data;
 }
 
