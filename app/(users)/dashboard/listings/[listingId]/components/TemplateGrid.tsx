@@ -1,19 +1,14 @@
+import PricingCards from "@/components/reelty/PricingCards";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import Image from "next/image";
-import { VideoJob } from "@/types/listing-types";
-import { Badge } from "@/components/ui/badge";
-import { SubscriptionTier } from "@/constants/subscription-tiers";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import PricingCards from "@/components/reelty/PricingCards";
-import { useTemplates, Template } from "@/hooks/queries/use-templates";
-import type {
-  VideoJob as PrismaVideoJob,
-  VideoGenerationStatus,
-} from "@/types/prisma-types";
+import { SubscriptionTier } from "@/constants/subscription-tiers";
+import { Template, useTemplates } from "@/hooks/queries/use-templates";
+import { cn } from "@/lib/utils";
+import { VideoJob } from "@/types/listing-types";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
 
 interface ProcessedTemplate {
   key: string;
@@ -54,7 +49,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   const isFreeTier = userTier === SubscriptionTier.FREE;
 
   // Fetch templates
-  const { data: templates, isLoading: isLoadingTemplates } = useTemplates();
+  const { data: templatesResponse, isLoading: isLoadingTemplates } =
+    useTemplates();
   const isLoading = isLoadingProps || isLoadingTemplates;
 
   if (isLoading) {
@@ -73,9 +69,13 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     );
   }
 
-  if (!templates) {
+  if (!templatesResponse?.data) {
     return null;
   }
+
+  const templates: Template[] = Array.isArray(templatesResponse.data)
+    ? templatesResponse.data
+    : [];
 
   // Get a random photo URL to use as fallback thumbnail
   const getRandomPhotoUrl = () => {
@@ -146,8 +146,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   return (
     <>
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-        {templates
-          .sort((a, b) => {
+        {[...templates]
+          .sort((a: Template, b: Template) => {
             // First sort by FREE vs PRO
             const aIsFree = a.tiers.includes("FREE");
             const bIsFree = b.tiers.includes("FREE");
@@ -157,7 +157,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
             // Then sort by order within each group
             return a.order - b.order;
           })
-          .map((template) => {
+          .map((template: Template) => {
             const latestJob = mainJob || latestJobsByTemplate[template.key];
             const isProcessing = activeJobs.some(
               (job) =>

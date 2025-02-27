@@ -114,7 +114,7 @@ function useListingData(
   return {
     currentUser,
     userData,
-    listing,
+    listing: listing?.data,
     isLoading,
     error: userDataError || listingError || undefined,
   };
@@ -204,13 +204,13 @@ export function ListingClient({
 
   // Handle video generation
   const handleVideoGeneration = async (templateId: string) => {
-    if (!listing || !photoStatus?.photos?.length) return;
+    if (!listing || !photoStatus?.data?.photos?.length) return;
 
     try {
       await createVideoJob({
         listingId,
         template: templateId,
-        inputFiles: photoStatus.photos
+        inputFiles: photoStatus.data.photos
           .map((photo) => photo.url)
           .filter(Boolean),
       });
@@ -261,7 +261,7 @@ export function ListingClient({
   const handleRegenerateImages = async (photoIds: string | string[]) => {
     const idsArray = Array.isArray(photoIds) ? photoIds : [photoIds];
     try {
-      if (!listing || !photoStatus?.photos) {
+      if (!listing || !photoStatus?.data?.photos) {
         toast.error("No photos available");
         return;
       }
@@ -490,7 +490,7 @@ export function ListingClient({
         <div className='space-y-8'>
           <TemplateGrid
             videoJobs={videoJobs}
-            photos={photoStatus?.photos || []}
+            photos={photoStatus?.data?.photos || []}
             isLoading={isLoading}
             userTier={userData?.currentTierId || "FREE"}
             activeJobs={activeJobs}
@@ -505,7 +505,7 @@ export function ListingClient({
           isOpen={isSettingsModalOpen}
           onClose={() => setIsSettingsModalOpen(false)}
           address={initialListing.address}
-          photos={photoStatus?.photos || []}
+          photos={photoStatus?.data?.photos || []}
           onRegenerateImage={handleRegenerateImages}
           isLoading={isLoadingPhotoStatus}
         />

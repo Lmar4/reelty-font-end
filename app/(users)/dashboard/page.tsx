@@ -31,8 +31,8 @@ export default function DashboardPage() {
     setSelectedFiles(files);
     setIsModalOpen(true);
   };
-  console.log("listings", listings);
-  if (listingsError || userError) {
+
+  if ((listingsError && listings !== null) || userError) {
     return (
       <div className='p-4 bg-red-50 rounded-lg mt-8'>
         <h2 className='text-xl font-semibold text-red-700 mb-2'>
@@ -105,7 +105,7 @@ export default function DashboardPage() {
                 router.refresh();
               }}
               initialFiles={selectedFiles}
-              maxPhotos={user?.currentTier?.maxPhotosPerListing || 10}
+              maxPhotos={user?.data?.currentTier?.maxPhotosPerListing || 10}
             />
           )}
         </>

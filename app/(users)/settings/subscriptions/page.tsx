@@ -37,7 +37,7 @@ export default function SubscriptionsSettings() {
   const updateSubscriptionMutation = useUpdateSubscription();
 
   const handleSubscriptionUpdate = async () => {
-    if (!user?.id || !selectedTier) return;
+    if (!user?.data?.id || !selectedTier) return;
 
     try {
       setIsUpdating(true);
@@ -45,12 +45,12 @@ export default function SubscriptionsSettings() {
       if (!stripe) throw new Error("Stripe failed to load");
 
       // If user has no subscription, create a new checkout session
-      if (!user.stripeSubscriptionId) {
+      if (!user.data.stripeSubscriptionId) {
         const response = await fetch("/api/subscription/create-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: user.id,
+            userId: user.data.id,
             tierId: selectedTier.id,
           }),
         });
@@ -84,15 +84,15 @@ export default function SubscriptionsSettings() {
   };
 
   const handleCancelSubscription = async (reason: string, feedback: string) => {
-    if (!user?.id || !user?.stripeSubscriptionId) return;
+    if (!user?.data?.id || !user?.data?.stripeSubscriptionId) return;
 
     try {
       const response = await fetch("/api/subscription/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.id,
-          stripeSubscriptionId: user.stripeSubscriptionId,
+          userId: user.data.id,
+          stripeSubscriptionId: user.data.stripeSubscriptionId,
           reason,
           feedback,
         }),
@@ -112,8 +112,8 @@ export default function SubscriptionsSettings() {
     }
   };
 
-  const currentTier = subscriptionTiers?.find(
-    (tier) => tier.id === user?.currentTierId
+  const currentTier = subscriptionTiers?.data?.find(
+    (tier) => tier.id === user?.data?.currentTierId
   );
 
   const calculatePriceDifference = (newTier: SubscriptionTier) => {
@@ -122,12 +122,15 @@ export default function SubscriptionsSettings() {
   };
 
   const formatNextBillingDate = () => {
-    if (!user?.subscriptionPeriodEnd) return "";
-    return new Date(user.subscriptionPeriodEnd).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    if (!user?.data?.subscriptionPeriodEnd) return "";
+    return new Date(user.data.subscriptionPeriodEnd).toLocaleDateString(
+      "en-US",
+      {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }
+    );
   };
 
   if (isUserLoading || isLoadingTiers) {
@@ -157,7 +160,7 @@ export default function SubscriptionsSettings() {
           <p className='text-blue-600'>
             {currentTier?.name || "No active subscription"}
           </p>
-          {user?.subscriptionStatus === "ACTIVE" && (
+          {user?.data?.subscriptionStatus === "ACTIVE" && (
             <>
               <p className='text-sm text-blue-600 mt-2'>
                 Next billing date: {formatNextBillingDate()}
@@ -174,11 +177,11 @@ export default function SubscriptionsSettings() {
         </div>
 
         <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-          {subscriptionTiers?.map((tier) => (
+          {subscriptionTiers?.data?.map((tier) => (
             <div
               key={tier.id}
               className={`border rounded-lg p-6 transition-shadow ${
-                user?.currentTierId === tier.id
+                user?.data?.currentTierId === tier.id
                   ? "border-primary bg-primary/5"
                   : "hover:shadow-lg"
               }`}
@@ -200,13 +203,13 @@ export default function SubscriptionsSettings() {
               )}
               <Button
                 onClick={() => setSelectedTier(tier)}
-                disabled={isUpdating || user?.currentTierId === tier.id}
+                disabled={isUpdating || user?.data?.currentTierId === tier.id}
                 className='w-full'
                 variant={
-                  user?.currentTierId === tier.id ? "outline" : "default"
+                  user?.data?.currentTierId === tier.id ? "outline" : "default"
                 }
               >
-                {user?.currentTierId === tier.id
+                {user?.data?.currentTierId === tier.id
                   ? "Current Plan"
                   : "Select Plan"}
               </Button>
@@ -251,7 +254,7 @@ export default function SubscriptionsSettings() {
                     </div>
                   )}
                   <p className='text-sm text-gray-500'>
-                    {user?.stripeSubscriptionId
+                    {user?.data?.stripeSubscriptionId
                       ? "Your subscription will be updated immediately, and the new pricing will be reflected in your next billing cycle."
                       : "You will be redirected to Stripe to complete your subscription purchase."}
                   </p>
@@ -269,7 +272,9 @@ export default function SubscriptionsSettings() {
             </Button>
             <Button onClick={handleSubscriptionUpdate} disabled={isUpdating}>
               {isUpdating && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-              {user?.stripeSubscriptionId ? "Confirm Change" : "Subscribe"}
+              {user?.data?.stripeSubscriptionId
+                ? "Confirm Change"
+                : "Subscribe"}
             </Button>
           </DialogFooter>
         </DialogContent>

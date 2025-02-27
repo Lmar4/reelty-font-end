@@ -10,7 +10,7 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   const { data: userData, isLoading } = useUserData();
-  const isPaidMember = userData?.subscriptionStatus === "ACTIVE";
+  const isPaidMember = userData?.data?.subscriptionStatus === "ACTIVE";
   // Only show banner if user is logged in AND not a paid member
   const showBanner = !isLoading && userData && !isPaidMember;
 
