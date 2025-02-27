@@ -10,7 +10,7 @@ import {
 
 export interface ApiResponse<T> {
   success: boolean;
-  data?: T | null;
+  data: T;
   error?: string;
   message?: string;
 }
