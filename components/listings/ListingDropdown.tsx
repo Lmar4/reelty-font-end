@@ -14,11 +14,16 @@ interface ListingDropdownProps {
 export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useUser();
 
   const handleDelete = async () => {
+    if (isDeleting) return;
+
+    setIsDeleting(true);
+
     // Store the previous data for rollback
     const previousData = queryClient.getQueryData([
       LISTINGS_QUERY_KEY,
@@ -40,6 +45,7 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
     });
 
     try {
+      // Use the correct API endpoint
       const response = await fetch(`/api/listings/${listingId}`, {
         method: "DELETE",
         headers: {
@@ -48,16 +54,25 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
         credentials: "include", // Include cookies for authentication
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        const errorMessage = data.error || "Failed to delete listing";
+        const data = await response
+          .json()
+          .catch(() => ({ error: "Failed to parse response" }));
+        const errorMessage =
+          data.error || `Failed to delete listing: ${response.status}`;
         console.error("[DELETE_ERROR]", { status: response.status, data });
         throw new Error(errorMessage);
       }
 
+      // Successfully deleted
       // Remove the individual listing from cache if it exists
       queryClient.removeQueries({ queryKey: [LISTINGS_QUERY_KEY, listingId] });
+
+      // Invalidate the listings query to refetch the latest data
+      queryClient.invalidateQueries({
+        queryKey: [LISTINGS_QUERY_KEY, user?.id],
+      });
+
       showToast("Listing deleted successfully", "success");
     } catch (error) {
       // Rollback on error
@@ -67,6 +82,9 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
         error instanceof Error ? error.message : "Failed to delete listing",
         "error"
       );
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -79,6 +97,8 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
           setIsOpen(!isOpen);
         }}
         className='p-2 hover:bg-black/5 rounded-lg transition-colors'
+        aria-label='Listing options'
+        tabIndex={0}
       >
         <svg
           xmlns='http://www.w3.org/2000/svg'
@@ -109,7 +129,9 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
                 setShowDeleteConfirm(true);
                 setIsOpen(false);
               }}
-              className='block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 hover:rounded-lg '
+              className='block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 hover:rounded-lg'
+              tabIndex={0}
+              aria-label='Delete listing'
             >
               Delete
             </button>
@@ -121,6 +143,7 @@ export const ListingDropdown = ({ listingId }: ListingDropdownProps) => {
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDelete}
+        isLoading={isDeleting}
       />
     </div>
   );
