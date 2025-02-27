@@ -31,7 +31,7 @@ export function PaymentMethodsList({
     );
   }
 
-  if (!paymentMethods?.length) {
+  if (!paymentMethods?.data?.length) {
     return (
       <div className='flex flex-col items-center justify-center p-4 text-center'>
         <CreditCard className='h-12 w-12 text-muted-foreground mb-2' />
@@ -51,7 +51,7 @@ export function PaymentMethodsList({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {paymentMethods.map((method) => (
+      {paymentMethods.data.map((method) => (
         <Card key={method.id} className='p-4'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center space-x-4'>

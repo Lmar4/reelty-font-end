@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { SubscriptionTier } from "@/types/prisma-types";
 
 export default function BillingPage() {
   const { userId } = useAuth();
@@ -52,7 +53,7 @@ export default function BillingPage() {
     <div className='container mx-auto py-8'>
       <h1 className='text-3xl font-bold mb-8'>Subscription Plans</h1>
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-        {tiers?.map((tier) => (
+        {tiers?.data?.map((tier: SubscriptionTier) => (
           <Card key={tier.id} className='p-6'>
             <h2 className='text-2xl font-bold mb-4'>{tier.name}</h2>
             <p className='text-gray-600 mb-4'>{tier.description}</p>
@@ -60,7 +61,7 @@ export default function BillingPage() {
               ${tier.monthlyPrice.toFixed(2)}/mo
             </p>
             <ul className='space-y-2 mb-6'>
-              {tier.features.map((feature, index) => (
+              {tier.features.map((feature: string, index: number) => (
                 <li key={index} className='flex items-center'>
                   <span className='mr-2'>✓</span>
                   {feature}

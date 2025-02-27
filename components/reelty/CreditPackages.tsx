@@ -11,17 +11,20 @@ import { useCreditPackages } from "@/hooks/queries/use-credit-packages";
 import { useCreateCheckoutSession } from "@/hooks/queries/use-subscription";
 import type { CreditPackage } from "@/hooks/queries/use-credit-packages";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ApiResponse } from "@/types/api-types";
 
 export default function CreditPackages() {
   const { userId } = useAuth();
   const { toast } = useToast();
-  const { data: currentCredits, isLoading: isLoadingCredits } = useCredits(
-    userId || ""
-  );
-  const { data: creditPackages, isLoading: isLoadingPackages } =
+  const { data: currentCreditsResponse, isLoading: isLoadingCredits } =
+    useCredits(userId || "");
+  const { data: creditPackagesResponse, isLoading: isLoadingPackages } =
     useCreditPackages();
   const checkoutMutation = useCreateCheckoutSession();
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const currentCredits = currentCreditsResponse?.data ?? 0;
+  const creditPackages = creditPackagesResponse?.data ?? [];
 
   const handlePurchase = async (
     pkg: CreditPackage,
@@ -116,9 +119,7 @@ export default function CreditPackages() {
             <div className='h-4 w-16 bg-gray-200 animate-pulse rounded'></div>
           </div>
         ) : (
-          <div className='text-3xl font-bold'>
-            {currentCredits || 0} credits
-          </div>
+          <div className='text-3xl font-bold'>{currentCredits} credits</div>
         )}
       </div>
 
@@ -136,12 +137,12 @@ export default function CreditPackages() {
               <div className='col-span-3 flex justify-center py-12'>
                 <Loader2 className='h-8 w-8 animate-spin' />
               </div>
-            ) : creditPackages?.length === 0 ? (
+            ) : creditPackages.length === 0 ? (
               <div className='col-span-3 text-center py-12 text-gray-500'>
                 No credit packages available at the moment.
               </div>
             ) : (
-              creditPackages?.map((pkg) => renderPackageCard(pkg))
+              creditPackages.map((pkg: CreditPackage) => renderPackageCard(pkg))
             )}
           </div>
         </TabsContent>
@@ -153,12 +154,14 @@ export default function CreditPackages() {
               <div className='col-span-3 flex justify-center py-12'>
                 <Loader2 className='h-8 w-8 animate-spin' />
               </div>
-            ) : creditPackages?.length === 0 ? (
+            ) : creditPackages.length === 0 ? (
               <div className='col-span-3 text-center py-12 text-gray-500'>
                 No credit packages available at the moment.
               </div>
             ) : (
-              creditPackages?.map((pkg) => renderPackageCard(pkg, true))
+              creditPackages.map((pkg: CreditPackage) =>
+                renderPackageCard(pkg, true)
+              )
             )}
           </div>
         </TabsContent>

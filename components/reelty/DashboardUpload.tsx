@@ -27,7 +27,7 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
 
   // Calculate total remaining credits from the first listing credit record
   const totalCreditsRemaining =
-    data?.listingCredits?.[0]?.creditsRemaining ?? 0;
+    data?.data?.listingCredits?.[0]?.creditsRemaining ?? 0;
 
   // User has reached limit if they have no credits remaining
   const hasReachedLimit = totalCreditsRemaining <= 0;
@@ -139,15 +139,15 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
             </h2>
             <p className='text-gray-600 text-center mt-2'>
               You've reached the limit of{" "}
-              {data?.currentTier?.maxActiveListings ?? 0} active listings on
-              your {data?.currentTier?.name ?? "current"}
+              {data?.data?.currentTier?.maxActiveListings ?? 0} active listings
+              on your {data?.data?.currentTier?.name ?? "current"}
               plan. Upgrade to create more listings!
             </p>
           </div>
           <PricingCards
             isModal={true}
-            currentTier={data?.currentTier?.id}
-            currentStatus={data?.subscriptionStatus}
+            currentTier={data?.data?.currentTier?.id}
+            currentStatus={data?.data?.subscriptionStatus}
             onUpgradeComplete={() => {
               setShowPricingModal(false);
             }}
