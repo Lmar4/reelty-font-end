@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useBaseQuery } from "./useBaseQuery";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { ApiResponse } from "@/types/api-types";
 
 interface PaymentMethod {
   id: string;
@@ -20,8 +21,12 @@ export function usePaymentMethods(customerId?: string) {
   return useBaseQuery<PaymentMethod[]>(
     ["paymentMethods", customerId],
     async (token) => {
-      if (!customerId) return [];
-      return makeBackendRequest<PaymentMethod[]>(
+      if (!customerId)
+        return {
+          success: true,
+          data: [],
+        };
+      return makeBackendRequest<ApiResponse<PaymentMethod[]>>(
         `/api/payment/methods?customerId=${customerId}`,
         {
           sessionToken: token,
@@ -37,18 +42,16 @@ export function usePaymentMethods(customerId?: string) {
 export function useCreateSetupIntent() {
   return useMutation({
     mutationFn: async (customerId: string) => {
-      const response = await fetch("/api/payment/setup-intent", {
+      const response = await makeBackendRequest<
+        ApiResponse<SetupIntentResponse>
+      >("/api/payment/setup-intent", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ customerId }),
+        body: { customerId },
       });
-      if (!response.ok) {
-        throw new Error("Failed to create setup intent");
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create setup intent");
       }
-      const data = await response.json();
-      return data.data as SetupIntentResponse;
+      return response.data;
     },
   });
 }
@@ -56,15 +59,15 @@ export function useCreateSetupIntent() {
 export function useDeletePaymentMethod() {
   return useMutation({
     mutationFn: async (paymentMethodId: string) => {
-      const response = await fetch("/api/payment/method", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ paymentMethodId }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to delete payment method");
+      const response = await makeBackendRequest<ApiResponse<void>>(
+        "/api/payment/method",
+        {
+          method: "DELETE",
+          body: { paymentMethodId },
+        }
+      );
+      if (!response.success) {
+        throw new Error(response.error || "Failed to delete payment method");
       }
     },
     onSuccess: () => {
@@ -89,15 +92,17 @@ export function useUpdateDefaultPaymentMethod() {
       customerId: string;
       paymentMethodId: string;
     }) => {
-      const response = await fetch("/api/payment/method/default", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ customerId, paymentMethodId }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to update default payment method");
+      const response = await makeBackendRequest<ApiResponse<void>>(
+        "/api/payment/method/default",
+        {
+          method: "POST",
+          body: { customerId, paymentMethodId },
+        }
+      );
+      if (!response.success) {
+        throw new Error(
+          response.error || "Failed to update default payment method"
+        );
       }
     },
     onSuccess: () => {

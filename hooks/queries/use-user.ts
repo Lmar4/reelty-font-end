@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { User } from "@/types/prisma-types";
-import { UserResource, toPartialUser } from "@/types/api-types";
+import { UserResource, toPartialUser, ApiResponse } from "@/types/api-types";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { useBaseQuery } from "./useBaseQuery";
 
@@ -12,14 +12,17 @@ const USER_QUERY_KEY = "user";
 async function fetchUserData(
   token: string,
   userId: string
-): Promise<Partial<User>> {
-  const userResource = await makeBackendRequest<UserResource>(
+): Promise<ApiResponse<Partial<User>>> {
+  const response = await makeBackendRequest<ApiResponse<UserResource>>(
     `/api/users/${userId}`,
     {
       sessionToken: token,
     }
   );
-  return toPartialUser(userResource);
+  return {
+    ...response,
+    data: toPartialUser(response.data),
+  };
 }
 
 type UpdateUserPayload = {
@@ -31,8 +34,8 @@ type UpdateUserPayload = {
 async function updateUser(
   data: UpdateUserPayload,
   token: string
-): Promise<User> {
-  return makeBackendRequest<User>(`/api/users/${data.id}`, {
+): Promise<ApiResponse<User>> {
+  return makeBackendRequest<ApiResponse<User>>(`/api/users/${data.id}`, {
     method: "PUT",
     body: data,
     sessionToken: token,
@@ -45,7 +48,11 @@ export function useUserData() {
   return useBaseQuery<Partial<User> | undefined>(
     [USER_QUERY_KEY, userId],
     async (token) => {
-      if (!userId) return Promise.resolve(undefined);
+      if (!userId)
+        return Promise.resolve({
+          success: true,
+          data: undefined,
+        });
       return fetchUserData(token, userId);
     },
     {
@@ -75,7 +82,11 @@ export function useUpdateUser() {
     mutationFn: async (data) => {
       const token = await getToken();
       if (!token) throw new Error("No authentication token available");
-      return updateUser(data, token);
+      const response = await updateUser(data, token);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update user");
+      }
+      return response.data;
     },
   });
 }

@@ -43,7 +43,7 @@ export const useVideoStatus = (listingId: string) => {
   const [retryCount, setRetryCount] = useState(0);
   const [interval, setInterval] = useState(INITIAL_INTERVAL);
 
-  return useBaseQuery<VideoResponse>(
+  return useBaseQuery<VideoResponseData>(
     ["videos", listingId],
     async (token) => {
       const response = await makeBackendRequest<VideoResponse>(

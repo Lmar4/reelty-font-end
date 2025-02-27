@@ -4,11 +4,12 @@ import { useBaseQuery } from "./queries/useBaseQuery";
 import { UserResource } from "@/types/api-types";
 import { useAuth } from "@clerk/nextjs";
 import { logger } from "@/utils/logger";
+import { ApiResponse } from "@/types/api-types";
 
 async function getUserData(
   token: string,
   userId: string
-): Promise<UserResource> {
+): Promise<ApiResponse<UserResource>> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/users/${userId}`,
     {
@@ -30,7 +31,7 @@ async function getUserData(
   // Log the received data for debugging
   logger.debug("Received user data:", result);
 
-  return result;
+  return { success: true, data: result };
 }
 
 export function useUserData() {

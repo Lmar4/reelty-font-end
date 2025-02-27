@@ -6,13 +6,24 @@ import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
 import { SubscriptionTier } from "@/types/prisma-types";
 import { useBaseQuery } from "./useBaseQuery";
+import { ApiResponse } from "@/types/api-types";
+
+interface SubscriptionData {
+  id: string;
+  status: string;
+  currentTier: SubscriptionTier;
+  periodEnd: string | null;
+}
 
 async function fetchSubscriptionTiers(
   token: string
-): Promise<SubscriptionTier[]> {
-  return makeBackendRequest<SubscriptionTier[]>("/api/subscription/tiers", {
-    sessionToken: token,
-  });
+): Promise<ApiResponse<SubscriptionTier[]>> {
+  return makeBackendRequest<ApiResponse<SubscriptionTier[]>>(
+    "/api/subscription/tiers",
+    {
+      sessionToken: token,
+    }
+  );
 }
 
 interface CreateCheckoutSessionParams {
@@ -27,9 +38,9 @@ interface CreateCheckoutSessionParams {
 async function createCheckoutSession(
   params: CreateCheckoutSessionParams,
   token?: string
-): Promise<string> {
+): Promise<ApiResponse<{ url: string }>> {
   if (!token) throw new Error("No token provided");
-  const data = await makeBackendRequest<{ url: string }>(
+  return makeBackendRequest<ApiResponse<{ url: string }>>(
     "/api/create-checkout-session",
     {
       method: "POST",
@@ -37,7 +48,6 @@ async function createCheckoutSession(
       sessionToken: token,
     }
   );
-  return data.url;
 }
 
 interface UpdateSubscriptionParams {
@@ -49,9 +59,9 @@ interface UpdateSubscriptionParams {
 async function updateSubscriptionTier(
   data: UpdateSubscriptionParams,
   token?: string
-): Promise<void> {
+): Promise<ApiResponse<void>> {
   if (!token) throw new Error("No token provided");
-  await makeBackendRequest<void>("/api/subscription/tier", {
+  return makeBackendRequest<ApiResponse<void>>("/api/subscription/tier", {
     method: "PATCH",
     body: data,
     sessionToken: token,
@@ -61,10 +71,13 @@ async function updateSubscriptionTier(
 const SUBSCRIPTION_QUERY_KEY = "subscription";
 
 export function useSubscription() {
-  return useBaseQuery([SUBSCRIPTION_QUERY_KEY], (token) => {
-    return makeBackendRequest<any>("/api/subscription/current", {
-      sessionToken: token,
-    });
+  return useBaseQuery<SubscriptionData>([SUBSCRIPTION_QUERY_KEY], (token) => {
+    return makeBackendRequest<ApiResponse<SubscriptionData>>(
+      "/api/subscription/current",
+      {
+        sessionToken: token,
+      }
+    );
   });
 }
 
@@ -77,8 +90,14 @@ export function useUpdateSubscription() {
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
       if (!userId) throw new Error("User ID not found");
-      await updateSubscriptionTier({ userId, tierId: data.tierId }, token);
-      return;
+      const response = await updateSubscriptionTier(
+        { userId, tierId: data.tierId },
+        token
+      );
+      if (!response.success) {
+        throw new Error(response.error || "Failed to update subscription");
+      }
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SUBSCRIPTION_QUERY_KEY] });
@@ -98,10 +117,17 @@ export function useCancelSubscription() {
     mutationFn: async () => {
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
-      return makeBackendRequest<any>("/api/subscription/cancel", {
-        method: "POST",
-        sessionToken: token,
-      });
+      const response = await makeBackendRequest<ApiResponse<void>>(
+        "/api/subscription/cancel",
+        {
+          method: "POST",
+          sessionToken: token,
+        }
+      );
+      if (!response.success) {
+        throw new Error(response.error || "Failed to cancel subscription");
+      }
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SUBSCRIPTION_QUERY_KEY] });
@@ -114,7 +140,7 @@ export function useCancelSubscription() {
 }
 
 export function useSubscriptionTiers() {
-  return useBaseQuery(["subscriptionTiers"], (token) =>
+  return useBaseQuery<SubscriptionTier[]>(["subscriptionTiers"], (token) =>
     fetchSubscriptionTiers(token)
   );
 }
@@ -125,7 +151,11 @@ export function useCreateCheckoutSession() {
   return useMutation({
     mutationFn: async (params: CreateCheckoutSessionParams) => {
       const token = await getToken();
-      return createCheckoutSession(params, token || undefined);
+      const response = await createCheckoutSession(params, token || undefined);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create checkout session");
+      }
+      return response.data.url;
     },
   });
 }

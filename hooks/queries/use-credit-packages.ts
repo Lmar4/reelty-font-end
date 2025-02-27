@@ -1,5 +1,6 @@
 import { makeBackendRequest } from "@/utils/withAuth";
 import { useBaseQuery } from "./useBaseQuery";
+import { ApiResponse } from "@/types/api-types";
 
 export interface CreditPackage {
   id: string;
@@ -10,15 +11,18 @@ export interface CreditPackage {
   credits: number;
 }
 
-async function fetchCreditPackages(token: string): Promise<CreditPackage[]> {
+async function fetchCreditPackages(
+  token: string
+): Promise<ApiResponse<CreditPackage[]>> {
   try {
-    const tiers = await makeBackendRequest<CreditPackage[]>(
+    const response = await makeBackendRequest<ApiResponse<CreditPackage[]>>(
       "/api/subscription/tiers",
       {
         sessionToken: token,
       }
     );
-    return tiers.map((tier) => {
+
+    const packages = response.data.map((tier) => {
       const creditFeature = tier.features.find(
         (feature) =>
           feature.toLowerCase().includes("credit") ||
@@ -34,6 +38,11 @@ async function fetchCreditPackages(token: string): Promise<CreditPackage[]> {
         credits,
       };
     });
+
+    return {
+      ...response,
+      data: packages,
+    };
   } catch (error) {
     console.error("[FETCH_CREDIT_PACKAGES_ERROR]", error);
     throw error;

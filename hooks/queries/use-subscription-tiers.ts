@@ -1,13 +1,17 @@
 import { makeBackendRequest } from "@/utils/withAuth";
 import type { SubscriptionTier } from "@/types/subscription";
 import { useBaseQuery } from "./useBaseQuery";
+import { ApiResponse } from "@/types/api-types";
 
 async function fetchSubscriptionTiers(
   token: string
-): Promise<SubscriptionTier[]> {
-  return makeBackendRequest<SubscriptionTier[]>("/api/subscription/tiers", {
-    sessionToken: token,
-  });
+): Promise<ApiResponse<SubscriptionTier[]>> {
+  return makeBackendRequest<ApiResponse<SubscriptionTier[]>>(
+    "/api/subscription/tiers",
+    {
+      sessionToken: token,
+    }
+  );
 }
 
 export function useSubscriptionTiers() {

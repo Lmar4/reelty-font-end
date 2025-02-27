@@ -15,7 +15,15 @@ interface UseCreditsOptions {
   enabled?: boolean;
 }
 
-async function checkCredits(token: string, userId: string): Promise<number> {
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+}
+
+async function checkCredits(
+  token: string,
+  userId: string
+): Promise<ApiResponse<number>> {
   const data = await makeBackendRequest<{ credits: number }>(
     "/api/credits/check",
     {
@@ -24,7 +32,7 @@ async function checkCredits(token: string, userId: string): Promise<number> {
       sessionToken: token,
     }
   );
-  return data.credits;
+  return { success: true, data: data.credits };
 }
 
 async function deductCredits({
@@ -48,10 +56,14 @@ async function deductCredits({
 async function fetchCreditHistory(
   token: string,
   userId: string
-): Promise<CreditLog[]> {
-  return makeBackendRequest<CreditLog[]>(`/api/credits/history/${userId}`, {
-    sessionToken: token,
-  });
+): Promise<ApiResponse<CreditLog[]>> {
+  const data = await makeBackendRequest<CreditLog[]>(
+    `/api/credits/history/${userId}`,
+    {
+      sessionToken: token,
+    }
+  );
+  return { success: true, data };
 }
 
 export function useCredits(userId: string, options: UseCreditsOptions = {}) {

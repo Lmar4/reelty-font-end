@@ -6,34 +6,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useBaseQuery } from "./useBaseQuery";
 import type { ExtendedListing } from "@/types/listing-types";
+import { ApiResponse } from "@/types/api-types";
 
 export const LISTINGS_QUERY_KEY = "listings";
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  error?: string;
-}
-
-async function fetchListings(token: string): Promise<Listing[]> {
-  const response = await makeBackendRequest<ApiResponse<Listing[]>>(
-    "/api/listings",
-    {
-      sessionToken: token,
-    }
-  );
-  return response.data;
-}
-
-async function fetchListingById(id: string, token: string): Promise<Listing> {
-  const response = await makeBackendRequest<ApiResponse<Listing>>(
-    `/api/listings/${id}`,
-    {
-      sessionToken: token,
-    }
-  );
-  return response.data;
-}
 
 interface CreateListingInput {
   address: string;
@@ -42,10 +17,25 @@ interface CreateListingInput {
   photos: Array<{ s3Key: string }>;
 }
 
+async function fetchListings(token: string): Promise<ApiResponse<Listing[]>> {
+  return makeBackendRequest<ApiResponse<Listing[]>>("/api/listings", {
+    sessionToken: token,
+  });
+}
+
+async function fetchListingById(
+  id: string,
+  token: string
+): Promise<ApiResponse<Listing>> {
+  return makeBackendRequest<ApiResponse<Listing>>(`/api/listings/${id}`, {
+    sessionToken: token,
+  });
+}
+
 async function createListing(
   input: CreateListingInput,
   token: string
-): Promise<Listing> {
+): Promise<ApiResponse<Listing>> {
   const requestBody = {
     ...input,
     coordinates: input.coordinates
@@ -55,15 +45,11 @@ async function createListing(
         }
       : null,
   };
-  const response = await makeBackendRequest<ApiResponse<Listing>>(
-    "/api/listings",
-    {
-      method: "POST",
-      body: requestBody,
-      sessionToken: token,
-    }
-  );
-  return response.data;
+  return makeBackendRequest<ApiResponse<Listing>>("/api/listings", {
+    method: "POST",
+    body: requestBody,
+    sessionToken: token,
+  });
 }
 
 interface UploadPhotoInput {
@@ -103,30 +89,22 @@ interface CreateListingError {
 export const useListings = () => {
   const { getToken } = useAuth();
 
-  const query = useBaseQuery<ApiResponse<Listing[]>>(
-    [LISTINGS_QUERY_KEY],
-    async (token) => {
-      const response = await makeBackendRequest<ApiResponse<Listing[]>>(
-        "/api/listings",
-        {
-          sessionToken: token,
-        }
-      );
+  const query = useBaseQuery<Listing[]>([LISTINGS_QUERY_KEY], async (token) => {
+    const response = await fetchListings(token);
 
-      // If we have a successful response with data, return it
-      if (response.success && Array.isArray(response.data)) {
-        return response;
-      }
-
-      // If we have an error message, throw it
-      if (response.error) {
-        throw new Error(response.error);
-      }
-
-      // If we don't have data but the response was successful, return empty array
-      return { success: true, data: [] };
+    // If we have a successful response with data, return it
+    if (response.success && Array.isArray(response.data)) {
+      return response;
     }
-  );
+
+    // If we have an error message, throw it
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    // If we don't have data but the response was successful, return empty array
+    return { success: true, data: [] };
+  });
 
   return {
     listings: query.data?.data || [],
@@ -145,12 +123,11 @@ export const useListing = (
   return useBaseQuery<ExtendedListing>(
     ["listing", listingId],
     async (token) => {
-      const response = await makeBackendRequest<ApiResponse<Listing>>(
-        `/api/listings/${listingId}`,
-        {
-          sessionToken: token,
-        }
-      );
+      const response = await fetchListingById(listingId, token);
+
+      if (!response.success) {
+        throw new Error(response.error || "Failed to fetch listing");
+      }
 
       // Convert the regular Listing to ExtendedListing
       const extendedListing: ExtendedListing = {
@@ -160,11 +137,19 @@ export const useListing = (
           : [],
       };
 
-      return extendedListing;
+      return {
+        success: true,
+        data: extendedListing,
+      };
     },
     {
       enabled: !!listingId,
-      initialData,
+      initialData: initialData
+        ? {
+            success: true,
+            data: initialData,
+          }
+        : undefined,
     }
   );
 };
@@ -178,7 +163,11 @@ export function useCreateListing() {
       if (!userId) throw new Error("User not authenticated");
       const token = await getToken();
       if (!token) throw new Error("Authentication token not found");
-      return createListing(input, token);
+      const response = await createListing(input, token);
+      if (!response.success) {
+        throw new Error(response.error || "Failed to create listing");
+      }
+      return response.data;
     },
     onMutate: async (newListing) => {
       // Cancel any outgoing refetches
@@ -186,7 +175,8 @@ export function useCreateListing() {
 
       // Snapshot the previous value
       const previousListings =
-        queryClient.getQueryData<Listing[]>([LISTINGS_QUERY_KEY]) || [];
+        queryClient.getQueryData<ApiResponse<Listing[]>>([LISTINGS_QUERY_KEY])
+          ?.data || [];
 
       // Create an optimistic listing
       const optimisticListing: Partial<Listing> = {
@@ -214,19 +204,19 @@ export function useCreateListing() {
       };
 
       // Optimistically update to the new value
-      queryClient.setQueryData<Listing[]>(
-        [LISTINGS_QUERY_KEY],
-        [...previousListings, optimisticListing as Listing]
-      );
+      queryClient.setQueryData<ApiResponse<Listing[]>>([LISTINGS_QUERY_KEY], {
+        success: true,
+        data: [...previousListings, optimisticListing as Listing],
+      });
 
       return { previousListings };
     },
     onError: (error: unknown, variables, context) => {
       if (context?.previousListings) {
-        queryClient.setQueryData(
-          [LISTINGS_QUERY_KEY],
-          context.previousListings
-        );
+        queryClient.setQueryData<ApiResponse<Listing[]>>([LISTINGS_QUERY_KEY], {
+          success: true,
+          data: context.previousListings,
+        });
       }
 
       let errorMessage = "Failed to create listing";
@@ -247,28 +237,17 @@ export function useCreateListing() {
           } else if (parsedError.error === "Insufficient credits") {
             errorMessage =
               "You don't have enough credits to create a new listing.";
-          } else {
-            errorMessage =
-              parsedError.error || parsedError.message || error.message;
           }
         } catch {
           errorMessage = error.message;
         }
       }
 
-      console.error("[CREATE_LISTING_ERROR]", {
-        error,
-        errorMessage,
-        limitData,
-      });
-
       toast.error(errorMessage);
-      throw { message: errorMessage, limitData } as CreateListingError;
     },
-    onSuccess: (data) => {
-      // Invalidate and refetch
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [LISTINGS_QUERY_KEY] });
-      toast.success("Listing created successfully!");
+      toast.success("Listing created successfully");
     },
   });
 }
