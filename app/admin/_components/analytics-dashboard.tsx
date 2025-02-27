@@ -28,15 +28,15 @@ export function AnalyticsDashboard() {
         </TabsList>
 
         <TabsContent value='revenue'>
-          <RevenueSection data={revenueData} isLoading={isLoading} />
+          <RevenueSection data={revenueData?.data} isLoading={isLoading} />
         </TabsContent>
 
         <TabsContent value='usage'>
-          <UsageSection data={videoData} isLoading={isLoading} />
+          <UsageSection data={videoData?.data} isLoading={isLoading} />
         </TabsContent>
 
         <TabsContent value='credits'>
-          <CreditsSection data={creditData} isLoading={isLoading} />
+          <CreditsSection data={creditData?.data} isLoading={isLoading} />
         </TabsContent>
       </Tabs>
     </div>

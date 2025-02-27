@@ -21,10 +21,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       !isLoading &&
       !isError &&
       userData &&
-      userData.currentTierId !== ADMIN_TIER_ID
+      userData.data.currentTierId !== ADMIN_TIER_ID
     ) {
       console.log("Client-side admin check failed:", {
-        currentTier: userData.currentTierId,
+        currentTier: userData.data.currentTierId,
         requiredTier: ADMIN_TIER_ID,
       });
       router.replace("/");
@@ -62,7 +62,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   // Only render content if user is confirmed admin
-  if (!userData || userData.currentTierId !== ADMIN_TIER_ID) {
+  if (!userData || userData.data.currentTierId !== ADMIN_TIER_ID) {
     return null;
   }
 

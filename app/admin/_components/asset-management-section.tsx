@@ -253,7 +253,7 @@ export default function AssetManagementSection({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assets?.map((asset) => (
+            {assets?.data?.map((asset) => (
               <TableRow key={asset.id}>
                 <TableCell>{asset.name}</TableCell>
                 <TableCell>{asset.description}</TableCell>
