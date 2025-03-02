@@ -8,7 +8,7 @@ import SubscriptionEmail from "@/emails/SubscriptionEmail";
 import { plans, type Plan } from "@/components/onboarding/PlanSelection";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-01-27.acacia",
+  apiVersion: "2025-02-24.acacia",
 });
 
 export const GET = withAuthServer(async function POST(
