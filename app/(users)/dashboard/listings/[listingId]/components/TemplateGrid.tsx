@@ -13,6 +13,7 @@ import { useState } from "react";
 interface ProcessedTemplate {
   key: string;
   path: string;
+  usedFallback?: boolean;
 }
 
 interface PhotoStatus {
@@ -143,9 +144,15 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
 
     // Then check in processedTemplates
     const processedVideo = job.metadata?.processedTemplates?.find(
-      (t: ProcessedTemplate) =>
+      (t: any) =>
         t.key === template.key || t.path.includes(`/${template.key}.mp4`)
-    );
+    ) as ProcessedTemplate | undefined;
+
+    // If we have a processed video but it used a fallback image, check if that's okay for this case
+    if (processedVideo?.usedFallback) {
+      // If we're in the template grid preview, the fallback is fine
+      return processedVideo.path;
+    }
 
     return processedVideo?.path;
   };
@@ -189,6 +196,29 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
 
   const fallbackThumbnail = getRandomPhotoUrl();
 
+  const getThumbnailForTemplate = (
+    template: Template,
+    videoUrl: string | null | undefined
+  ) => {
+    // If we have a video URL, check if it's actually an image (fallback case)
+    if (
+      videoUrl &&
+      (videoUrl.endsWith(".webp") ||
+        videoUrl.endsWith(".jpg") ||
+        videoUrl.endsWith(".png"))
+    ) {
+      return videoUrl; // Use the fallback image directly as the thumbnail
+    }
+
+    // Otherwise use the template's thumbnail or a fallback
+    return (
+      template.thumbnailUrl ||
+      getTemplatePlaceholder(template.key) ||
+      fallbackThumbnail ||
+      ""
+    );
+  };
+
   return (
     <>
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
@@ -230,9 +260,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       src={videoUrl}
                       className='w-full h-full object-cover'
                       controls
-                      poster={
-                        template.thumbnailUrl || fallbackThumbnail || undefined
-                      }
+                      poster={getThumbnailForTemplate(template, videoUrl)}
                     />
                   ) : (
                     <div
@@ -257,15 +285,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       <video
                         src={videoUrl || undefined}
                         className='w-full h-full object-cover'
-                        poster={
-                          videoUrl
-                            ? template.thumbnailUrl ||
-                              fallbackThumbnail ||
-                              undefined
-                            : getTemplatePlaceholder(template.key) ||
-                              fallbackThumbnail ||
-                              undefined
-                        }
+                        poster={getThumbnailForTemplate(template, videoUrl)}
                       />
                     </div>
                   )}
