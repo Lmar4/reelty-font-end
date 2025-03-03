@@ -77,6 +77,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     ? templatesResponse.data
     : [];
 
+  console.log("templates", templates);
+
   // Get a random photo URL to use as fallback thumbnail
   const getRandomPhotoUrl = () => {
     if (!photos || photos.length === 0) return null;
@@ -86,6 +88,50 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     if (completedPhotos.length === 0) return null;
     const randomIndex = Math.floor(Math.random() * completedPhotos.length);
     return completedPhotos[randomIndex].url;
+  };
+
+  // Get a template-specific placeholder image
+  const getTemplatePlaceholder = (templateKey: string) => {
+    if (!photos || photos.length === 0) return null;
+
+    const completedPhotos = photos.filter(
+      (p) => p.status === "completed" && !p.hasError
+    );
+
+    if (completedPhotos.length === 0) return null;
+
+    // For specific templates, we can choose appropriate photos
+    if (templateKey === "google-zoom") {
+      // For Google Zoom, use the first photo (usually the main/exterior shot)
+      const sortedPhotos = [...completedPhotos].sort(
+        (a, b) => a.order - b.order
+      );
+      return sortedPhotos[0]?.url;
+    }
+
+    if (templateKey === "wes-anderson") {
+      // For Wes Anderson, use a photo from the middle of the collection (often interior)
+      const middleIndex = Math.floor(completedPhotos.length / 2);
+      return completedPhotos[middleIndex]?.url;
+    }
+
+    // For other templates, use photos based on their order
+    const photosByOrder = new Map<number, PhotoStatus>();
+    completedPhotos.forEach((photo) => {
+      photosByOrder.set(photo.order, photo);
+    });
+
+    // Try to get photos in this order preference (common for real estate)
+    const orderPreference = [0, 1, 2, 3, 4]; // Exterior, main interior, kitchen, etc.
+
+    for (const order of orderPreference) {
+      if (photosByOrder.has(order)) {
+        return photosByOrder.get(order)?.url;
+      }
+    }
+
+    // Fallback to random photo
+    return getRandomPhotoUrl();
   };
 
   // Get video URL for a specific template from the metadata
@@ -195,13 +241,30 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                         isPremium && "grayscale"
                       )}
                     >
+                      {!videoUrl && (
+                        <div className='absolute inset-0 flex items-center justify-center'>
+                          <div className='absolute inset-0 bg-black/20 backdrop-blur-[2px]'></div>
+                          <div className='z-10 text-white text-center px-4'>
+                            <p className='text-sm font-medium mb-2'>
+                              {template.name} Preview
+                            </p>
+                            <p className='text-xs opacity-80'>
+                              Generate to create your video
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <video
                         src={videoUrl || undefined}
                         className='w-full h-full object-cover'
                         poster={
-                          template.thumbnailUrl ||
-                          fallbackThumbnail ||
-                          undefined
+                          videoUrl
+                            ? template.thumbnailUrl ||
+                              fallbackThumbnail ||
+                              undefined
+                            : getTemplatePlaceholder(template.key) ||
+                              fallbackThumbnail ||
+                              undefined
                         }
                       />
                     </div>
@@ -225,7 +288,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
 
                   <Button
                     onClick={() =>
-                      latestJob?.status === "COMPLETED"
+                      videoUrl && latestJob?.status === "COMPLETED"
                         ? handleDownloadClick(template.key, latestJob)
                         : onGenerateVideo(template.key)
                     }
@@ -246,8 +309,14 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                         <Loader2 className='w-4 h-4 animate-spin' />
                         <span>Generating...</span>
                       </div>
+                    ) : videoUrl ? (
+                      latestJob?.status === "COMPLETED" ? (
+                        "Download HD"
+                      ) : (
+                        "Regenerate"
+                      )
                     ) : (
-                      "Download HD"
+                      "Generate"
                     )}
                   </Button>
                 </div>
