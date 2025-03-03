@@ -1,26 +1,72 @@
 import { NextResponse } from "next/server";
 import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { z } from "zod";
 
 const MAX_BATCH_SIZE = 20; // Reasonable limit for batch processing
+
+// Define validation schema for regeneration context
+const regenerationContextSchema = z
+  .object({
+    existingPhotos: z
+      .array(
+        z.object({
+          filePath: z.string().url(),
+          id: z.string(),
+          order: z.number(),
+          processedFilePath: z.string().url(),
+          runwayVideoPath: z.string().url().optional(),
+        })
+      )
+      .optional(),
+    photosToRegenerate: z
+      .array(
+        z.object({
+          filePath: z.string().url(),
+          id: z.string(),
+          order: z.number(),
+          processedFilePath: z.string().url().optional(),
+        })
+      )
+      .optional(),
+    regeneratedPhotoIds: z.array(z.string()).optional(),
+    totalPhotos: z.number().optional(),
+  })
+  .optional();
+
+// Define validation schema for the request body
+const requestBodySchema = z.object({
+  photoIds: z.array(z.string()).min(1).max(MAX_BATCH_SIZE),
+  forceRegeneration: z.boolean().default(true),
+  regenerationContext: regenerationContextSchema,
+});
 
 export const POST = withAuthServer(async function POST(
   request: AuthenticatedRequest
 ) {
   try {
     const body = await request.json();
-    const { photoIds, forceRegeneration = true, regenerationContext } = body;
 
-    if (!Array.isArray(photoIds) || photoIds.length === 0) {
-      return new NextResponse("Invalid photo IDs", { status: 400 });
-    }
+    // Validate the request body
+    const validationResult = requestBodySchema.safeParse(body);
 
-    if (photoIds.length > MAX_BATCH_SIZE) {
+    if (!validationResult.success) {
+      console.error(
+        "[PHOTOS_REGENERATE] Validation error:",
+        validationResult.error
+      );
       return new NextResponse(
-        `Cannot process more than ${MAX_BATCH_SIZE} photos at once`,
+        JSON.stringify({
+          success: false,
+          message: "Invalid request format",
+          details: validationResult.error.format(),
+        }),
         { status: 400 }
       );
     }
+
+    const { photoIds, forceRegeneration, regenerationContext } =
+      validationResult.data;
 
     const response = await makeBackendRequest<{
       success: boolean;
