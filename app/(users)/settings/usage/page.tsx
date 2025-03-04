@@ -1,9 +1,34 @@
 "use client";
 
 import { useListings } from "@/hooks/queries/use-listings";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export default function Usage() {
-  const { listings } = useListings();
+  const { listings, isLoading, error } = useListings();
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center py-12'>
+        <LoadingState size='lg' />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className='p-4 bg-red-50 rounded-lg mt-8'>
+        <h2 className='text-xl font-semibold text-red-700 mb-2'>
+          Error loading usage data
+        </h2>
+        <p className='text-red-600'>
+          {error instanceof Error ? error.message : "Please try again later"}
+        </p>
+      </div>
+    );
+  }
+
   const totalListings = listings?.length || 0;
   const maxListings = 1; // This should come from your subscription plan
   const usagePercentage = (totalListings / maxListings) * 100;

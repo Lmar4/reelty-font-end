@@ -28,7 +28,7 @@ export default function ListingPageClient({
     );
   }
 
-  if (error || !listing) {
+  if (!isLoading && (error || !listing)) {
     if (error instanceof Error && error.message.includes("404")) {
       notFound();
     }
@@ -50,7 +50,7 @@ export default function ListingPageClient({
     <div className='flex-1 space-y-4 md:p-8 pt-6'>
       <ListingClient
         listingId={listingId}
-        initialListing={listing.data}
+        initialListing={listing!.data}
         searchParams={{}}
       />
     </div>

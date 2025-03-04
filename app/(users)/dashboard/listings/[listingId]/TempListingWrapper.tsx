@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useListingSession } from "@/hooks/use-listing-session";
 import NewListingModal from "@/components/reelty/NewListingModal";
+import { LoadingState } from "@/components/ui/loading-state";
 
 export default function TempListingWrapper({
   listingId,
@@ -24,7 +25,11 @@ export default function TempListingWrapper({
 
   // Show loading state while checking session
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className='flex items-center justify-center py-12'>
+        <LoadingState size='lg' />
+      </div>
+    );
   }
 
   // Only show null after we've confirmed no session

@@ -31,9 +31,16 @@ export default function SubscriptionsSettings() {
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(
     null
   );
-  const { data: user, isLoading: isUserLoading } = useUserData();
-  const { data: subscriptionTiers, isLoading: isLoadingTiers } =
-    useSubscriptionTiers();
+  const {
+    data: user,
+    isLoading: isUserLoading,
+    error: userError,
+  } = useUserData();
+  const {
+    data: subscriptionTiers,
+    isLoading: isLoadingTiers,
+    error: tiersError,
+  } = useSubscriptionTiers();
   const updateSubscriptionMutation = useUpdateSubscription();
 
   const handleSubscriptionUpdate = async () => {
@@ -137,6 +144,24 @@ export default function SubscriptionsSettings() {
     return (
       <div className='flex items-center justify-center min-h-[400px]'>
         <Loader2 className='h-8 w-8 animate-spin' />
+      </div>
+    );
+  }
+
+  // Show error state if there's an error
+  if (userError || tiersError) {
+    return (
+      <div className='p-4 bg-red-50 rounded-lg mt-8'>
+        <h2 className='text-xl font-semibold text-red-700 mb-2'>
+          Error loading subscription data
+        </h2>
+        <p className='text-red-600'>
+          {userError instanceof Error
+            ? userError.message
+            : tiersError instanceof Error
+            ? tiersError.message
+            : "Please try again later"}
+        </p>
       </div>
     );
   }
