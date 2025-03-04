@@ -78,8 +78,6 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     ? templatesResponse.data
     : [];
 
-  console.log("templates", templates);
-
   // Get a random photo URL to use as fallback thumbnail
   const getRandomPhotoUrl = () => {
     if (!photos || photos.length === 0) return null;
