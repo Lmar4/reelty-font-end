@@ -233,10 +233,14 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
           })
           .map((template: Template) => {
             const latestJob = mainJob || latestJobsByTemplate[template.key];
+
+            // Check if there's an active job that's newer than our latest completed job
             const isProcessing = activeJobs.some(
               (job) =>
                 job.template === template.key &&
-                (job.status === "PROCESSING" || job.status === "PENDING")
+                (job.status === "PROCESSING" || job.status === "PENDING") &&
+                (!latestJob ||
+                  new Date(job.createdAt) >= new Date(latestJob.createdAt))
             );
 
             const videoUrl = latestJob
