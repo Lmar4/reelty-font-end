@@ -32,6 +32,9 @@ import usePlacesAutocomplete, {
 } from "use-places-autocomplete";
 import PhotoManager from "./PhotoManager";
 import PricingCards from "./PricingCards";
+import { usePhotoStatus } from "@/hooks/queries/use-photo-status";
+import { LoadingState } from "@/components/ui/loading-state";
+import dynamic from "next/dynamic";
 
 // Initialize Google Maps loader
 const loader = new Loader({
@@ -115,6 +118,13 @@ export default function NewListingModal({
     currentTier: string;
     maxAllowed: number;
   } | null>(null);
+
+  // Add these new states
+  const [createdListingId, setCreatedListingId] = useState<string | null>(null);
+  const [showProcessingState, setShowProcessingState] = useState(false);
+
+  // Photo status hook - will only be enabled when we have a listing ID and are showing processing
+  const photoStatus = usePhotoStatus(createdListingId || "");
 
   const form = useForm<ListingFormData>({
     resolver: zodResolver(listingFormSchema),
@@ -569,6 +579,9 @@ export default function NewListingModal({
 
       const createdListing = await createListing.mutateAsync(listingData);
 
+      // Save the created listing ID
+      setCreatedListingId(createdListing.id);
+
       // 4. Trigger photo processing with verified photos
       setStatus("Processing photos...");
       setProgress(80);
@@ -599,12 +612,9 @@ export default function NewListingModal({
       setSelectedPhotos(new Set());
 
       toast.success("Listing created successfully!");
-      onClose();
 
-      // Redirect after a brief delay
-      setTimeout(() => {
-        router.push(`/dashboard/listings/${createdListing.id}`);
-      }, 1000);
+      // Instead of redirecting, show the processing state
+      setShowProcessingState(true);
     } catch (error) {
       setIsSubmitting(false);
       setProgress(0);
@@ -699,6 +709,112 @@ export default function NewListingModal({
           >
             Cancel
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show processing state if needed
+  if (showProcessingState && createdListingId) {
+    const status = photoStatus.data?.data;
+
+    return (
+      <div
+        className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center overflow-y-auto'
+        onClick={(e) => {
+          // Prevent closing if still processing
+          if (status?.status !== "PROCESSING") {
+            handleBackdropClick(e);
+          }
+        }}
+      >
+        <div className='bg-white rounded-lg max-w-[500px] w-[calc(100%-2rem)] p-6 relative mx-auto flex flex-col overflow-hidden'>
+          <h2 className='text-[24px] font-semibold text-black mb-4'>
+            Processing Your Listing
+          </h2>
+
+          {photoStatus.isLoading ? (
+            <div className='flex flex-col items-center justify-center py-8'>
+              <LoadingState size='lg' />
+              <p className='mt-4 text-gray-600'>
+                Checking processing status...
+              </p>
+            </div>
+          ) : (
+            <div className='flex flex-col gap-4'>
+              <div className='flex flex-col gap-2'>
+                <p className='text-gray-700'>
+                  {status?.message || "Your listing is being processed..."}
+                </p>
+
+                <div className='h-2 bg-gray-100 rounded-full overflow-hidden'>
+                  <div
+                    className='h-full bg-green-500 transition-all duration-300'
+                    style={{
+                      width:
+                        status?.processingCount === 0
+                          ? "100%"
+                          : `${
+                              100 -
+                              ((status?.processingCount || 0) /
+                                (status?.totalCount || 1)) *
+                                100
+                            }%`,
+                    }}
+                  />
+                </div>
+
+                <p className='text-sm text-gray-500'>
+                  {status?.processingCount === 0
+                    ? "All photos processed! Your reels are being generated."
+                    : `Processed ${
+                        (status?.totalCount || 0) -
+                        (status?.processingCount || 0)
+                      } of ${status?.totalCount || 0} photos`}
+                </p>
+              </div>
+
+              {status?.status === "ERROR" && (
+                <div className='p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm'>
+                  Some photos encountered errors during processing. Don't worry,
+                  we're still working on your listing.
+                </div>
+              )}
+
+              {status?.status === "COMPLETED" && (
+                <div className='p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm'>
+                  Processing complete! Your listing reels have been generated
+                  successfully.
+                </div>
+              )}
+
+              <div className='flex justify-end gap-3 mt-2'>
+                {status?.status !== "PROCESSING" && (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      router.push(`/dashboard/listings/${createdListingId}`);
+                    }}
+                    className='bg-black text-white rounded-lg px-4 py-2 text-sm font-medium'
+                  >
+                    View Listing
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    onClose();
+                    if (status?.status !== "PROCESSING") {
+                      router.refresh();
+                    }
+                  }}
+                  className='border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium'
+                  disabled={status?.status === "PROCESSING"}
+                >
+                  {status?.status === "PROCESSING" ? "Processing..." : "Close"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

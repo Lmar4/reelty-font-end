@@ -251,10 +251,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
             return (
               <Card
                 key={template.key}
-                className={cn(
-                  "overflow-hidden rounded-lg",
-                  isPremium && "opacity-90"
-                )}
+                className={cn("overflow-hidden rounded-lg")}
               >
                 <div className='relative bg-gray-100 aspect-[9/16]'>
                   {videoUrl && !isPremium ? (
@@ -265,12 +262,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       poster={getThumbnailForTemplate(template, videoUrl)}
                     />
                   ) : (
-                    <div
-                      className={cn(
-                        "relative w-full h-full",
-                        isPremium && "grayscale"
-                      )}
-                    >
+                    <div className={cn("relative w-full h-full")}>
                       {!videoUrl && (
                         <div className='absolute inset-0 flex items-center justify-center'>
                           <div className='absolute inset-0 bg-black/20 backdrop-blur-[2px]'></div>
