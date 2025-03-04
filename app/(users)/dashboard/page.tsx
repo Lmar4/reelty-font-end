@@ -32,7 +32,11 @@ export default function DashboardPage() {
     setIsModalOpen(true);
   };
 
-  if ((listingsError && listings !== null) || userError) {
+  // Only show error if we're not in a loading state and have a genuine error
+  if (
+    (!isListingsLoading && listingsError && listings !== null) ||
+    (!isUserLoading && userError)
+  ) {
     return (
       <div className='p-4 bg-red-50 rounded-lg mt-8'>
         <h2 className='text-xl font-semibold text-red-700 mb-2'>
@@ -48,6 +52,15 @@ export default function DashboardPage() {
         >
           Try Again
         </button>
+      </div>
+    );
+  }
+
+  // If we're still loading user data, show a loading state instead of error
+  if (isUserLoading) {
+    return (
+      <div className='flex items-center justify-center py-12'>
+        <LoadingState size='lg' />
       </div>
     );
   }
