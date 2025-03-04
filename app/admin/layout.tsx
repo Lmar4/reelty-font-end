@@ -1,75 +1,53 @@
 "use client";
 
 import { useUserData } from "@/hooks/useUserData";
-import { useRouter } from "next/navigation";
-import { ReactNode, useEffect } from "react";
-import { AdminNav } from "./_components/admin-nav";
+import { redirect } from "next/navigation";
+import { LoadingState } from "@/components/ui/loading-state";
 
+// Admin tier ID constant
 const ADMIN_TIER_ID = "550e8400-e29b-41d4-a716-446655440003";
 
-interface AdminLayoutProps {
-  children: ReactNode;
-}
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { data: userData, isLoading, isError, error } = useUserData();
 
-export default function AdminLayout({ children }: AdminLayoutProps) {
-  const router = useRouter();
-  const { data: userData, isLoading, isError } = useUserData();
-
-  useEffect(() => {
-    // Only redirect if we have a definitive non-admin status
-    if (
-      !isLoading &&
-      !isError &&
-      userData &&
-      userData.data.currentTierId !== ADMIN_TIER_ID
-    ) {
-      console.log("Client-side admin check failed:", {
-        currentTier: userData.data.currentTierId,
-        requiredTier: ADMIN_TIER_ID,
-      });
-      router.replace("/");
-    }
-  }, [isError, userData, isLoading, router]);
-
-  // Show loading state
+  // Show loading state while checking user data
   if (isLoading) {
     return (
-      <div className='min-h-screen bg-gray-100'>
-        <AdminNav />
-        <main className='container mx-auto px-4 py-16'>
-          <div className='flex items-center justify-center min-h-[calc(100vh-4rem)]'>
-            <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary'></div>
-          </div>
-        </main>
+      <div className='flex items-center justify-center min-h-screen'>
+        <LoadingState size='lg' />
       </div>
     );
   }
 
   // Show error state
-  if (isError) {
+  if (isError || error) {
     return (
-      <div className='min-h-screen bg-gray-100'>
-        <AdminNav />
-        <main className='container mx-auto px-4 py-16'>
-          <div className='flex items-center justify-center min-h-[calc(100vh-4rem)]'>
-            <div className='text-destructive'>
-              Error loading admin dashboard. Please try again later.
-            </div>
-          </div>
-        </main>
+      <div className='p-4 bg-red-50 rounded-lg mt-8'>
+        <h2 className='text-xl font-semibold text-red-700 mb-2'>
+          Error loading admin data
+        </h2>
+        <p className='text-red-600'>
+          {error instanceof Error ? error.message : "Please try again later"}
+        </p>
       </div>
     );
   }
 
-  // Only render content if user is confirmed admin
-  if (!userData || userData.data.currentTierId !== ADMIN_TIER_ID) {
-    return null;
+  // Only check role after loading is complete
+  if (
+    !userData?.data?.currentTierId ||
+    userData.data.currentTierId !== ADMIN_TIER_ID
+  ) {
+    redirect("/dashboard");
   }
 
   return (
-    <div className='min-h-screen bg-gray-100'>
-      <AdminNav />
-      <main className='container mx-auto px-4 py-16'>{children}</main>
+    <div className='flex min-h-screen flex-col'>
+      <div className='flex-1 container py-6'>{children}</div>
     </div>
   );
 }
