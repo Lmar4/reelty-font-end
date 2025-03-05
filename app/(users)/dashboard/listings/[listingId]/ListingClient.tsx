@@ -222,40 +222,94 @@ export function ListingClient({
 
   // Handle download
   const handleDownload = async (jobId: string, templateKey: string) => {
-    const job = videoJobs.find((j) => j.id === jobId);
-    if (!job) return;
-
-    // Get the processed template path for the specific template
-    const processedTemplate = job.metadata?.processedTemplates?.find(
-      (template: { key: string; path: string }) => template.key === templateKey
+    console.log(
+      `Download requested for template: ${templateKey}, job: ${jobId}`
     );
-    const videoUrl =
-      processedTemplate?.path ||
-      (job.template === templateKey ? job.outputFile : null);
 
-    if (videoUrl) {
-      try {
-        const response = await fetch(videoUrl);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        const filename = `${listing?.address || "property"}-${
-          templateKey || "video"
-        }.mp4`;
-        link.setAttribute("download", filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        // Increment download count for free users
-        if (userData?.currentTierId === "FREE") {
-          setDownloadCount((prev) => prev + 1);
-        }
-      } catch (error) {
-        console.error("Download failed:", error);
-        window.open(videoUrl, "_blank");
+    const job = videoJobs.find((j) => j.id === jobId);
+    if (!job) {
+      console.error(`No job found with ID: ${jobId}`);
+      return;
+    }
+
+    // For free tier users, check if they've already downloaded a template
+    if (userData?.currentTierId === "FREE" && downloadCount >= 1) {
+      console.log(
+        `Free tier user has already downloaded ${downloadCount} templates`
+      );
+      toast.error(
+        "Free tier users can only download 1 template. Please upgrade to download more."
+      );
+      return;
+    }
+
+    // First try to find the video element with this template's source
+    const videoElement =
+      (document.querySelector(`#video-${templateKey}`) as HTMLVideoElement) ||
+      (document.querySelector(
+        `#video-preview-${templateKey}`
+      ) as HTMLVideoElement);
+
+    console.log(`Video element found: ${!!videoElement}`, videoElement);
+
+    // If we found the video element, use its source directly
+    let videoUrl: string | null = videoElement?.src || null;
+
+    // If we couldn't find the video element, fall back to the previous method
+    if (!videoUrl) {
+      console.log(`No video element found, falling back to metadata lookup`);
+      // Get the processed template path for the specific template
+      const processedTemplate = job.metadata?.processedTemplates?.find(
+        (template: { key: string; path: string }) =>
+          template.key === templateKey
+      );
+
+      console.log(`Processed template found:`, processedTemplate);
+
+      // Make sure we're getting the correct template video
+      videoUrl =
+        processedTemplate?.path ||
+        (job.template === templateKey ? job.outputFile : null);
+
+      console.log(`Fallback video URL:`, videoUrl);
+    }
+
+    if (!videoUrl) {
+      console.error(`Could not find video URL for template: ${templateKey}`);
+      toast.error(`Could not find video for template: ${templateKey}`);
+      return;
+    }
+
+    console.log(`Downloading video from URL: ${videoUrl}`);
+
+    try {
+      const response = await fetch(videoUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const filename = `${listing?.address || "property"}-${
+        templateKey || "video"
+      }.mp4`;
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Increment download count for free users
+      if (userData?.currentTierId === "FREE") {
+        setDownloadCount((prev) => prev + 1);
+        toast.success(
+          "Video downloaded successfully! You've used your free download."
+        );
+      } else {
+        toast.success("Video downloaded successfully!");
       }
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error("Download failed. Trying alternative method...");
+      window.open(videoUrl, "_blank");
     }
   };
 

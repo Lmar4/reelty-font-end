@@ -45,9 +45,11 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   onGenerateVideo,
   onDownload,
   isGenerating = false,
+  downloadCount = 0,
 }) => {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const isFreeTier = userTier === SubscriptionTier.FREE;
+  const hasReachedFreeDownloadLimit = isFreeTier && downloadCount >= 1;
 
   // Fetch templates
   const { data: templatesResponse, isLoading: isLoadingTemplates } =
@@ -180,6 +182,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
 
     if (isPremiumTemplate && isFreeTier) {
       setShowPricingModal(true);
+    } else if (hasReachedFreeDownloadLimit && isFreeTier) {
+      setShowPricingModal(true);
     } else if (onDownload) {
       onDownload(job.id, templateKey);
     }
@@ -248,6 +252,12 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
               : null;
             const isPremiumTemplate = !template.tiers.includes("FREE");
             const isPremium = isPremiumTemplate && isFreeTier;
+            const isDownloadDisabled = !!(
+              hasReachedFreeDownloadLimit &&
+              isFreeTier &&
+              videoUrl &&
+              latestJob?.status === "COMPLETED"
+            );
 
             return (
               <Card
@@ -257,6 +267,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                 <div className='relative bg-gray-100 aspect-[9/16]'>
                   {videoUrl && !isPremium ? (
                     <video
+                      id={`video-${template.key}`}
                       src={videoUrl}
                       className='w-full h-full object-cover'
                       controls
@@ -278,6 +289,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                         </div>
                       )}
                       <video
+                        id={`video-preview-${template.key}`}
                         src={videoUrl || undefined}
                         className='w-full h-full object-cover'
                         poster={getThumbnailForTemplate(template, videoUrl)}
@@ -311,13 +323,14 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       isProcessing ||
                       !photos.length ||
                       isGenerating ||
-                      (isPremium && isFreeTier)
+                      (isPremium && isFreeTier) ||
+                      isDownloadDisabled
                     }
                     className={cn(
-                      "w-full bg-black hover:bg-black/90 text-white",
-                      isPremium &&
-                        isFreeTier &&
-                        "bg-gray-200 hover:bg-gray-200 text-gray-500 cursor-not-allowed"
+                      "w-full",
+                      (isPremium && isFreeTier) || isDownloadDisabled
+                        ? "bg-gray-200 hover:bg-gray-200 text-gray-500 cursor-not-allowed"
+                        : "bg-black hover:bg-black/90 text-white"
                     )}
                   >
                     {isProcessing ? (
@@ -327,7 +340,11 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       </div>
                     ) : videoUrl ? (
                       latestJob?.status === "COMPLETED" ? (
-                        "Download HD"
+                        isDownloadDisabled ? (
+                          "Upgrade to Download"
+                        ) : (
+                          "Download HD"
+                        )
                       ) : (
                         "Regenerate"
                       )
