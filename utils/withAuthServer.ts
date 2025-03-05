@@ -1,65 +1,16 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import {
+  ApiResponse,
+  AuthError,
+  createApiResponse,
+  AuthenticatedRequest,
+  ApiHandler,
+} from "./types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-
-// Types
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
-export interface AuthenticatedRequest extends Request {
-  auth: {
-    sessionToken: string;
-    userId: string;
-    role?: string;
-  };
-}
-
-// Route handler wrapper
-type ApiHandler = (
-  request: AuthenticatedRequest,
-  ...args: any[]
-) => Promise<NextResponse>;
-
-// Error class to match backend
-export class AuthError extends Error {
-  public statusCode: number;
-
-  constructor(statusCode: number, message: string) {
-    super(message);
-    this.name = "AuthError";
-    this.statusCode = statusCode;
-  }
-}
-
-// Helper function to create consistent responses
-export function createApiResponse<T>(
-  success: boolean,
-  data?: T,
-  message?: string,
-  error?: string,
-  statusCode: number = 200
-): NextResponse {
-  return new NextResponse(
-    JSON.stringify({
-      success,
-      ...(data !== undefined && { data }),
-      ...(message && { message }),
-      ...(error && { error }),
-    }),
-    {
-      status: statusCode,
-      headers: { "Content-Type": "application/json" },
-    }
-  );
-}
 
 // Validate request helper
 async function validateRequest(request: Request) {
@@ -105,7 +56,7 @@ async function validateRequest(request: Request) {
   }
 }
 
-export function withAuthServer(handler: ApiHandler) {
+export async function withAuthServer(handler: ApiHandler) {
   return async (request: Request, ...args: any[]) => {
     try {
       const { token, userId, user } = await validateRequest(request);
@@ -149,7 +100,7 @@ export function withAuthServer(handler: ApiHandler) {
 }
 
 // Admin middleware
-export function withAdminAuth(handler: ApiHandler) {
+export async function withAdminAuth(handler: ApiHandler) {
   return withAuthServer(async (request: AuthenticatedRequest, ...args) => {
     if (request.auth.role !== "ADMIN") {
       return createApiResponse(

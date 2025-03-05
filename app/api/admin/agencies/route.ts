@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const agencySchema = z.object({
@@ -9,8 +9,8 @@ const agencySchema = z.object({
   ownerId: z.string().min(1),
 });
 
-// GET /api/admin/agencies
-export const GET = withAuthServer(async (request) => {
+// Handler functions
+async function getAgencies(request: AuthenticatedRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -45,10 +45,9 @@ export const GET = withAuthServer(async (request) => {
       { status: 500 }
     );
   }
-});
+}
 
-// POST /api/admin/agencies
-export const POST = withAuthServer(async (request) => {
+async function createAgency(request: AuthenticatedRequest) {
   try {
     const body = await request.json();
     const validatedData = agencySchema.parse(body);
@@ -81,4 +80,15 @@ export const POST = withAuthServer(async (request) => {
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getAgencies);
+  return authHandler(req);
+}
+
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(createAgency);
+  return authHandler(req);
+}

@@ -1,40 +1,17 @@
-import WelcomeEmail from "@/emails/WelcomeEmail";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { currentUser } from "@clerk/nextjs/server";
-import { render } from "@react-email/render";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function POST(
-  req: AuthenticatedRequest
-) {
+// Handler function
+async function sendWelcomeEmail(req: AuthenticatedRequest) {
   try {
-    const user = await currentUser();
-    if (!user) {
-      return new NextResponse("User not found", { status: 404 });
-    }
-
-    const emailHtml = render(
-      WelcomeEmail({
-        firstName: user.firstName || "there",
-        appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://app.reelty.com",
-      })
-    );
-
-    // Send welcome email via PLUNK
-    await fetch("https://api.useplunk.com/v1/send", {
+    const data = await makeBackendRequest("/api/send-welcome-email", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.PLUNK_PUBLIC_API_KEY}`,
-      },
-      body: JSON.stringify({
-        html: emailHtml,
-        subject: "Welcome to Reelty!",
-        to: user.emailAddresses[0].emailAddress,
-      }),
+      sessionToken: req.auth.sessionToken,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("[WELCOME_EMAIL_ERROR]", error);
     return new NextResponse(
@@ -42,4 +19,10 @@ export const GET = withAuthServer(async function POST(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(sendWelcomeEmail);
+  return authHandler(req);
+}

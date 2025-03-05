@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { AuthenticatedRequest } from "@/utils/types";
 
-// POST /api/admin/bulk-upload
-export const GET = withAuthServer(async (request) => {
+// Handler function
+async function handleBulkUpload(request: AuthenticatedRequest) {
   try {
     const formData = await request.formData();
 
@@ -38,4 +38,10 @@ export const GET = withAuthServer(async (request) => {
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(handleBulkUpload);
+  return authHandler(req);
+}

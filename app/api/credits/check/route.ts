@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function POST(
-  req: AuthenticatedRequest
-) {
+// Handler function
+async function checkCredits(req: AuthenticatedRequest) {
   try {
     const data = await makeBackendRequest("/api/credits/check", {
       method: "POST",
@@ -19,4 +19,10 @@ export const GET = withAuthServer(async function POST(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(checkCredits);
+  return authHandler(req);
+}

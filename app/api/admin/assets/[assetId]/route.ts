@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/withAuth";
 import { Asset } from "@/types/prisma-types";
+import { AuthenticatedRequest } from "@/utils/types";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 
-export const GET = withAuthServer(async function GET(
+// Handler functions
+async function getAsset(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
@@ -26,9 +28,9 @@ export const GET = withAuthServer(async function GET(
       { status: 500 }
     );
   }
-});
+}
 
-export const PATCH = withAuthServer(async function PATCH(
+async function updateAsset(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
@@ -53,9 +55,9 @@ export const PATCH = withAuthServer(async function PATCH(
       { status: 500 }
     );
   }
-});
+}
 
-export const DELETE = withAuthServer(async function DELETE(
+async function deleteAsset(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
@@ -75,4 +77,29 @@ export const DELETE = withAuthServer(async function DELETE(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ assetId: string }> }
+) {
+  const authHandler = await withAuthServer(getAsset);
+  return authHandler(req, context);
+}
+
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ assetId: string }> }
+) {
+  const authHandler = await withAuthServer(updateAsset);
+  return authHandler(req, context);
+}
+
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ assetId: string }> }
+) {
+  const authHandler = await withAuthServer(deleteAsset);
+  return authHandler(req, context);
+}

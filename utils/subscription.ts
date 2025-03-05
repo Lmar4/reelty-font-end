@@ -1,4 +1,4 @@
-import { makeBackendRequest, ApiResponse } from "./withAuth";
+import { makeBackendRequest } from "./withAuth";
 
 interface DefaultTier {
   maxActiveListings: number;

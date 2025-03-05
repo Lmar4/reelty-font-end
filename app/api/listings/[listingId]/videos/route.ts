@@ -1,128 +1,68 @@
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { logger } from "@/utils/logger";
-import { NextResponse } from "next/server";
-import { VideoJob } from "@/types/prisma-types";
-import { ApiResponse } from "@/types/api-types";
+import { AuthenticatedRequest } from "@/utils/types";
 
-interface VideoStatus {
-  isProcessing: boolean;
-  processingCount: number;
-  failedCount: number;
-  completedCount: number;
-  totalCount: number;
-  shouldEndPolling?: boolean;
-}
-
-interface VideoResponseData {
-  videos: VideoJob[];
-  status: VideoStatus;
-}
-
-type VideoResponse = ApiResponse<VideoResponseData>;
-
-// GET /api/listings/[listingId]/videos
-// Returns all videos for a listing, including status and metadata
-export const GET = withAuthServer(async function GET(
+// Handler functions
+async function getListingVideos(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
     const { listingId } = await params;
 
-    logger.info("[VIDEOS_GET] Fetching videos", {
-      listingId,
-      userId: req.auth.userId,
+    const data = await makeBackendRequest(`/api/listings/${listingId}/videos`, {
+      method: "GET",
+      sessionToken: req.auth.sessionToken,
     });
 
-    // Validate listingId
-    if (!listingId || listingId === "undefined") {
-      logger.error("[VIDEOS_GET] Invalid listingId", { listingId });
-      return NextResponse.json(
-        { success: false, error: "Invalid listing ID" },
-        { status: 400 }
-      );
-    }
-
-    // Ensure we have a valid session token
-    if (!req.auth.sessionToken) {
-      logger.error("[VIDEOS_GET] No session token");
-      return NextResponse.json(
-        { success: false, error: "No session token" },
-        { status: 401 }
-      );
-    }
-
-    const response = await makeBackendRequest<VideoResponse>(
-      `/api/listings/${listingId}/latest-videos`,
-      {
-        method: "GET",
-        sessionToken: req.auth.sessionToken,
-      }
-    );
-
-    logger.info("[VIDEOS_GET] Raw response from backend:", response);
-
-    // Ensure we have a valid response structure
-    if (!response || typeof response !== "object") {
-      logger.error("[VIDEOS_GET] Invalid response from backend:", { response });
-      throw new Error("Invalid response from backend");
-    }
-
-    // Return the response directly without transformation
-    return NextResponse.json(response);
+    return NextResponse.json(data);
   } catch (error) {
-    logger.error("[VIDEOS_GET] Error:", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      listingId: (await params).listingId,
-    });
-
-    // Return a more detailed error response
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch videos",
-        details: error instanceof Error ? error.stack : undefined,
-      },
+    console.error("[LISTING_VIDEOS_GET_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch listing videos",
       { status: 500 }
     );
   }
-});
+}
 
-// POST /api/listings/[listingId]/videos
-// Creates a new video generation job
-export const POST = withAuthServer(async function POST(
-  request: AuthenticatedRequest,
+async function createListingVideo(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ listingId: string }> }
 ) {
   try {
     const { listingId } = await params;
-    const body = await request.json();
+    const body = await req.json();
 
     const data = await makeBackendRequest(`/api/listings/${listingId}/videos`, {
       method: "POST",
-      sessionToken: request.auth.sessionToken,
+      sessionToken: req.auth.sessionToken,
       body,
     });
 
     return NextResponse.json(data);
   } catch (error) {
-    logger.error("[VIDEOS_POST] Error:", {
-      error: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      listingId: (await params).listingId,
-    });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to create video job",
-        details: error instanceof Error ? error.stack : undefined,
-      },
+    console.error("[LISTING_VIDEOS_POST_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to create listing video",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ listingId: string }> }
+) {
+  const authHandler = await withAuthServer(getListingVideos);
+  return authHandler(req, context);
+}
+
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ listingId: string }> }
+) {
+  const authHandler = await withAuthServer(createListingVideo);
+  return authHandler(req, context);
+}

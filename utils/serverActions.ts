@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { makeServerBackendRequest } from "./withAuthServer";
-import { ApiResponse } from "./withAuth";
+import { ApiResponse } from "./types";
 
 /**
  * Server action to fetch data from the backend API

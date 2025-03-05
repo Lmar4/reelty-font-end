@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/withAuth";
 import { Asset } from "@/types/prisma-types";
+import { AuthenticatedRequest } from "@/utils/types";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 
-export const GET = withAuthServer(async function GET(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function getAssets(request: AuthenticatedRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
@@ -36,4 +36,10 @@ export const GET = withAuthServer(async function GET(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getAssets);
+  return authHandler(req);
+}

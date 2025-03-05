@@ -1,27 +1,35 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function POST(
-  request: AuthenticatedRequest,
+// Handler function
+async function regenerateJob(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { jobId } = await params;
-    const body = await request.json();
-
-    const job = await makeBackendRequest(`/api/jobs/${jobId}/regenerate`, {
+    const data = await makeBackendRequest(`/api/jobs/${jobId}/regenerate`, {
       method: "POST",
-      sessionToken: request.auth.sessionToken,
-      body: body,
+      sessionToken: req.auth.sessionToken,
     });
 
-    return NextResponse.json(job);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[JOB_REGENERATE]", error);
+    console.error("[JOB_REGENERATE_ERROR]", error);
     return new NextResponse(
       error instanceof Error ? error.message : "Failed to regenerate job",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ jobId: string }> }
+) {
+  const authHandler = await withAuthServer(regenerateJob);
+  return authHandler(req, context);
+}

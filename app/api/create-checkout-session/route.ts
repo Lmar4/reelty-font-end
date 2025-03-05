@@ -1,14 +1,14 @@
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { NextResponse } from "next/server";
+import { AuthenticatedRequest } from "@/utils/types";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
 });
 
-export const GET = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function createCheckoutSession(request: AuthenticatedRequest) {
   try {
     const {
       priceId,
@@ -50,4 +50,10 @@ export const GET = withAuthServer(async function POST(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(createCheckoutSession);
+  return authHandler(req);
+}

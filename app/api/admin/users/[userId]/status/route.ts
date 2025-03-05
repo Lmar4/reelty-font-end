@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { AuthenticatedRequest } from "@/utils/types";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 
-export const GET = withAuthServer(async function PATCH(
+// Handler function
+async function updateUserStatus(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
@@ -27,4 +29,13 @@ export const GET = withAuthServer(async function PATCH(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ userId: string }> }
+) {
+  const authHandler = await withAuthServer(updateUserStatus);
+  return authHandler(req, context);
+}

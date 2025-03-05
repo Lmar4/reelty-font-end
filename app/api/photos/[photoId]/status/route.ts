@@ -1,20 +1,18 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function POST(
+// Handler function
+async function getPhotoStatus(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ photoId: string }> }
 ) {
   try {
     const { photoId } = await params;
 
-    if (!photoId) {
-      return new NextResponse("Photo ID is required", { status: 400 });
-    }
-
     const data = await makeBackendRequest(`/api/photos/${photoId}/status`, {
-      method: "POST",
+      method: "GET",
       sessionToken: req.auth.sessionToken,
     });
 
@@ -22,8 +20,17 @@ export const GET = withAuthServer(async function POST(
   } catch (error) {
     console.error("[PHOTO_STATUS_ERROR]", error);
     return new NextResponse(
-      error instanceof Error ? error.message : "Failed to check photo status",
+      error instanceof Error ? error.message : "Failed to fetch photo status",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ photoId: string }> }
+) {
+  const authHandler = await withAuthServer(getPhotoStatus);
+  return authHandler(req, context);
+}

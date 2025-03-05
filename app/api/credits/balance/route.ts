@@ -1,13 +1,16 @@
 import { makeBackendRequest } from "@/utils/withAuth";
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { AuthenticatedRequest } from "@/utils/types";
+
 interface CreditBalance {
   total: number;
   available: number;
   used: number;
 }
 
-export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
+// Handler function
+async function getCreditBalance(req: AuthenticatedRequest) {
   try {
     const creditBalance = await makeBackendRequest<CreditBalance>(
       "/api/credits/balance",
@@ -21,4 +24,10 @@ export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
     console.error("[CREDITS_BALANCE_GET]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getCreditBalance);
+  return authHandler(req);
+}

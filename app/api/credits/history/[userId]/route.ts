@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
 interface CreditHistoryData {
   transactions: Array<{
@@ -11,7 +12,8 @@ interface CreditHistoryData {
   }>;
 }
 
-export const GET = withAuthServer(async function GET(
+// Handler function
+async function getCreditHistory(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
@@ -33,4 +35,13 @@ export const GET = withAuthServer(async function GET(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ userId: string }> }
+) {
+  const authHandler = await withAuthServer(getCreditHistory);
+  return authHandler(req, context);
+}

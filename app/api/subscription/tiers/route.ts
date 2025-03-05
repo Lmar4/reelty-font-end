@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
 interface SubscriptionTier {
   id: string;
@@ -10,21 +11,28 @@ interface SubscriptionTier {
   features: string[];
 }
 
-export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
+// Handler function
+async function getSubscriptionTiers(req: AuthenticatedRequest) {
   try {
-    const tiers = await makeBackendRequest<SubscriptionTier[]>(
-      "/api/subscription/tiers",
-      {
-        sessionToken: req.auth.sessionToken,
-      }
-    );
+    const data = await makeBackendRequest("/api/subscription/tiers", {
+      method: "GET",
+      sessionToken: req.auth.sessionToken,
+    });
 
-    return NextResponse.json(tiers);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[SUBSCRIPTION_TIERS_GET]", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch subscription tiers" },
+    console.error("[SUBSCRIPTION_TIERS_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch subscription tiers",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getSubscriptionTiers);
+  return authHandler(req);
+}

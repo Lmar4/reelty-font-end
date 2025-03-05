@@ -1,37 +1,37 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { VideoJob } from "@/types/prisma-types";
 
-export const GET = withAuthServer(async function GET(
+import { AuthenticatedRequest } from "@/utils/types";
+
+// Handler functions
+async function getJob(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { jobId } = await params;
-
-    const job = await makeBackendRequest<VideoJob>(`/api/jobs/${jobId}`, {
+    const data = await makeBackendRequest(`/api/jobs/${jobId}`, {
       method: "GET",
       sessionToken: req.auth.sessionToken,
     });
 
-    return NextResponse.json(job);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[JOB_GET]", error);
+    console.error("[JOB_GET_ERROR]", error);
     return new NextResponse(
       error instanceof Error ? error.message : "Failed to fetch job",
       { status: 500 }
     );
   }
-});
+}
 
-export const DELETE = withAuthServer(async function DELETE(
+async function deleteJob(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { jobId } = await params;
-
     await makeBackendRequest(`/api/jobs/${jobId}`, {
       method: "DELETE",
       sessionToken: req.auth.sessionToken,
@@ -39,34 +39,59 @@ export const DELETE = withAuthServer(async function DELETE(
 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    console.error("[JOB_DELETE]", error);
+    console.error("[JOB_DELETE_ERROR]", error);
     return new NextResponse(
       error instanceof Error ? error.message : "Failed to delete job",
       { status: 500 }
     );
   }
-});
+}
 
-export const PATCH = withAuthServer(async function PATCH(
-  request: AuthenticatedRequest,
+async function updateJob(
+  req: AuthenticatedRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   try {
     const { jobId } = await params;
-    const body = await request.json();
+    const body = await req.json();
 
-    const job = await makeBackendRequest<VideoJob>(`/api/jobs/${jobId}`, {
+    const data = await makeBackendRequest(`/api/jobs/${jobId}`, {
       method: "PATCH",
-      sessionToken: request.auth.sessionToken,
-      body: body,
+      sessionToken: req.auth.sessionToken,
+      body,
     });
 
-    return NextResponse.json(job);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[JOB_PATCH]", error);
+    console.error("[JOB_UPDATE_ERROR]", error);
     return new NextResponse(
       error instanceof Error ? error.message : "Failed to update job",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ jobId: string }> }
+) {
+  const authHandler = await withAuthServer(getJob);
+  return authHandler(req, context);
+}
+
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ jobId: string }> }
+) {
+  const authHandler = await withAuthServer(deleteJob);
+  return authHandler(req, context);
+}
+
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ jobId: string }> }
+) {
+  const authHandler = await withAuthServer(updateJob);
+  return authHandler(req, context);
+}

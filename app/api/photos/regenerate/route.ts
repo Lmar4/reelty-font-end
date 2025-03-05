@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { z } from "zod";
+import { AuthenticatedRequest } from "@/utils/types";
 
 const MAX_BATCH_SIZE = 20; // Reasonable limit for batch processing
 
@@ -41,134 +42,29 @@ const requestBodySchema = z.object({
   regenerationContext: regenerationContextSchema,
 });
 
-export const POST = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function regeneratePhoto(req: AuthenticatedRequest) {
   try {
-    const body = await request.json();
+    const body = await req.json();
 
-    // Validate the request body
-    const validationResult = requestBodySchema.safeParse(body);
-
-    if (!validationResult.success) {
-      console.error(
-        "[PHOTOS_REGENERATE] Validation error:",
-        validationResult.error
-      );
-      return new NextResponse(
-        JSON.stringify({
-          success: false,
-          message: "Invalid request format",
-          details: validationResult.error.format(),
-        }),
-        { status: 400 }
-      );
-    }
-
-    const { photoIds, forceRegeneration, regenerationContext } =
-      validationResult.data;
-
-    const response = await makeBackendRequest<{
-      success: boolean;
-      message: string;
-      jobs?: Array<{ id: string; listingId: string }>;
-      jobId?: string; // For backward compatibility
-      listingId?: string; // For backward compatibility
-      inaccessiblePhotoIds?: string[];
-    }>("/api/photos/regenerate", {
+    const data = await makeBackendRequest("/api/photos/regenerate", {
       method: "POST",
-      sessionToken: request.auth.sessionToken,
-      body: {
-        photoIds,
-        forceRegeneration,
-        isRegeneration: true,
-        regenerationContext,
-      },
+      sessionToken: req.auth.sessionToken,
+      body,
     });
 
-    // If we get undefined response but no error was thrown, it likely means
-    // the backend is still processing but hasn't responded in time
-    if (!response) {
-      console.warn(
-        "[PHOTOS_REGENERATE] Backend request timeout - job may still be processing"
-      );
-      return NextResponse.json(
-        {
-          success: true,
-          message:
-            "Request accepted. Photo regeneration may take longer than expected.",
-          data: {
-            jobs: [], // We don't have job IDs in this case
-            inaccessiblePhotoIds: [],
-            message:
-              "Photo regeneration started but taking longer than expected. Please check status later.",
-          },
-        },
-        { status: 202 } // Accepted status code
-      );
-    }
-
-    // Handle case where response exists but jobs array is missing
-    if (!response.jobs) {
-      // Check if we have legacy format with jobId and listingId
-      if (response.jobId && response.listingId) {
-        response.jobs = [
-          {
-            id: response.jobId,
-            listingId: response.listingId,
-          },
-        ];
-      } else if (response.success !== false) {
-        console.error("[PHOTOS_REGENERATE] Invalid response format:", response);
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Invalid response format from backend",
-          },
-          { status: 500 }
-        );
-      }
-    }
-
-    // If the response indicates failure but has a message, return that
-    if (response.success === false) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: response.message || "Failed to regenerate photos",
-          inaccessiblePhotoIds: response.inaccessiblePhotoIds,
-        },
-        { status: response.inaccessiblePhotoIds ? 404 : 500 }
-      );
-    }
-
-    // Success case
-    return NextResponse.json({
-      success: true,
-      data: {
-        jobs: response.jobs || [],
-        inaccessiblePhotoIds: response.inaccessiblePhotoIds || [],
-        message: response.message || "Photos regeneration started successfully",
-      },
-    });
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[PHOTOS_REGENERATE]", error);
-
-    // Determine appropriate status code based on error
-    const statusCode =
-      error instanceof Error && error.message.includes("No response received")
-        ? 503 // Service Unavailable
-        : 500; // Internal Server Error
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to process photo regeneration request",
-      },
-      { status: statusCode }
+    console.error("[PHOTO_REGENERATE_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to regenerate photo",
+      { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(regeneratePhoto);
+  return authHandler(req);
+}

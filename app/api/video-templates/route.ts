@@ -1,46 +1,30 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function GET(
-  req: AuthenticatedRequest
-) {
+// Handler function
+async function getVideoTemplates(req: AuthenticatedRequest) {
   try {
-    const response = await makeBackendRequest<{
-      success: boolean;
-      data: Array<{
-        id: string;
-        name: string;
-        description: string;
-        thumbnailUrl: string | null;
-        subscriptionTiers: Array<{
-          name: string;
-        }>;
-      }>;
-    }>("/api/templates", {
+    const data = await makeBackendRequest("/api/video-templates", {
       method: "GET",
       sessionToken: req.auth.sessionToken,
     });
 
-    if (!response.data) {
-      return NextResponse.json([]);
-    }
-
-    // Map templates to include the correct ID format
-    const templates = response.data.map((template) => ({
-      id: template.name.toLowerCase().replace(/[\s-]+/g, ""),
-      name: template.name,
-      description: template.description,
-      thumbnailUrl: template.thumbnailUrl,
-      subscriptionTiers: template.subscriptionTiers,
-    }));
-
-    return NextResponse.json(templates);
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[VIDEO_TEMPLATES_GET]", error);
+    console.error("[VIDEO_TEMPLATES_ERROR]", error);
     return new NextResponse(
-      error instanceof Error ? error.message : "Failed to fetch templates",
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch video templates",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getVideoTemplates);
+  return authHandler(req);
+}

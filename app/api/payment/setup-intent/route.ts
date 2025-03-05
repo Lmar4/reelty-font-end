@@ -1,33 +1,28 @@
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia",
-});
-
-export const GET = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function getSetupIntent(req: AuthenticatedRequest) {
   try {
-    const { customerId } = await request.json();
-    if (!customerId) {
-      return new NextResponse("Customer ID is required", { status: 400 });
-    }
-
-    const setupIntent = await stripe.setupIntents.create({
-      customer: customerId,
-      payment_method_types: ["card"],
+    const data = await makeBackendRequest("/api/payment/setup-intent", {
+      method: "GET",
+      sessionToken: req.auth.sessionToken,
     });
 
-    return NextResponse.json({
-      clientSecret: setupIntent.client_secret,
-    });
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[SETUP_INTENT_ERROR]", error);
+    console.error("[SETUP_INTENT_GET_ERROR]", error);
     return new NextResponse(
-      error instanceof Error ? error.message : "Failed to create setup intent",
+      error instanceof Error ? error.message : "Failed to get setup intent",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getSetupIntent);
+  return authHandler(req);
+}

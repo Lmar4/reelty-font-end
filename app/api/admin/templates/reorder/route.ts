@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { makeBackendRequest } from "@/utils/withAuth";
 import { Template } from "@/types/prisma-types";
+import { AuthenticatedRequest } from "@/utils/types";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 
-export const PUT = withAuthServer(async function PUT(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function reorderTemplates(request: AuthenticatedRequest) {
   try {
     const body = await request.json();
     const templates = await makeBackendRequest<Template[]>(
@@ -25,4 +25,10 @@ export const PUT = withAuthServer(async function PUT(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function PUT(req: NextRequest) {
+  const authHandler = await withAuthServer(reorderTemplates);
+  return authHandler(req);
+}

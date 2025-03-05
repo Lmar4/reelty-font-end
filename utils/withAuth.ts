@@ -1,40 +1,5 @@
 import { useAuth } from "../providers/AuthProvider";
-
-// Types
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-}
-
-interface RequestOptions {
-  method?: string;
-  body?: any;
-  sessionToken?: string;
-  headers?: Record<string, string>;
-}
-
-// Error types to match backend
-export class AuthError extends Error {
-  public statusCode: number;
-
-  constructor(statusCode: number, message: string) {
-    super(message);
-    this.name = "AuthError";
-    this.statusCode = statusCode;
-  }
-}
-
-export class ApiError extends Error {
-  public statusCode: number;
-
-  constructor(statusCode: number, message: string) {
-    super(message);
-    this.name = "ApiError";
-    this.statusCode = statusCode;
-  }
-}
+import { ApiResponse, RequestOptions, AuthError, ApiError } from "./types";
 
 // Main request function for client-side
 export async function makeBackendRequest<T>(

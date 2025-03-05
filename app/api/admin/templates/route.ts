@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { Template } from "@/types/prisma-types";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function GET(
-  req: AuthenticatedRequest
-) {
+// Handler functions
+async function getTemplates(req: AuthenticatedRequest) {
   try {
     const templates = await makeBackendRequest<Template[]>(
       "/api/admin/templates",
@@ -23,11 +23,9 @@ export const GET = withAuthServer(async function GET(
       { status: 500 }
     );
   }
-});
+}
 
-export const POST = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+async function createTemplate(request: AuthenticatedRequest) {
   try {
     const body = await request.json();
     const template = await makeBackendRequest<Template>(
@@ -47,4 +45,15 @@ export const POST = withAuthServer(async function POST(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getTemplates);
+  return authHandler(req);
+}
+
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(createTemplate);
+  return authHandler(req);
+}

@@ -48,11 +48,7 @@ export default function ListingPageClient({
 
   return (
     <div className='flex-1 space-y-4 md:p-8 pt-6'>
-      <ListingClient
-        listingId={listingId}
-        initialListing={listing!.data}
-        searchParams={{}}
-      />
+      <ListingClient listingId={listingId} initialListing={listing!.data} />
     </div>
   );
 }

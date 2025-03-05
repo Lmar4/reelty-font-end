@@ -1,7 +1,7 @@
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-
-import { NextResponse } from "next/server";
+import { AuthenticatedRequest } from "@/utils/types";
 
 interface CheckoutRequest {
   userId: string;
@@ -10,35 +10,18 @@ interface CheckoutRequest {
   returnUrl: string;
 }
 
-export const GET = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function createCheckoutSession(req: AuthenticatedRequest) {
   try {
-    const body: CheckoutRequest = await request.json();
-    const { userId, plan, billingType, returnUrl } = body;
+    const body = await req.json();
 
-    // Users can only create checkout sessions for themselves
-    if (request.auth.userId !== userId) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
+    const data = await makeBackendRequest("/api/subscription/checkout", {
+      method: "POST",
+      sessionToken: req.auth.sessionToken,
+      body,
+    });
 
-    // Create checkout session through backend
-    const response = await makeBackendRequest<{ url: string }>(
-      "/api/subscription/checkout",
-      {
-        method: "POST",
-        sessionToken: request.auth.sessionToken,
-        body: {
-          userId,
-          plan,
-          billingType,
-          successUrl: `${returnUrl}?session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: returnUrl,
-        },
-      }
-    );
-
-    return NextResponse.json(response);
+    return NextResponse.json(data);
   } catch (error) {
     console.error("[SUBSCRIPTION_CHECKOUT_ERROR]", error);
     return new NextResponse(
@@ -48,4 +31,10 @@ export const GET = withAuthServer(async function POST(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(createCheckoutSession);
+  return authHandler(req);
+}

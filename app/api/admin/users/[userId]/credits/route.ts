@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function POST(
+// Handler function
+async function adjustUserCredits(
   request: AuthenticatedRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
@@ -60,4 +62,13 @@ export const GET = withAuthServer(async function POST(
       }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ userId: string }> }
+) {
+  const authHandler = await withAuthServer(adjustUserCredits);
+  return authHandler(req, context);
+}

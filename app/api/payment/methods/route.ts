@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
 interface PaymentMethod {
   id: string;
@@ -11,11 +12,10 @@ interface PaymentMethod {
   isDefault: boolean;
 }
 
-export const GET = withAuthServer(async function GET(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function getPaymentMethods(req: AuthenticatedRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(req.url);
     const customerId = searchParams.get("customerId");
 
     if (!customerId) {
@@ -26,7 +26,7 @@ export const GET = withAuthServer(async function GET(
       `/api/payment/methods?customerId=${customerId}`,
       {
         method: "GET",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 
@@ -40,4 +40,10 @@ export const GET = withAuthServer(async function GET(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getPaymentMethods);
+  return authHandler(req);
+}

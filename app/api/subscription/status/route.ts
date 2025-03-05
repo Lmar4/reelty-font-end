@@ -1,7 +1,7 @@
-import { makeBackendRequest } from "@/utils/withAuth";
-import { AuthenticatedRequest } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 import { withAuthServer } from "@/utils/withAuthServer";
-import { NextResponse } from "next/server";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 import { z } from "zod";
 
 interface SubscriptionStatus {
@@ -17,9 +17,10 @@ const querySchema = z.object({
   userId: z.string().min(1, "User ID is required"),
 });
 
-export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
+// Handler function
+async function getSubscriptionStatus(req: AuthenticatedRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(req.url);
     const result = querySchema.safeParse({
       userId: searchParams.get("userId"),
     });
@@ -37,7 +38,7 @@ export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
     const { userId } = result.data;
 
     // Users can only view their own subscription status
-    if (request.auth.userId !== userId) {
+    if (req.auth.userId !== userId) {
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -50,7 +51,7 @@ export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
     const subscriptionStatus = await makeBackendRequest<SubscriptionStatus>(
       `/api/subscription/current`,
       {
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 
@@ -63,13 +64,18 @@ export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
       }
     );
   } catch (error) {
-    console.error("[SUBSCRIPTION_STATUS_GET]", error);
-    return NextResponse.json(
-      {
-        error: "Failed to fetch subscription status",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
+    console.error("[SUBSCRIPTION_STATUS_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch subscription status",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getSubscriptionStatus);
+  return authHandler(req);
+}

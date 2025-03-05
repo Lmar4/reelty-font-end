@@ -1,143 +1,66 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
-import { makeBackendRequest, ApiResponse } from "@/utils/withAuth";
-import { Listing } from "@/types/prisma-types";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async function GET(
-  request: AuthenticatedRequest
-) {
+// Handler functions
+async function getListings(req: AuthenticatedRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.toString();
-    const url = query ? `/api/listings?${query}` : "/api/listings";
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const page = searchParams.get("page") || "1";
+    const limit = searchParams.get("limit") || "10";
 
-    const response = await makeBackendRequest<ApiResponse<Listing[]>>(url, {
-      method: "GET",
-      sessionToken: request.auth.sessionToken,
-    });
+    let queryParams = new URLSearchParams();
+    if (status) queryParams.append("status", status);
+    queryParams.append("page", page);
+    queryParams.append("limit", limit);
 
-    if (!response.success || !response.data) {
-      throw new Error(response.error || "Failed to fetch listings");
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: response.data,
-    });
-  } catch (error) {
-    console.error("[LISTINGS_GET]", error);
-    return NextResponse.json(
+    const data = await makeBackendRequest(
+      `/api/listings?${queryParams.toString()}`,
       {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to fetch listings",
-        data: null,
-      },
+        method: "GET",
+        sessionToken: req.auth.sessionToken,
+      }
+    );
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("[LISTINGS_GET_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch listings",
       { status: 500 }
     );
   }
-});
+}
 
-export const POST = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+async function createListing(req: AuthenticatedRequest) {
   try {
-    const backendUrl = process.env.BACKEND_URL;
-    if (!backendUrl) {
-      throw new Error("Backend URL not configured");
-    }
+    const body = await req.json();
 
-    // Check content type to determine how to handle the body
-    const contentType = request.headers.get("content-type");
-    let body;
+    const data = await makeBackendRequest("/api/listings", {
+      method: "POST",
+      sessionToken: req.auth.sessionToken,
+      body,
+    });
 
-    try {
-      // Handle JSON
-      body = await request.json();
-
-      // Validate required fields
-      if (!body.address) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Missing required field: address",
-            data: null,
-          },
-          { status: 400 }
-        );
-      }
-
-      // Transform the body to match the backend schema
-      const transformedBody = {
-        userId: request.auth.userId,
-        address: body.address,
-        coordinates: body.coordinates
-          ? {
-              lat: Number(body.coordinates.lat),
-              lng: Number(body.coordinates.lng),
-            }
-          : null,
-        photoLimit: body.photoLimit || 10,
-        description: body.description || "",
-        photos: body.photos || [],
-      };
-
-      const response = await fetch(`${backendUrl}/api/listings`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${request.auth.sessionToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(transformedBody),
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: responseData.error || "Failed to create listing",
-            data: null,
-          },
-          { status: response.status }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        error: null,
-        data: responseData.data,
-      });
-    } catch (parseError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request body",
-          data: null,
-        },
-        { status: 400 }
-      );
-    }
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Listing creation error:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred",
-        data: null,
-        stack:
-          process.env.NODE_ENV === "development"
-            ? error instanceof Error
-              ? error.stack
-              : undefined
-            : undefined,
-      },
+    console.error("[LISTINGS_POST_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to create listing",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getListings);
+  return authHandler(req);
+}
+
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(createListing);
+  return authHandler(req);
+}

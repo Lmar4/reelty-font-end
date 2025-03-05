@@ -1,7 +1,7 @@
-import { withAuthServer, AuthenticatedRequest } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { logger } from "@/utils/logger";
-import { NextResponse } from "next/server";
+import { AuthenticatedRequest } from "@/utils/types";
 
 interface PhotoStatus {
   processingCount: number;
@@ -9,25 +9,37 @@ interface PhotoStatus {
   totalCount: number;
 }
 
-export const GET = withAuthServer(
-  async (
-    req: AuthenticatedRequest,
-    { params }: { params: Promise<{ listingId: string }> }
-  ) => {
-    try {
-      const { listingId } = await params;
-      const status = await makeBackendRequest<PhotoStatus>(
-        `/api/listings/${listingId}/photos/status`,
-        {
-          method: "GET",
-          sessionToken: req.auth.sessionToken,
-        }
-      );
+// Handler function
+async function getPhotoStatus(
+  req: AuthenticatedRequest,
+  { params }: { params: Promise<{ listingId: string }> }
+) {
+  try {
+    const { listingId } = await params;
 
-      return NextResponse.json(status);
-    } catch (error) {
-      logger.error("[PHOTOS_STATUS_ERROR]", error);
-      return new NextResponse("Internal Error", { status: 500 });
-    }
+    const data = await makeBackendRequest(
+      `/api/listings/${listingId}/photos/status`,
+      {
+        method: "GET",
+        sessionToken: req.auth.sessionToken,
+      }
+    );
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("[PHOTO_STATUS_GET_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch photo status",
+      { status: 500 }
+    );
   }
-);
+}
+
+// Next.js App Router handler
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ listingId: string }> }
+) {
+  const authHandler = await withAuthServer(getPhotoStatus);
+  return authHandler(req, context);
+}

@@ -1,38 +1,30 @@
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { AuthenticatedRequest } from "@/utils/types";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia",
-});
-
-export const GET = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function getDefaultPaymentMethod(req: AuthenticatedRequest) {
   try {
-    const { customerId, paymentMethodId } = await request.json();
-    if (!customerId || !paymentMethodId) {
-      return new NextResponse(
-        "Customer ID and payment method ID are required",
-        { status: 400 }
-      );
-    }
-
-    await stripe.customers.update(customerId, {
-      invoice_settings: {
-        default_payment_method: paymentMethodId,
-      },
+    const data = await makeBackendRequest("/api/payment/method/default", {
+      method: "GET",
+      sessionToken: req.auth.sessionToken,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("[DEFAULT_PAYMENT_METHOD_ERROR]", error);
     return new NextResponse(
       error instanceof Error
         ? error.message
-        : "Failed to update default payment method",
+        : "Failed to fetch default payment method",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getDefaultPaymentMethod);
+  return authHandler(req);
+}

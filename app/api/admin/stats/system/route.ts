@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { AuthenticatedRequest } from "@/utils/types";
 
 // Mock data generator for system stats
 const generateMockStats = () => {
@@ -12,11 +13,10 @@ const generateMockStats = () => {
   };
 };
 
-export async function GET() {
-  const user = await currentUser();
-
+// Handler function
+async function getSystemStats(request: AuthenticatedRequest) {
   // Check if user is admin
-  if (user?.publicMetadata?.role !== "admin") {
+  if (request.auth.role !== "ADMIN") {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -30,4 +30,10 @@ export async function GET() {
     console.error("[SYSTEM_STATS]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getSystemStats);
+  return authHandler(req);
 }

@@ -1,6 +1,7 @@
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { NextResponse } from "next/server";
+import { AuthenticatedRequest } from "@/utils/types";
 
 interface Invoice {
   id: string;
@@ -15,9 +16,10 @@ interface InvoicesResponse {
   has_more: boolean;
 }
 
-export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
+// Handler function
+async function getInvoices(req: AuthenticatedRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
     const limit = searchParams.get("limit") || "10";
     const starting_after = searchParams.get("starting_after");
@@ -30,7 +32,7 @@ export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
     }
 
     // Users can only view their own invoices
-    if (request.auth.userId !== userId) {
+    if (req.auth.userId !== userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -41,19 +43,26 @@ export const GET = withAuthServer(async (request: AuthenticatedRequest) => {
       queryParams.append("starting_after", starting_after);
     }
 
-    const invoices = await makeBackendRequest<InvoicesResponse>(
+    const data = await makeBackendRequest<InvoicesResponse>(
       `/api/subscription/invoices?${queryParams.toString()}`,
       {
-        sessionToken: request.auth.sessionToken,
+        method: "GET",
+        sessionToken: req.auth.sessionToken,
       }
     );
 
-    return NextResponse.json({ data: invoices });
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[SUBSCRIPTION_INVOICES_GET]", error);
-    return NextResponse.json(
-      { error: "Failed to fetch invoices" },
+    console.error("[INVOICES_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error ? error.message : "Failed to fetch invoices",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getInvoices);
+  return authHandler(req);
+}

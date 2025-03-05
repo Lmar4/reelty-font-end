@@ -1,15 +1,13 @@
-import { NextResponse } from "next/server";
-
 import { Asset } from "@/types/prisma-types";
-import { AuthenticatedRequest } from "@/utils/withAuthServer";
-import { withAuthServer } from "@/utils/withAuthServer";
+import { AuthenticatedRequest } from "@/utils/types";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withAuthServer(async function GET(
-  request: AuthenticatedRequest
-) {
+// Handler functions
+async function getAssets(request: AuthenticatedRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || undefined;
@@ -37,11 +35,9 @@ export const GET = withAuthServer(async function GET(
       }
     );
   }
-});
+}
 
-export const POST = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+async function createAsset(request: AuthenticatedRequest) {
   try {
     const body = await request.json();
     const asset = await makeBackendRequest<Asset>("/api/admin/assets/assets", {
@@ -63,4 +59,15 @@ export const POST = withAuthServer(async function POST(
       }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getAssets);
+  return authHandler(req);
+}
+
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(createAsset);
+  return authHandler(req);
+}

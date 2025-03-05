@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 
 interface Subscription {
   id: string;
@@ -10,20 +11,28 @@ interface Subscription {
   cancelAtPeriodEnd: boolean;
 }
 
-export const GET = withAuthServer(async (req: AuthenticatedRequest) => {
+// Handler function
+async function getCurrentSubscription(req: AuthenticatedRequest) {
   try {
-    const subscription = await makeBackendRequest<Subscription>(
-      "/api/subscription/current",
-      {
-        sessionToken: req.auth.sessionToken,
-      }
-    );
-    return NextResponse.json({ subscription });
+    const data = await makeBackendRequest("/api/subscription/current", {
+      method: "GET",
+      sessionToken: req.auth.sessionToken,
+    });
+
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("[SUBSCRIPTION_CURRENT_GET]", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch subscription" },
+    console.error("[CURRENT_SUBSCRIPTION_ERROR]", error);
+    return new NextResponse(
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch current subscription",
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getCurrentSubscription);
+  return authHandler(req);
+}

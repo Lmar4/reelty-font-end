@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { AuthenticatedRequest } from "@/utils/types";
 import { z } from "zod";
 
 const subscriptionTierSchema = z.object({
@@ -34,8 +35,8 @@ const subscriptionTierSchema = z.object({
     .max(1000, "Cannot exceed 1000 active listings"),
 });
 
-// GET /api/admin/subscription-tiers
-export const GET = withAuthServer(async (request) => {
+// Handler functions
+async function getSubscriptionTiers(request: AuthenticatedRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
@@ -55,10 +56,9 @@ export const GET = withAuthServer(async (request) => {
       { status: 500 }
     );
   }
-});
+}
 
-// POST /api/admin/subscription-tiers
-export const POST = withAuthServer(async (request) => {
+async function createSubscriptionTier(request: AuthenticatedRequest) {
   try {
     const body = await request.json();
     const validatedData = subscriptionTierSchema.parse(body);
@@ -83,10 +83,9 @@ export const POST = withAuthServer(async (request) => {
       { status: 500 }
     );
   }
-});
+}
 
-// PATCH /api/admin/subscription-tiers/:id
-export const PATCH = withAuthServer(async (request) => {
+async function updateSubscriptionTier(request: AuthenticatedRequest) {
   try {
     const tierId = request.url.split("/").pop();
     if (!tierId) {
@@ -122,4 +121,20 @@ export const PATCH = withAuthServer(async (request) => {
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getSubscriptionTiers);
+  return authHandler(req);
+}
+
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(createSubscriptionTier);
+  return authHandler(req);
+}
+
+export async function PATCH(req: NextRequest) {
+  const authHandler = await withAuthServer(updateSubscriptionTier);
+  return authHandler(req);
+}

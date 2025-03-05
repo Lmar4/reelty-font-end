@@ -1,35 +1,17 @@
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { AuthenticatedRequest } from "@/utils/types";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia",
-});
-
-export const GET = withAuthServer(async function POST(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function cancelSubscription(req: AuthenticatedRequest) {
   try {
-    const body = await request.json();
-    const { userId, stripeSubscriptionId, reason, feedback } = body;
-
-    // Users can only cancel their own subscription
-    if (request.auth.userId !== userId) {
-      return new NextResponse("Forbidden", { status: 403 });
-    }
-
-    // Cancel the subscription in Stripe
-    await stripe.subscriptions.update(stripeSubscriptionId, {
-      cancel_at_period_end: true,
-      metadata: {
-        cancellationReason: reason,
-        cancellationFeedback: feedback || "",
-      },
+    const data = await makeBackendRequest("/api/subscription/cancel", {
+      method: "POST",
+      sessionToken: req.auth.sessionToken,
     });
 
-    // The webhook will handle updating the user's subscription status in our database
-    return NextResponse.json({ success: true });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("[SUBSCRIPTION_CANCEL_ERROR]", error);
     return new NextResponse(
@@ -37,4 +19,10 @@ export const GET = withAuthServer(async function POST(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function POST(req: NextRequest) {
+  const authHandler = await withAuthServer(cancelSubscription);
+  return authHandler(req);
+}

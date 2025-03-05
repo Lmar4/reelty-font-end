@@ -1,7 +1,8 @@
 import { SubscriptionTier } from "@/types/prisma-types";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { AuthenticatedRequest } from "@/utils/types";
 import Stripe from "stripe";
 
 interface StripeCustomer {
@@ -13,15 +14,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
 });
 
-export const GET = withAuthServer(async function PATCH(
-  request: AuthenticatedRequest
-) {
+// Handler function
+async function updateSubscriptionTier(req: AuthenticatedRequest) {
   try {
-    const body = await request.json();
+    const body = await req.json();
     const { userId, tierId } = body;
 
     // Users can only update their own subscription
-    if (request.auth.userId !== userId) {
+    if (req.auth.userId !== userId) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -30,7 +30,7 @@ export const GET = withAuthServer(async function PATCH(
       `/api/subscription/current/${userId}`,
       {
         method: "GET",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 
@@ -39,7 +39,7 @@ export const GET = withAuthServer(async function PATCH(
       `/api/subscription/tier/${tierId}`,
       {
         method: "GET",
-        sessionToken: request.auth.sessionToken,
+        sessionToken: req.auth.sessionToken,
       }
     );
 
@@ -49,7 +49,7 @@ export const GET = withAuthServer(async function PATCH(
         `/api/users/${userId}/stripe-customer`,
         {
           method: "GET",
-          sessionToken: request.auth.sessionToken,
+          sessionToken: req.auth.sessionToken,
         }
       );
 
@@ -92,7 +92,7 @@ export const GET = withAuthServer(async function PATCH(
     // The subscription update webhook will handle updating the database and sending emails
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[SUBSCRIPTION_TIER_ERROR]", error);
+    console.error("[UPDATE_SUBSCRIPTION_TIER_ERROR]", error);
     return new NextResponse(
       error instanceof Error
         ? error.message
@@ -100,4 +100,10 @@ export const GET = withAuthServer(async function PATCH(
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handler
+export async function PATCH(req: NextRequest) {
+  const authHandler = await withAuthServer(updateSubscriptionTier);
+  return authHandler(req);
+}

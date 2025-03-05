@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
-import { AuthenticatedRequest, withAuthServer } from "@/utils/withAuthServer";
+import { AuthenticatedRequest } from "@/utils/types";
 import { makeBackendRequest } from "@/utils/withAuth";
+import { withAuthServer } from "@/utils/withAuthServer";
+import { NextRequest, NextResponse } from "next/server";
 
-export const GET = withAuthServer(async function DELETE(
+// Create a handler function that follows Next.js route handler pattern
+async function deleteAgencyUser(
   req: AuthenticatedRequest,
   { params }: { params: Promise<{ agencyId: string; userId: string }> }
 ) {
@@ -25,4 +27,15 @@ export const GET = withAuthServer(async function DELETE(
       { status: 500 }
     );
   }
-});
+}
+
+// Export the DELETE handler with Next.js App Router format
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ agencyId: string; userId: string }> }
+) {
+  // Use the withAuthServer HOC to wrap our handler
+  const authHandler = await withAuthServer(deleteAgencyUser);
+  // Call the wrapped handler with the request and context
+  return authHandler(req, context);
+}

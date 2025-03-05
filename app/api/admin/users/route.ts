@@ -1,8 +1,10 @@
 import { makeBackendRequest } from "@/utils/withAuth";
 import { withAuthServer } from "@/utils/withAuthServer";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { AuthenticatedRequest } from "@/utils/types";
 
-export const GET = withAuthServer(async (request) => {
+// Handler function
+async function getUsers(request: AuthenticatedRequest) {
   try {
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -45,4 +47,10 @@ export const GET = withAuthServer(async (request) => {
       { status: 500 }
     );
   }
-});
+}
+
+// Next.js App Router handlers
+export async function GET(req: NextRequest) {
+  const authHandler = await withAuthServer(getUsers);
+  return authHandler(req);
+}

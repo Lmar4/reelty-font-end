@@ -139,13 +139,11 @@ const getValidVideoJobs = (videoJobs: VideoJob[]): VideoJob[] => {
 
 interface ListingClientProps {
   listingId: string;
-  searchParams: { [key: string]: string | string[] | undefined };
   initialListing: ExtendedListing;
 }
 
 export function ListingClient({
   listingId,
-  searchParams,
   initialListing,
 }: ListingClientProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
