@@ -93,3 +93,28 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   min-height: 100vh;
 }
+
+.gradient-background {
+  background: radial-gradient(
+    circle at 10% 20%,
+    rgba(255, 200, 124, 0.2) 0%,
+    rgba(252, 251, 121, 0.2) 20%,
+    rgba(246, 92, 139, 0.25) 40%,
+    rgba(111, 137, 251, 0.2) 60%,
+    rgba(64, 219, 216, 0.2) 80%
+  );
+  background-size: 200% 200%;
+  animation: gradientShift 15s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}
