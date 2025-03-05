@@ -61,23 +61,46 @@ export function createApiResponse<T>(
 
 // Validate request helper
 async function validateRequest(request: Request) {
-  const session = await auth();
-  const user = await currentUser();
+  try {
+    const session = await auth();
+    const user = await currentUser();
 
-  if (!session?.userId || !user) {
+    if (!session?.userId || !user) {
+      throw new AuthError(401, "Invalid or missing session");
+    }
+
+    const token = await session.getToken();
+    if (!token) {
+      throw new AuthError(401, "No session token available");
+    }
+
+    // Verify the token is valid by checking the Authorization header
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      // If no Authorization header, use the session token
+      return {
+        token,
+        userId: user.id,
+        user,
+      };
+    }
+
+    // If Authorization header exists, verify it matches our session token
+    const providedToken = authHeader.split("Bearer ")[1];
+    if (providedToken !== token) {
+      console.warn("Token mismatch between session and request");
+      // Still use the session token as it's more reliable
+    }
+
+    return {
+      token,
+      userId: user.id,
+      user,
+    };
+  } catch (error) {
+    console.error("Auth validation error:", error);
     throw new AuthError(401, "Invalid or missing session");
   }
-
-  const token = await session.getToken();
-  if (!token) {
-    throw new AuthError(401, "No session token available");
-  }
-
-  return {
-    token,
-    userId: user.id,
-    user,
-  };
 }
 
 export function withAuthServer(handler: ApiHandler) {

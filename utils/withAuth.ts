@@ -1,4 +1,5 @@
-import { useAuth } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
+import { useAuth } from "../providers/AuthProvider";
 
 // Types
 export interface ApiResponse<T> {
@@ -36,6 +37,9 @@ export class ApiError extends Error {
   }
 }
 
+// Check if code is running on server or client
+const isServer = typeof window === "undefined";
+
 // Main request function that works both client and server-side
 export async function makeBackendRequest<T>(
   endpoint: string,
@@ -52,7 +56,23 @@ export async function makeBackendRequest<T>(
   const url = `${backendUrl}${endpoint}`;
 
   try {
-    let token = sessionToken;
+    // Use provided token or try to get it based on environment
+    let token: string | undefined = sessionToken;
+
+    // If no token provided and we're on the server, try to get it from auth()
+    if (!token && isServer) {
+      try {
+        const session = await auth();
+        if (session?.userId) {
+          const serverToken = await session.getToken();
+          if (serverToken) {
+            token = serverToken;
+          }
+        }
+      } catch (error) {
+        console.error("Failed to get server-side token:", error);
+      }
+    }
 
     // Final token check
     if (!token) {
@@ -129,7 +149,23 @@ export function useAuthenticatedRequest() {
       throw new AuthError(401, "User not authenticated");
     }
 
-    const token = await auth.getToken();
+    // Try to use cached token if available and not expired
+    let token: string | undefined;
+
+    if (
+      auth.cachedToken &&
+      auth.tokenExpiresAt &&
+      Date.now() < auth.tokenExpiresAt
+    ) {
+      token = auth.cachedToken;
+    } else {
+      // Otherwise get a fresh token
+      const freshToken = await auth.getToken();
+      if (freshToken) {
+        token = freshToken;
+      }
+    }
+
     if (!token) {
       throw new AuthError(401, "No valid session token available");
     }
@@ -152,11 +188,8 @@ export function useIsAuthenticated() {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      const [token, currentUserId] = await Promise.all([
-        auth.getToken(),
-        auth.userId,
-      ]);
-      return !!(token && currentUserId);
+      const token = auth.cachedToken || (await auth.getToken());
+      return !!(token && auth.userId);
     } catch {
       return false;
     }
