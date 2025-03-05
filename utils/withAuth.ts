@@ -1,4 +1,3 @@
-import { auth } from "@clerk/nextjs/server";
 import { useAuth } from "../providers/AuthProvider";
 
 // Types
@@ -37,10 +36,7 @@ export class ApiError extends Error {
   }
 }
 
-// Check if code is running on server or client
-const isServer = typeof window === "undefined";
-
-// Main request function that works both client and server-side
+// Main request function for client-side
 export async function makeBackendRequest<T>(
   endpoint: string,
   options: RequestOptions = {}
@@ -56,23 +52,8 @@ export async function makeBackendRequest<T>(
   const url = `${backendUrl}${endpoint}`;
 
   try {
-    // Use provided token or try to get it based on environment
-    let token: string | undefined = sessionToken;
-
-    // If no token provided and we're on the server, try to get it from auth()
-    if (!token && isServer) {
-      try {
-        const session = await auth();
-        if (session?.userId) {
-          const serverToken = await session.getToken();
-          if (serverToken) {
-            token = serverToken;
-          }
-        }
-      } catch (error) {
-        console.error("Failed to get server-side token:", error);
-      }
-    }
+    // Use provided token
+    const token = sessionToken;
 
     // Final token check
     if (!token) {

@@ -1,7 +1,13 @@
 "use client";
 
 import { ClerkProvider, useAuth as useClerkAuth } from "@clerk/nextjs";
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 
 interface AuthState {
   isReady: boolean;
@@ -27,7 +33,7 @@ function AuthStateProvider({ children }: { children: React.ReactNode }) {
   });
 
   // Function to refresh token
-  const refreshToken = async () => {
+  const refreshToken = useCallback(async () => {
     if (isLoaded && userId) {
       try {
         const token = await getToken();
@@ -43,6 +49,7 @@ function AuthStateProvider({ children }: { children: React.ReactNode }) {
             tokenExpiresAt,
           });
 
+          console.log("Token refreshed successfully");
           return { token, expiresAt: tokenExpiresAt };
         }
       } catch (error) {
@@ -50,12 +57,22 @@ function AuthStateProvider({ children }: { children: React.ReactNode }) {
       }
     }
     return null;
-  };
+  }, [isLoaded, userId, getToken]);
 
   // Initial token fetch
   useEffect(() => {
-    refreshToken();
-  }, [isLoaded, userId]);
+    if (isLoaded && userId) {
+      refreshToken();
+    } else if (isLoaded && !userId) {
+      // Clear state if user is not logged in
+      setState({
+        isReady: true,
+        token: null,
+        userId: null,
+        tokenExpiresAt: null,
+      });
+    }
+  }, [isLoaded, userId, refreshToken]);
 
   // Set up token refresh interval
   useEffect(() => {
@@ -68,12 +85,13 @@ function AuthStateProvider({ children }: { children: React.ReactNode }) {
         state.tokenExpiresAt &&
         Date.now() > state.tokenExpiresAt - 5 * 60 * 1000
       ) {
+        console.log("Token expiring soon, refreshing...");
         await refreshToken();
       }
     }, 60 * 1000); // Check every minute
 
     return () => clearInterval(intervalId);
-  }, [isLoaded, userId, state.tokenExpiresAt]);
+  }, [isLoaded, userId, state.tokenExpiresAt, refreshToken]);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;
 }

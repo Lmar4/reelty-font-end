@@ -1,3 +1,5 @@
+"use server";
+
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
@@ -161,4 +163,68 @@ export function withAdminAuth(handler: ApiHandler) {
 
     return handler(request, ...args);
   });
+}
+
+// Server-side function to make authenticated requests to the backend
+export async function makeServerBackendRequest<T>(
+  endpoint: string,
+  options: {
+    method?: string;
+    body?: any;
+    headers?: Record<string, string>;
+  } = {}
+): Promise<T> {
+  const { method = "GET", body, headers = {} } = options;
+
+  try {
+    // Get session token from Clerk
+    const session = await auth();
+    if (!session?.userId) {
+      throw new AuthError(401, "No valid session");
+    }
+
+    const token = await session.getToken();
+    if (!token) {
+      throw new AuthError(401, "No session token available");
+    }
+
+    // Make the request
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    // Handle response
+    if (!response.ok) {
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        const errorData = (await response.json()) as ApiResponse<any>;
+        throw new AuthError(
+          response.status,
+          errorData.error || errorData.message || "Request failed"
+        );
+      }
+      throw new AuthError(
+        response.status,
+        (await response.text()) || "Request failed"
+      );
+    }
+
+    const data = await response.json();
+    return data as T;
+  } catch (error) {
+    console.error("Server API request failed:", error);
+    if (error instanceof AuthError) {
+      throw error;
+    }
+    throw new AuthError(
+      500,
+      error instanceof Error ? error.message : "Unknown error occurred"
+    );
+  }
 }
