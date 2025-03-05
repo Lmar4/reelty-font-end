@@ -221,15 +221,17 @@ export function ListingClient({
   };
 
   // Handle download
-  const handleDownload = async (jobId: string) => {
+  const handleDownload = async (jobId: string, templateKey: string) => {
     const job = videoJobs.find((j) => j.id === jobId);
     if (!job) return;
 
-    // Get the processed template path
+    // Get the processed template path for the specific template
     const processedTemplate = job.metadata?.processedTemplates?.find(
-      (template: { key: string; path: string }) => template.key === job.template
+      (template: { key: string; path: string }) => template.key === templateKey
     );
-    const videoUrl = processedTemplate?.path || job.outputFile;
+    const videoUrl =
+      processedTemplate?.path ||
+      (job.template === templateKey ? job.outputFile : null);
 
     if (videoUrl) {
       try {
@@ -239,7 +241,7 @@ export function ListingClient({
         const link = document.createElement("a");
         link.href = url;
         const filename = `${listing?.address || "property"}-${
-          job.template || "video"
+          templateKey || "video"
         }.mp4`;
         link.setAttribute("download", filename);
         document.body.appendChild(link);

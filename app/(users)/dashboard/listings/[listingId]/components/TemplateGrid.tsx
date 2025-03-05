@@ -31,7 +31,7 @@ interface TemplateGridProps {
   userTier: string;
   activeJobs: VideoJob[];
   onGenerateVideo: (templateId: string) => void;
-  onDownload?: (jobId: string) => void;
+  onDownload?: (jobId: string, templateKey: string) => void;
   isGenerating?: boolean;
   downloadCount?: number;
 }
@@ -176,12 +176,12 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     if (!job) return;
 
     const template = templates.find((t) => t.key === templateKey);
-    const isPremium = template?.tiers.includes("pro");
+    const isPremiumTemplate = template && !template.tiers.includes("FREE");
 
-    if (isPremium && isFreeTier) {
+    if (isPremiumTemplate && isFreeTier) {
       setShowPricingModal(true);
     } else if (onDownload) {
-      onDownload(job.id);
+      onDownload(job.id, templateKey);
     }
   };
 
@@ -246,7 +246,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
             const videoUrl = latestJob
               ? getVideoUrlForTemplate(template, latestJob)
               : null;
-            const isPremium = !template.tiers.includes("FREE") && isFreeTier;
+            const isPremiumTemplate = !template.tiers.includes("FREE");
+            const isPremium = isPremiumTemplate && isFreeTier;
 
             return (
               <Card
@@ -310,11 +311,12 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       isProcessing ||
                       !photos.length ||
                       isGenerating ||
-                      isPremium
+                      (isPremium && isFreeTier)
                     }
                     className={cn(
                       "w-full bg-black hover:bg-black/90 text-white",
                       isPremium &&
+                        isFreeTier &&
                         "bg-gray-200 hover:bg-gray-200 text-gray-500 cursor-not-allowed"
                     )}
                   >
