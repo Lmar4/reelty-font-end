@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+
 type SubscriptionStatus =
   | "ACTIVE"
   | "CANCELED"
@@ -24,12 +25,14 @@ interface PricingCardsProps {
   currentStatus?: SubscriptionStatus;
 }
 
-export default function PricingCards({
+// Separate the component logic from the export
+function PricingCardsContent({
   isModal = false,
   currentTier,
   onUpgradeComplete,
   currentStatus,
 }: PricingCardsProps) {
+  console.log("PricingCardsContent rendering");
   const [billingType, setBillingType] = useState<"credits" | "monthly">(
     "monthly"
   );
@@ -172,145 +175,35 @@ export default function PricingCards({
 
   return (
     <div>
-      {/* Billing Toggle */}
-      <div className='flex justify-center mb-12'>
-        <div className='bg-[#F3F4F6] rounded-full p-1 inline-flex'>
-          <button
-            onClick={() => setBillingType("credits")}
-            className={`px-4 sm:px-6 py-2 rounded-full text-[13px] sm:text-[15px] font-medium transition-all ${
-              billingType === "credits"
-                ? "bg-white text-[#1c1c1c] shadow-sm"
-                : "text-[#6B7280]"
-            }`}
-          >
-            Pay As You Go
-          </button>
-          <button
-            onClick={() => setBillingType("monthly")}
-            className={`px-4 sm:px-6 py-2 rounded-full text-[13px] sm:text-[15px] font-medium flex items-center gap-2 transition-all ${
-              billingType === "monthly"
-                ? "bg-white text-[#1c1c1c] shadow-sm"
-                : "text-[#6B7280]"
-            }`}
-          >
-            Monthly
-            <span className='px-2 py-0.5 bg-[#22C55E]/10 text-[#22C55E] text-[11px] sm:text-[13px] rounded-full'>
-              Save 34%
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Pricing Cards Grid */}
-      <div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-8'>
-        {/* Basic Plan */}
-        <div className='bg-white rounded-3xl px-6 py-10 border'>
+      {/* Single Beta Card */}
+      <div className='max-w-md mx-auto'>
+        <div className='bg-[#1c1c1c] text-white rounded-3xl px-6 py-10'>
           <div className='flex justify-center mb-6'>
-            {billingType === "monthly" ? (
+            <div className='relative'>
               <Image
                 src='/images/logo.svg'
                 alt='Reelty Logo'
                 width={110}
                 height={30}
-                className='flex-shrink-0'
+                className='flex-shrink-0 invert'
               />
-            ) : (
-              <div className='text-[24px] sm:text-[28px] font-black text-[#1c1c1c] tracking-tight'>
-                1 Listing
-              </div>
-            )}
-          </div>
-
-          <div className='mb-6 text-center'>
-            <div className='flex items-end gap-1 mb-6 justify-center'>
-              <span className='text-[42px] sm:text-[52px] font-semibold text-[#1c1c1c]'>
-                ${prices.basic}
+              <span className='absolute -top-3 -right-9 text-[15px] font-bold text-white'>
+                Beta
               </span>
-              {billingType === "monthly" && (
-                <span className='text-[13px] sm:text-[15px] font-bold text-[#6B7280] mb-3'>
-                  /month
-                </span>
-              )}
             </div>
-            <Button
-              onClick={() => handleSubscribe("basic")}
-              disabled={loading === "basic" || currentTier === "basic"}
-              className='w-full py-3 rounded-lg border text-[13px] sm:text-[15px] font-semibold text-white hover:bg-black/80'
-            >
-              {loading === "basic" ? (
-                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-              ) : (
-                getButtonText("basic")
-              )}
-            </Button>
-            <div className='text-[11px] sm:text-[13px] text-center text-[#6B7280] mt-2'>
-              Secured by Stripe
-            </div>
-          </div>
-
-          <div className='space-y-3 text-[#1c1c1c]'>
-            {billingType === "monthly" && (
-              <Feature text={`${credits.basic} Listing per month`} />
-            )}
-            <Feature text='Up to 20 Photos per Listing' />
-            <Feature
-              text={`${
-                billingType === "monthly"
-                  ? reelLimits.subscription
-                  : reelLimits.payg
-              } Reels per Listing`}
-            />
-            <Feature text='No Watermark' />
-            {billingType === "monthly" && (
-              <>
-                <Feature text='Premium Templates' />
-                <Feature text='Listings Roll Over (up to 3 months)' />
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Pro Plan */}
-        <div className='bg-[#1c1c1c] text-white rounded-3xl px-6 py-10'>
-          <div className='flex justify-center mb-6'>
-            {billingType === "monthly" ? (
-              <div className='relative'>
-                <Image
-                  src='/images/logo.svg'
-                  alt='Reelty Logo'
-                  width={110}
-                  height={30}
-                  className='flex-shrink-0 invert'
-                />
-                <span className='absolute -top-3 -right-8 text-[15px] font-bold text-white'>
-                  Pro
-                </span>
-              </div>
-            ) : (
-              <div className='text-[28px] font-black text-white tracking-tight'>
-                4 Listings
-              </div>
-            )}
           </div>
 
           <div className='mb-6 text-center'>
-            <div className='flex items-end gap-1 mb-6 justify-center'>
-              <span className='text-[52px] font-semibold'>${prices.pro}</span>
-              {billingType === "monthly" && (
-                <span className='text-[15px] font-bold text-white/60 mb-3'>
-                  /month
-                </span>
-              )}
-            </div>
+            <div className='text-[52px] font-semibold'>$249</div>
             <Button
-              onClick={() => handleSubscribe("pro")}
-              disabled={loading === "pro" || currentTier === "pro"}
-              className='w-full py-3 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90 '
+              onClick={() => handleSubscribe("beta")}
+              disabled={loading === "beta" || currentTier === "beta"}
+              className='w-full py-3 rounded-lg bg-white text-black text-[15px] font-semibold hover:bg-white/90'
             >
-              {loading === "pro" ? (
+              {loading === "beta" ? (
                 <Loader2 className='w-4 h-4 mr-2 animate-spin' />
               ) : (
-                getButtonText("pro")
+                getButtonText("beta")
               )}
             </Button>
             <div className='text-[13px] text-center text-white/60 mt-2'>
@@ -319,106 +212,20 @@ export default function PricingCards({
           </div>
 
           <div className='space-y-3'>
-            {billingType === "monthly" && (
-              <Feature text={`${credits.pro} Listings per month`} light />
-            )}
-            <Feature text='Up to 20 Photos per Listing' light />
-            <Feature
-              text={`${
-                billingType === "monthly"
-                  ? reelLimits.subscription
-                  : reelLimits.payg
-              } Reels per Listing`}
-              light
-            />
             <Feature text='No Watermark' light />
-            {billingType === "monthly" && (
-              <>
-                <Feature text='Premium Templates' light />
-                <Feature text='Listings Roll Over (up to 6 months)' light />
-                <Feature text='Priority Support' light />
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Pro+ Plan */}
-        <div className='bg-[#F3F4F6] rounded-3xl px-6 py-10'>
-          <div className='flex justify-center mb-6'>
-            {billingType === "monthly" ? (
-              <div className='relative'>
-                <Image
-                  src='/images/logo.svg'
-                  alt='Reelty Logo'
-                  width={110}
-                  height={30}
-                  className='flex-shrink-0'
-                />
-                <span className='absolute -top-3 -right-10 text-[15px] font-bold text-[#1c1c1c]'>
-                  Pro+
-                </span>
-              </div>
-            ) : (
-              <div className='text-[28px] font-black text-[#1c1c1c] tracking-tight'>
-                10 Listings
-              </div>
-            )}
-          </div>
-
-          <div className='mb-6 text-center'>
-            <div className='flex items-end gap-1 mb-6 justify-center'>
-              <span className='text-[52px] font-semibold text-[#1c1c1c]'>
-                ${prices.proPlus}
-              </span>
-              {billingType === "monthly" && (
-                <span className='text-[15px] font-bold text-[#6B7280] mb-3'>
-                  /month
-                </span>
-              )}
-            </div>
-            <Button
-              onClick={() => handleSubscribe("proPlus")}
-              disabled={loading === "proPlus" || currentTier === "proPlus"}
-              className='w-full py-3 rounded-lg bg-[#1c1c1c] text-white text-[15px] font-semibold   hover:bg-black/80'
-            >
-              {loading === "proPlus" ? (
-                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-              ) : (
-                getButtonText("proPlus")
-              )}
-            </Button>
-            <div className='text-[13px] text-center text-[#6B7280] mt-2'>
-              Secured by Stripe
-            </div>
-          </div>
-
-          <div className='space-y-3 text-[#1c1c1c]'>
-            {billingType === "monthly" && (
-              <Feature text={`${credits.proPlus} Listings per month`} />
-            )}
-            <Feature text='Up to 20 Photos per Listing' />
-            <Feature
-              text={`${
-                billingType === "monthly"
-                  ? reelLimits.subscription
-                  : reelLimits.payg
-              } Reels per Listing`}
-            />
-            <Feature text='No Watermark' />
-            {billingType === "monthly" && (
-              <>
-                <Feature text='Premium Templates' />
-                <Feature text='Listings Roll Over (unlimited)' />
-                <Feature text='Priority Support' />
-                <Feature text='Dedicated Account Manager' />
-              </>
-            )}
+            <Feature text='Pro Templates' light />
+            <Feature text='2 Listings / Month' light />
+            <Feature text='Up to 20 Photos per Listing' light />
+            <Feature text='6 Reels per Listing' light />
+            <Feature text='New Templates Monthly' light />
+            <Feature text='Exclusive Early Access to New Features' light />
+            <Feature text='Early Access to the Reelty Referral Program' light />
           </div>
         </div>
       </div>
 
       {/* Need More Section */}
-      <div className='text-center'>
+      <div className='text-center mt-8'>
         <p className='text-[18px] text-[#6B7280]'>
           Need more?{" "}
           <a
@@ -431,6 +238,12 @@ export default function PricingCards({
       </div>
     </div>
   );
+}
+
+// Export the component with conditional AuthGuard wrapping
+export default function PricingCards(props: PricingCardsProps) {
+  // Temporarily return content directly to test if AuthGuard is the issue
+  return <PricingCardsContent {...props} />;
 }
 
 function Feature({ text, light = false }: { text: string; light?: boolean }) {
