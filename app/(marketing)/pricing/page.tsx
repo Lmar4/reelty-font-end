@@ -11,7 +11,7 @@ export default function Pricing() {
               Plans
             </h1>
             <p className='text-[18px] text-[#6B7280]'>
-              No hidden fees. Cancel anytime.
+              Lifetime access. Available to the first 100 users.
             </p>
           </div>
           <PricingCards />
