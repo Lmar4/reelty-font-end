@@ -270,6 +270,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       id={`video-${template.key}`}
                       src={videoUrl}
                       className='w-full h-full object-cover'
+                      controlsList='nodownload'
+                      onContextMenu={(e) => e.preventDefault()}
                       controls
                       poster={getThumbnailForTemplate(template, videoUrl)}
                     />
@@ -292,6 +294,9 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                         id={`video-preview-${template.key}`}
                         src={videoUrl || undefined}
                         className='w-full h-full object-cover'
+                        controlsList='nodownload'
+                        onContextMenu={(e) => e.preventDefault()}
+                        controls
                         poster={getThumbnailForTemplate(template, videoUrl)}
                       />
                     </div>

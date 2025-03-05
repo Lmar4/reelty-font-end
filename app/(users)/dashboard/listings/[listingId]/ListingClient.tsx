@@ -16,6 +16,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import ListingSkeleton from "./components/ListingSkeleton";
 import { TemplateGrid } from "./components/TemplateGrid";
+import PricingCards from "@/components/reelty/PricingCards";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
@@ -150,6 +152,7 @@ export function ListingClient({
   const [downloadCount, setDownloadCount] = useState(0);
   const queryClient = useQueryClient();
   const [hasNotifiedCompletion, setHasNotifiedCompletion] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
 
   const {
     currentUser,
@@ -240,49 +243,72 @@ export function ListingClient({
       toast.error(
         "Free tier users can only download 1 template. Please upgrade to download more."
       );
+      setShowPricingModal(true);
       return;
     }
-
-    // First try to find the video element with this template's source
-    const videoElement =
-      (document.querySelector(`#video-${templateKey}`) as HTMLVideoElement) ||
-      (document.querySelector(
-        `#video-preview-${templateKey}`
-      ) as HTMLVideoElement);
-
-    console.log(`Video element found: ${!!videoElement}`, videoElement);
-
-    // If we found the video element, use its source directly
-    let videoUrl: string | null = videoElement?.src || null;
-
-    // If we couldn't find the video element, fall back to the previous method
-    if (!videoUrl) {
-      console.log(`No video element found, falling back to metadata lookup`);
-      // Get the processed template path for the specific template
-      const processedTemplate = job.metadata?.processedTemplates?.find(
-        (template: { key: string; path: string }) =>
-          template.key === templateKey
-      );
-
-      console.log(`Processed template found:`, processedTemplate);
-
-      // Make sure we're getting the correct template video
-      videoUrl =
-        processedTemplate?.path ||
-        (job.template === templateKey ? job.outputFile : null);
-
-      console.log(`Fallback video URL:`, videoUrl);
-    }
-
-    if (!videoUrl) {
-      console.error(`Could not find video URL for template: ${templateKey}`);
-      toast.error(`Could not find video for template: ${templateKey}`);
-      return;
-    }
-
-    console.log(`Downloading video from URL: ${videoUrl}`);
 
     try {
+      // First try to find the video element with this template's source
+      const videoElement =
+        (document.querySelector(`#video-${templateKey}`) as HTMLVideoElement) ||
+        (document.querySelector(
+          `#video-preview-${templateKey}`
+        ) as HTMLVideoElement);
+
+      console.log(`Video element found: ${!!videoElement}`, videoElement);
+
+      // If we found the video element, use its source directly
+      let videoUrl: string | null = videoElement?.src || null;
+
+      // If we couldn't find the video element, fall back to the previous method
+      if (!videoUrl) {
+        console.log(`No video element found, falling back to metadata lookup`);
+        // Get the processed template path for the specific template
+        const processedTemplate = job.metadata?.processedTemplates?.find(
+          (template: { key: string; path: string }) =>
+            template.key === templateKey
+        );
+
+        console.log(`Processed template found:`, processedTemplate);
+
+        // Make sure we're getting the correct template video
+        videoUrl =
+          processedTemplate?.path ||
+          (job.template === templateKey ? job.outputFile : null);
+
+        console.log(`Fallback video URL:`, videoUrl);
+      }
+
+      if (!videoUrl) {
+        console.error(`Could not find video URL for template: ${templateKey}`);
+        toast.error(`Could not find video for template: ${templateKey}`);
+        return;
+      }
+
+      console.log(`Downloading video from URL: ${videoUrl}`);
+
+      // Track the download in the database
+      const trackResponse = await fetch("/api/videos/track-download", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobId,
+          templateKey,
+          userId: currentUser?.id,
+        }),
+      });
+
+      if (!trackResponse.ok) {
+        const errorData = await trackResponse.json();
+        console.error("Failed to track download:", errorData);
+        // Continue with download even if tracking fails
+      } else {
+        console.log("Download tracked successfully");
+      }
+
+      // Proceed with download
       const response = await fetch(videoUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -308,8 +334,7 @@ export function ListingClient({
       }
     } catch (error) {
       console.error("Download failed:", error);
-      toast.error("Download failed. Trying alternative method...");
-      window.open(videoUrl, "_blank");
+      toast.error("Download failed. Please try again.");
     }
   };
 
@@ -565,6 +590,16 @@ export function ListingClient({
           onRegenerateImage={handleRegenerateImages}
           isLoading={isLoadingPhotoStatus}
         />
+
+        <Dialog open={showPricingModal} onOpenChange={setShowPricingModal}>
+          <DialogContent className='max-w-4xl'>
+            <PricingCards
+              isModal
+              currentTier={userData?.currentTierId || "FREE"}
+              onUpgradeComplete={() => setShowPricingModal(false)}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </ErrorBoundary>
   );
