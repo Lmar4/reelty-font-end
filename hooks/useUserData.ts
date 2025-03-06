@@ -47,7 +47,7 @@ async function getUserData(
 export function useUserData() {
   const { userId } = useAuth();
 
-  return useBaseQuery<UserResource>(
+  const result = useBaseQuery<UserResource>(
     ["user", userId],
     (token) => getUserData(token, userId ?? ""),
     {
@@ -73,4 +73,10 @@ export function useUserData() {
       structuralSharing: true,
     }
   );
+
+  // Transform the result to directly return the user data instead of the nested structure
+  return {
+    ...result,
+    data: result.data?.data,
+  };
 }
