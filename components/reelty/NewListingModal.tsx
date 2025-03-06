@@ -319,17 +319,20 @@ export default function NewListingModal({
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
 
-      // Determine max selectable photos based on user tier
+      // Determine max uploadable photos based on user tier
       const userTier = userData?.currentTier;
       const isFreeUser = userTier?.name === "FREE" || !userTier;
+      const maxUploadablePhotos = isFreeUser ? 20 : 60;
       const maxSelectablePhotos = isFreeUser ? 10 : 20;
 
       // Validate total files first
       const existingFiles = processedPhotos || [];
       const totalFiles = [...existingFiles, ...newFiles];
 
-      if (totalFiles.length > 60) {
-        toast.error(`Maximum 60 photos can be displayed`);
+      if (totalFiles.length > maxUploadablePhotos) {
+        toast.error(
+          `Maximum ${maxUploadablePhotos} photos can be uploaded on your plan`
+        );
         return;
       }
 
@@ -972,10 +975,23 @@ export default function NewListingModal({
                 <div>
                   <div className='flex items-center justify-between text-[18px] font-semibold mb-2 text-black'>
                     <span>
-                      {selectedPhotos.size} of {maxPhotos} photos selected
+                      {selectedPhotos.size} of{" "}
+                      {userData?.currentTier?.name === "FREE" ||
+                      !userData?.currentTier
+                        ? 10
+                        : 20}{" "}
+                      photos selected
                     </span>
                     <span>
-                      {Math.round((selectedPhotos.size / maxPhotos) * 100)}%
+                      {Math.round(
+                        (selectedPhotos.size /
+                          (userData?.currentTier?.name === "FREE" ||
+                          !userData?.currentTier
+                            ? 10
+                            : 20)) *
+                          100
+                      )}
+                      %
                     </span>
                   </div>
                   <div className='h-2 bg-gray-100 rounded-full overflow-hidden'>
@@ -984,12 +1000,23 @@ export default function NewListingModal({
                         "h-full transition-all duration-300",
                         selectedPhotos.size < 10
                           ? "bg-red-500"
-                          : selectedPhotos.size > maxPhotos
+                          : selectedPhotos.size >
+                            (userData?.currentTier?.name === "FREE" ||
+                            !userData?.currentTier
+                              ? 10
+                              : 20)
                           ? "bg-red-500"
                           : "bg-purple-500"
                       )}
                       style={{
-                        width: `${(selectedPhotos.size / maxPhotos) * 100}%`,
+                        width: `${
+                          (selectedPhotos.size /
+                            (userData?.currentTier?.name === "FREE" ||
+                            !userData?.currentTier
+                              ? 10
+                              : 20)) *
+                          100
+                        }%`,
                       }}
                     />
                   </div>
@@ -998,11 +1025,33 @@ export default function NewListingModal({
                       Please select at least 10 photos
                     </p>
                   )}
-                  {selectedPhotos.size > maxPhotos && (
+                  {selectedPhotos.size >
+                    (userData?.currentTier?.name === "FREE" ||
+                    !userData?.currentTier
+                      ? 10
+                      : 20) && (
                     <p className='text-red-500 text-sm mt-1'>
-                      Maximum {maxPhotos} photos allowed
+                      Maximum{" "}
+                      {userData?.currentTier?.name === "FREE" ||
+                      !userData?.currentTier
+                        ? 10
+                        : 20}{" "}
+                      photos allowed
                     </p>
                   )}
+                  {(userData?.currentTier?.name === "FREE" ||
+                    !userData?.currentTier) &&
+                    selectedPhotos.size !== 10 && (
+                      <p className='text-gray-500 text-sm mt-1'>
+                        Free users must select exactly 10 photos
+                      </p>
+                    )}
+                  {userData?.currentTier?.name !== "FREE" &&
+                    userData?.currentTier && (
+                      <p className='text-gray-500 text-sm mt-1'>
+                        Paid users can select between 10-20 photos
+                      </p>
+                    )}
                 </div>
               </div>
 
