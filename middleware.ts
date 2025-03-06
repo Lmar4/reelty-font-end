@@ -20,19 +20,20 @@ const isPublicPath = createRouteMatcher([
 
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
-const ADMIN_TIER_ID = "550e8400-e29b-41d4-a716-446655440003";
-
-// Cache for user tier checks (5 minutes)
-const userTierCache = new Map<string, { tierId: string; timestamp: number }>();
+// Cache for user data checks (5 minutes)
+const userTierCache = new Map<
+  string,
+  { tierId: string; role: string; timestamp: number }
+>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-async function getUserTier(userId: string, token: string) {
+async function getUserData(userId: string, token: string) {
   // Check cache first
   const cachedData = userTierCache.get(userId);
   const now = Date.now();
 
   if (cachedData && now - cachedData.timestamp < CACHE_TTL) {
-    return cachedData.tierId;
+    return cachedData;
   }
 
   try {
@@ -52,13 +53,15 @@ async function getUserTier(userId: string, token: string) {
 
     const userData = await response.json();
     const tierId = userData?.data?.currentTierId;
+    const role = userData?.data?.role;
 
-    // Update cache
-    userTierCache.set(userId, { tierId, timestamp: now });
+    // Update cache with both tierId and role
+    const userInfo = { tierId, role, timestamp: now };
+    userTierCache.set(userId, userInfo);
 
-    return tierId;
+    return userInfo;
   } catch (error) {
-    console.error("Error fetching user tier:", error);
+    console.error("Error fetching user data:", error);
     return null;
   }
 }
@@ -101,13 +104,13 @@ export default clerkMiddleware(async (auth, req) => {
     }
 
     try {
-      const tierId = await getUserTier(userId, token);
+      const userData = await getUserData(userId, token);
 
-      // Check if user has admin tier
-      if (tierId !== ADMIN_TIER_ID) {
+      // Check if user has admin role
+      if (userData?.role !== "ADMIN") {
         console.log("Unauthorized admin access attempt:", {
           userId,
-          currentTier: tierId,
+          role: userData?.role,
         });
         const homeUrl = new URL("/", req.url);
         return NextResponse.redirect(homeUrl);
