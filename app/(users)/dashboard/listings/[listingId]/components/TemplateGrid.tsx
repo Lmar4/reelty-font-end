@@ -290,13 +290,26 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                           </div>
                         </div>
                       )}
+                      {isPremium && videoUrl ? (
+                        <div className='absolute inset-0 flex items-center justify-center'>
+                          <div className='absolute inset-0 bg-black/50 backdrop-blur-[2px]'></div>
+                          <div className='z-10 text-white text-center px-4'>
+                            <p className='text-sm font-medium mb-2'>
+                              Pro Template
+                            </p>
+                            <p className='text-xs opacity-80'>
+                              Upgrade to view and download
+                            </p>
+                          </div>
+                        </div>
+                      ) : null}
                       <video
                         id={`video-preview-${template.key}`}
                         src={videoUrl || undefined}
                         className='w-full h-full object-cover'
                         controlsList='nodownload'
                         onContextMenu={(e) => e.preventDefault()}
-                        controls
+                        controls={!isPremium}
                         poster={getThumbnailForTemplate(template, videoUrl)}
                       />
                     </div>
@@ -328,7 +341,6 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       isProcessing ||
                       !photos.length ||
                       isGenerating ||
-                      (isPremium && isFreeTier) ||
                       isDownloadDisabled
                     }
                     className={cn(
@@ -345,7 +357,9 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       </div>
                     ) : videoUrl ? (
                       latestJob?.status === "COMPLETED" ? (
-                        isDownloadDisabled ? (
+                        isPremium ? (
+                          "Upgrade to Pro"
+                        ) : isDownloadDisabled ? (
                           "Upgrade to Download"
                         ) : (
                           "Download HD"
