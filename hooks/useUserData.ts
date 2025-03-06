@@ -26,18 +26,28 @@ async function getUserData(
     throw new Error(error.error || "Failed to fetch user data");
   }
 
-  const result = (await response.json()) as UserResource;
+  const responseJson = await response.json();
 
-  // Log the received data for debugging
-  logger.debug("Received user data:", result);
+  // Handle potential double-nested structure
+  let userData: UserResource;
 
-  return { success: true, data: result };
+  if (responseJson.success && responseJson.data && responseJson.data.success) {
+    // Double-nested structure detected
+    userData = responseJson.data.data;
+    logger.debug("Unwrapped double-nested user data:", userData);
+  } else {
+    // Standard structure
+    userData = responseJson;
+    logger.debug("Received user data:", userData);
+  }
+
+  return { success: true, data: userData };
 }
 
 export function useUserData() {
   const { userId } = useAuth();
 
-  const query = useBaseQuery<UserResource>(
+  return useBaseQuery<UserResource>(
     ["user", userId],
     (token) => getUserData(token, userId ?? ""),
     {
@@ -63,10 +73,4 @@ export function useUserData() {
       structuralSharing: true,
     }
   );
-
-  // Return a more convenient object with the actual user data directly accessible
-  return {
-    ...query,
-    data: query.data?.data, // Extract the actual user data from the nested structure
-  };
 }
