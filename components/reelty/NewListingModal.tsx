@@ -36,6 +36,7 @@ import { usePhotoStatus } from "@/hooks/queries/use-photo-status";
 import { LoadingState } from "@/components/ui/loading-state";
 import dynamic from "next/dynamic";
 import { useUserData } from "@/hooks/useUserData";
+import { SubscriptionTier } from "@/constants/subscription-tiers";
 
 // Initialize Google Maps loader
 const loader = new Loader({
@@ -173,8 +174,8 @@ export default function NewListingModal({
   useEffect(() => {
     if (initialFiles?.length > 0) {
       // Determine max selectable photos based on user tier
-      const userTier = userData?.currentTier;
-      const isFreeUser = userTier?.name === "FREE" || !userTier;
+
+      const isFreeUser = userData?.currentTierId === SubscriptionTier.FREE;
       const maxSelectablePhotos = isFreeUser ? 10 : 20;
 
       // Just create preview URLs initially without processing
