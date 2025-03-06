@@ -17,18 +17,22 @@ export async function makeBackendRequest<T>(
   const url = `${backendUrl}${endpoint}`;
 
   try {
-    // Use provided token
-    const token = sessionToken;
-
     // Final token check
-    if (!token) {
+    if (!sessionToken) {
       throw new AuthError(401, "No valid session token available");
     }
+
+    console.log(
+      `Making ${method} request to ${endpoint} with token prefix: ${sessionToken.substring(
+        0,
+        10
+      )}...`
+    );
 
     const response = await fetch(url, {
       method,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${sessionToken}`,
         "Content-Type": "application/json",
         ...headers,
       },
@@ -39,6 +43,24 @@ export async function makeBackendRequest<T>(
 
     // Handle response
     if (!response.ok) {
+      // Handle 401 errors specifically
+      if (response.status === 401) {
+        console.error(
+          "Authentication failed - token may be expired or invalid"
+        );
+
+        // Only redirect if we're in the browser
+        if (typeof window !== "undefined") {
+          window.location.href =
+            "/login?redirect=" + encodeURIComponent(window.location.pathname);
+        }
+        throw new AuthError(
+          401,
+          "Authentication failed - redirecting to login"
+        );
+      }
+
+      // Handle other errors
       const contentType = response.headers.get("content-type");
       if (contentType?.includes("application/json")) {
         const errorData = (await response.json()) as ApiResponse<any>;

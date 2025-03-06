@@ -18,19 +18,40 @@ async function validateRequest(request: Request) {
     const session = await auth();
     const user = await currentUser();
 
+    // Enhanced logging
+    console.log("[Server Auth] Validating request", {
+      hasSession: !!session,
+      hasUserId: !!session?.userId,
+      hasUser: !!user,
+      path: request.url,
+    });
+
     if (!session?.userId || !user) {
+      console.error("[Server Auth] Invalid session", {
+        sessionExists: !!session,
+        userId: session?.userId,
+        userExists: !!user,
+      });
       throw new AuthError(401, "Invalid or missing session");
     }
 
     const token = await session.getToken();
     if (!token) {
+      console.error("[Server Auth] No token available");
       throw new AuthError(401, "No session token available");
     }
+
+    // Log token prefix for debugging
+    console.log("[Server Auth] Token obtained", {
+      tokenPrefix: token.substring(0, 10) + "...",
+      userId: user.id,
+    });
 
     // Verify the token is valid by checking the Authorization header
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       // If no Authorization header, use the session token
+      console.log("[Server Auth] No Authorization header, using session token");
       return {
         token,
         userId: user.id,
@@ -41,7 +62,10 @@ async function validateRequest(request: Request) {
     // If Authorization header exists, verify it matches our session token
     const providedToken = authHeader.split("Bearer ")[1];
     if (providedToken !== token) {
-      console.warn("Token mismatch between session and request");
+      console.warn("[Server Auth] Token mismatch between session and request", {
+        sessionTokenPrefix: token.substring(0, 10) + "...",
+        providedTokenPrefix: providedToken.substring(0, 10) + "...",
+      });
       // Still use the session token as it's more reliable
     }
 
@@ -51,7 +75,7 @@ async function validateRequest(request: Request) {
       user,
     };
   } catch (error) {
-    console.error("Auth validation error:", error);
+    console.error("[Server Auth] Validation error:", error);
     throw new AuthError(401, "Invalid or missing session");
   }
 }
