@@ -8,7 +8,7 @@ export default function SignInPage() {
     <>
       <HomeHeader />
       <div className='min-h-screen flex items-center justify-center bg-white px-4'>
-        <SignIn />
+        <SignIn signUpUrl='/sign-up' />
       </div>
     </>
   );

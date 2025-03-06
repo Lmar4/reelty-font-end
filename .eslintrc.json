@@ -1,6 +1,9 @@
 {
   "extends": "next/core-web-vitals",
   "rules": {
+    // React Hooks rules
+    "react-hooks/rules-of-hooks": "error",
+
     // Disable rules that might cause deployment issues
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": "off",
