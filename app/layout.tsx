@@ -1,14 +1,13 @@
-import "./globals.css";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
+import { Providers } from "@/components/providers/Providers";
+import { cn } from "@/lib/utils";
+import { AuthProvider } from "@/providers/AuthProvider";
+import { QueryProvider } from "@/providers/query-provider";
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import { AuthProvider } from "@/providers/AuthProvider";
-import { Toaster } from "sonner";
-import { QueryProvider } from "@/providers/query-provider";
-import { ClerkProvider } from "@clerk/nextjs";
-import { Providers } from "@/components/providers/Providers";
-import ErrorBoundary from "@/components/common/ErrorBoundary";
-import { cn } from "@/lib/utils";
 import Script from "next/script";
+import { Toaster } from "sonner";
+import "./globals.css";
 
 const geist = Geist({
   variable: "--font-geist",
@@ -159,21 +158,19 @@ export default function RootLayout({
         )}
       >
         <ErrorBoundary>
-          <ClerkProvider afterSignOutUrl='/'>
-            <QueryProvider>
-              <AuthProvider>
-                <Providers>
-                  <Script
-                    defer
-                    src='https://umami-production-4123.up.railway.app/script.js'
-                    data-website-id='fb7ab82d-6fef-4efd-af3c-66f7a82af722'
-                  />
-                  <main className='flex-grow flex flex-col'>{children}</main>
-                  <Toaster />
-                </Providers>
-              </AuthProvider>
-            </QueryProvider>
-          </ClerkProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <Providers>
+                <Script
+                  defer
+                  src='https://umami-production-4123.up.railway.app/script.js'
+                  data-website-id='fb7ab82d-6fef-4efd-af3c-66f7a82af722'
+                />
+                <main className='flex-grow flex flex-col'>{children}</main>
+                <Toaster />
+              </Providers>
+            </AuthProvider>
+          </QueryProvider>
         </ErrorBoundary>
       </body>
     </html>
