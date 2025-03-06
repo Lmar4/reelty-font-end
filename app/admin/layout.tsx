@@ -4,9 +4,6 @@ import { useUserData } from "@/hooks/useUserData";
 import { redirect } from "next/navigation";
 import { LoadingState } from "@/components/ui/loading-state";
 
-// Admin tier ID constant
-const ADMIN_TIER_ID = "550e8400-e29b-41d4-a716-446655440003";
-
 export default function AdminLayout({
   children,
 }: {
@@ -37,11 +34,8 @@ export default function AdminLayout({
     );
   }
 
-  // Only check role after loading is complete
-  if (
-    !userData?.data?.currentTierId ||
-    userData.data.currentTierId !== ADMIN_TIER_ID
-  ) {
+  // Check role instead of tier
+  if (userData?.data?.role !== "ADMIN") {
     redirect("/dashboard");
   }
 

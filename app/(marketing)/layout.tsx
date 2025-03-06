@@ -13,9 +13,9 @@ export default function MarketingLayout({
 
   // Only show banner if user is logged in AND not a paid member
   // Don't try to access userData properties if it's still loading
-  const isPaidMember =
-    !isLoading && userData?.data?.subscriptionStatus === "ACTIVE";
-  const showBanner = !isLoading && userData && !isPaidMember;
+  const isFreeTier =
+    userData?.data?.currentTierId === "550e8400-e29b-41d4-a716-446655440000"; // FREE tier
+  const showBanner = !isLoading && userData && isFreeTier;
 
   return (
     <div className='flex flex-col min-h-screen'>
