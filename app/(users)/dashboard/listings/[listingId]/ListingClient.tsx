@@ -117,7 +117,7 @@ function useListingData(
   return {
     currentUser,
     userData,
-    listing: listing?.data,
+    listing,
     isLoading,
     error: userDataError || listingError || undefined,
   };

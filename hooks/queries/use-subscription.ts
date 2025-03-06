@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { SubscriptionTier } from "@/types/prisma-types";
 import { useBaseQuery } from "./useBaseQuery";
 import { ApiResponse } from "@/types/api-types";
+import { unwrapQueryResult } from "@/utils/unwrapApiResponse";
 
 interface SubscriptionData {
   id: string;
@@ -71,14 +72,19 @@ async function updateSubscriptionTier(
 const SUBSCRIPTION_QUERY_KEY = "subscription";
 
 export function useSubscription() {
-  return useBaseQuery<SubscriptionData>([SUBSCRIPTION_QUERY_KEY], (token) => {
-    return makeBackendRequest<ApiResponse<SubscriptionData>>(
-      "/api/subscription/current",
-      {
-        sessionToken: token,
-      }
-    );
-  });
+  const result = useBaseQuery<SubscriptionData>(
+    [SUBSCRIPTION_QUERY_KEY],
+    (token) => {
+      return makeBackendRequest<ApiResponse<SubscriptionData>>(
+        "/api/subscription/current",
+        {
+          sessionToken: token,
+        }
+      );
+    }
+  );
+
+  return unwrapQueryResult(result);
 }
 
 export function useUpdateSubscription() {
@@ -140,9 +146,12 @@ export function useCancelSubscription() {
 }
 
 export function useSubscriptionTiers() {
-  return useBaseQuery<SubscriptionTier[]>(["subscriptionTiers"], (token) =>
-    fetchSubscriptionTiers(token)
+  const result = useBaseQuery<SubscriptionTier[]>(
+    ["subscriptionTiers"],
+    (token) => fetchSubscriptionTiers(token)
   );
+
+  return unwrapQueryResult(result);
 }
 
 export function useCreateCheckoutSession() {

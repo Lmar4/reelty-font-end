@@ -173,7 +173,7 @@ export default function NewListingModal({
   useEffect(() => {
     if (initialFiles?.length > 0) {
       // Determine max selectable photos based on user tier
-      const userTier = userData?.data?.currentTier;
+      const userTier = userData?.currentTier;
       const isFreeUser = userTier?.name === "FREE" || !userTier;
       const maxSelectablePhotos = isFreeUser ? 10 : 20;
 
@@ -320,7 +320,7 @@ export default function NewListingModal({
       const newFiles = Array.from(e.target.files);
 
       // Determine max selectable photos based on user tier
-      const userTier = userData?.data?.currentTier;
+      const userTier = userData?.currentTier;
       const isFreeUser = userTier?.name === "FREE" || !userTier;
       const maxSelectablePhotos = isFreeUser ? 10 : 20;
 
@@ -1011,8 +1011,8 @@ export default function NewListingModal({
                   photos={processedPhotos}
                   onAddPhotos={handleAdditionalFiles}
                   maxPhotos={
-                    userData?.data?.currentTier?.name === "FREE" ||
-                    !userData?.data?.currentTier
+                    userData?.currentTier?.name === "FREE" ||
+                    !userData?.currentTier
                       ? 10
                       : 20
                   }

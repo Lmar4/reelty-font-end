@@ -119,7 +119,7 @@ export default function SubscriptionsSettings() {
     }
   };
 
-  const currentTier = subscriptionTiers?.data?.find(
+  const currentTier = subscriptionTiers?.find(
     (tier) => tier.id === user?.data?.currentTierId
   );
 
@@ -202,7 +202,7 @@ export default function SubscriptionsSettings() {
         </div>
 
         <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-          {subscriptionTiers?.data?.map((tier) => (
+          {subscriptionTiers?.map((tier) => (
             <div
               key={tier.id}
               className={`border rounded-lg p-6 transition-shadow ${

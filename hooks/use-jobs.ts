@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
 import { useBaseQuery } from "./queries/useBaseQuery";
+import { unwrapQueryResult } from "@/utils/unwrapApiResponse";
 
 const JOBS_QUERY_KEY = "jobs";
 
@@ -16,7 +17,7 @@ export const useJobs = (params?: {
   listingId?: string;
   status?: JobStatus;
 }) => {
-  return useBaseQuery([JOBS_QUERY_KEY, params], async (token) => {
+  const query = useBaseQuery([JOBS_QUERY_KEY, params], async (token) => {
     const searchParams = new URLSearchParams();
     if (params?.listingId) searchParams.append("listingId", params.listingId);
     if (params?.status) searchParams.append("status", params.status);
@@ -24,10 +25,12 @@ export const useJobs = (params?: {
       sessionToken: token,
     });
   });
+
+  return unwrapQueryResult(query);
 };
 
 export const useJob = (jobId: string) => {
-  return useBaseQuery(
+  const query = useBaseQuery(
     [JOBS_QUERY_KEY, jobId],
     async (token) => {
       return makeBackendRequest<any>(`/api/jobs/${jobId}`, {
@@ -38,6 +41,8 @@ export const useJob = (jobId: string) => {
       enabled: !!jobId,
     }
   );
+
+  return unwrapQueryResult(query);
 };
 
 export const useCreateJob = () => {

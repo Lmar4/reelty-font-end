@@ -14,7 +14,7 @@ export default function MarketingLayout({
 
   // Only show banner if user is logged in AND not a paid member
   // Don't try to access userData properties if it's still loading
-  const isFreeTier = userData?.data?.currentTierId === SubscriptionTier.FREE;
+  const isFreeTier = userData?.currentTierId === SubscriptionTier.FREE;
   const showBanner = !isLoading && userData && isFreeTier;
 
   return (

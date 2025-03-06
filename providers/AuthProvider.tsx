@@ -137,7 +137,6 @@ function AuthStateProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
 
-      console.log(`Token valid for ${expiresInMinutes} more minutes`);
       return false;
     };
 

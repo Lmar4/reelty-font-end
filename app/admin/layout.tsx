@@ -35,7 +35,7 @@ export default function AdminLayout({
   }
 
   // Check role instead of tier
-  if (userData?.data?.role !== "ADMIN") {
+  if (userData?.role !== "ADMIN") {
     redirect("/dashboard");
   }
 

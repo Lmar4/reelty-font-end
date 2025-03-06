@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useBaseQuery } from "./useBaseQuery";
 import type { ExtendedListing } from "@/types/listing-types";
 import { ApiResponse } from "@/types/api-types";
+import { unwrapQueryResult } from "@/utils/unwrapApiResponse";
 
 export const LISTINGS_QUERY_KEY = "listings";
 
@@ -106,11 +107,14 @@ export const useListings = () => {
     return { success: true, data: [] };
   });
 
+  // Use the unwrapQueryResult utility
+  const result = unwrapQueryResult(query);
+
   return {
-    listings: query.data?.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    listings: result.data || [],
+    isLoading: result.isLoading,
+    error: result.error,
+    refetch: result.refetch,
   };
 };
 
@@ -120,7 +124,7 @@ export const useListing = (
   listingId: string,
   initialData?: ExtendedListing
 ) => {
-  return useBaseQuery<ExtendedListing>(
+  const query = useBaseQuery<ExtendedListing>(
     ["listing", listingId],
     async (token) => {
       const response = await fetchListingById(listingId, token);
@@ -152,6 +156,8 @@ export const useListing = (
         : undefined,
     }
   );
+
+  return unwrapQueryResult(query);
 };
 
 export function useCreateListing() {

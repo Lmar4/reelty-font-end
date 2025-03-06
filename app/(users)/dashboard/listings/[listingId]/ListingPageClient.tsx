@@ -40,5 +40,5 @@ export default function ListingPageClient({
     );
   }
 
-  return <ListingClient listingId={listingId} initialListing={listing!.data} />;
+  return <ListingClient listingId={listingId} initialListing={listing!} />;
 }

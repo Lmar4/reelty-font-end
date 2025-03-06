@@ -11,9 +11,9 @@ import { UserRole } from "@/types/prisma-types";
 export function useRoleAccess(requiredRole: UserRole): boolean {
   const { data: userData, isLoading } = useUserData();
 
-  if (isLoading || !userData?.data) {
+  if (isLoading || !userData) {
     return false;
   }
 
-  return userData.data.role === requiredRole;
+  return userData.role === requiredRole;
 }

@@ -21,8 +21,8 @@ export const JobList = ({ listingId, status }: JobListProps) => {
   const { data: rawJobsData, isLoading } = useJobs({ listingId, status });
 
   useEffect(() => {
-    if (rawJobsData?.data) {
-      setJobs(rawJobsData.data as VideoJob[]);
+    if (rawJobsData) {
+      setJobs(rawJobsData as VideoJob[]);
     }
   }, [rawJobsData]);
 

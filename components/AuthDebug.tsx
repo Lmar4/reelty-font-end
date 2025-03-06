@@ -1,7 +1,7 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "../providers/AuthProvider";
-import { useState, useEffect } from "react";
 
 export function AuthDebug() {
   const auth = useAuth();

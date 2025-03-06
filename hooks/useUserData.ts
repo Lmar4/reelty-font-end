@@ -5,6 +5,7 @@ import { UserResource } from "@/types/api-types";
 import { useAuth } from "@clerk/nextjs";
 import { logger } from "@/utils/logger";
 import { ApiResponse } from "@/types/api-types";
+import { unwrapQueryResult } from "@/utils/unwrapApiResponse";
 
 async function getUserData(
   token: string,
@@ -74,9 +75,6 @@ export function useUserData() {
     }
   );
 
-  // Transform the result to directly return the user data instead of the nested structure
-  return {
-    ...result,
-    data: result.data?.data,
-  };
+  // Use the utility function to unwrap the nested data
+  return unwrapQueryResult(result);
 }

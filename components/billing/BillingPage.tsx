@@ -53,7 +53,7 @@ export default function BillingPage() {
     <div className='container mx-auto py-8'>
       <h1 className='text-3xl font-bold mb-8'>Subscription Plans</h1>
       <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
-        {tiers?.data?.map((tier: SubscriptionTier) => (
+        {tiers?.map((tier: SubscriptionTier) => (
           <Card key={tier.id} className='p-6'>
             <h2 className='text-2xl font-bold mb-4'>{tier.name}</h2>
             <p className='text-gray-600 mb-4'>{tier.description}</p>
