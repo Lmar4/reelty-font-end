@@ -18,6 +18,7 @@ import ListingSkeleton from "./components/ListingSkeleton";
 import { TemplateGrid } from "./components/TemplateGrid";
 import PricingCards from "@/components/reelty/PricingCards";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { SubscriptionTier } from "@/constants/subscription-tiers";
 
 interface ExtendedListing extends Listing {
   currentJobId?: string;
@@ -234,7 +235,10 @@ export function ListingClient({
     }
 
     // For free tier users, check if they've already downloaded a template
-    if (userData?.currentTierId === "FREE" && downloadCount >= 1) {
+    if (
+      userData?.currentTierId === SubscriptionTier.FREE &&
+      downloadCount >= 1
+    ) {
       console.log(
         `Free tier user has already downloaded ${downloadCount} templates`
       );
@@ -322,7 +326,7 @@ export function ListingClient({
       window.URL.revokeObjectURL(url);
 
       // Increment download count for free users
-      if (userData?.currentTierId === "FREE") {
+      if (userData?.currentTierId === SubscriptionTier.FREE) {
         setDownloadCount((prev) => prev + 1);
         toast.success(
           "Video downloaded successfully! You've used your free download."
@@ -573,7 +577,7 @@ export function ListingClient({
             videoJobs={videoJobs}
             photos={photoStatus?.data?.photos || []}
             isLoading={isLoading}
-            userTier={userData?.currentTierId || "FREE"}
+            userTier={userData?.currentTierId || SubscriptionTier.FREE}
             activeJobs={activeJobs}
             onGenerateVideo={handleVideoGeneration}
             onDownload={handleDownload}
@@ -595,7 +599,7 @@ export function ListingClient({
           <DialogContent className='max-w-4xl'>
             <PricingCards
               isModal
-              currentTier={userData?.currentTierId || "FREE"}
+              currentTier={userData?.currentTierId || SubscriptionTier.FREE}
               onUpgradeComplete={() => setShowPricingModal(false)}
             />
           </DialogContent>
