@@ -1040,12 +1040,11 @@ export default function NewListingModal({
                     </p>
                   )}
                   {(userData?.currentTier?.name === "FREE" ||
-                    !userData?.currentTier) &&
-                    selectedPhotos.size !== 10 && (
-                      <p className='text-gray-500 text-sm mt-1'>
-                        Free users must select exactly 10 photos
-                      </p>
-                    )}
+                    !userData?.currentTier) && (
+                    <p className='text-gray-500 text-sm mt-1'>
+                      Free users must select exactly 10 photos
+                    </p>
+                  )}
                   {userData?.currentTier?.name !== "FREE" &&
                     userData?.currentTier && (
                       <p className='text-gray-500 text-sm mt-1'>
