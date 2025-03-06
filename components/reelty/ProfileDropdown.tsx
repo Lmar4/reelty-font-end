@@ -34,6 +34,7 @@ export function ProfileDropdown() {
   // Use the new role access hooks
   const isAdmin = useRoleAccess("ADMIN");
   const isAgency = useRoleAccess("AGENCY");
+  const isAgencyUser = useRoleAccess("AGENCY_USER");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -104,7 +105,7 @@ export function ProfileDropdown() {
       href: "/settings/billing",
       icon: CreditCard,
       // Show to all users except agency users
-      hidden: useRoleAccess("AGENCY_USER"),
+      hidden: isAgencyUser,
     },
   ];
 
