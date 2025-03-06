@@ -8,7 +8,7 @@ export function DashboardHeader() {
   return (
     <header className='w-full bg-white '>
       <div className='max-w-[1200px] w-full mx-auto'>
-        <nav className='flex items-center justify-between h-16 px-4 md:px-6'>
+        <nav className='flex items-center justify-between h-16 px-4'>
           {/* Left side - Logo */}
           <Link href='/dashboard' className='flex items-center'>
             <Image

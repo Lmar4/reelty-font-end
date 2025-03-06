@@ -15,49 +15,25 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
-
-type UserRole = "USER" | "ADMIN" | "AGENCY" | "AGENCY_USER";
+import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 type MenuItem = {
   title: string;
   href: string;
   icon: any;
-  roles?: UserRole[];
-};
-
-type BackendUser = {
-  id: string;
-  role: UserRole;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  // Add other fields as needed
-};
-
-const useBackendUser = () => {
-  const { user: clerkUser } = useUser();
-
-  return useQuery<BackendUser>({
-    queryKey: ["user", clerkUser?.id],
-    queryFn: async () => {
-      const response = await fetch("/api/users/me");
-      if (!response.ok) {
-        throw new Error("Failed to fetch user data");
-      }
-      return response.json();
-    },
-    enabled: !!clerkUser,
-  });
+  hidden?: boolean;
 };
 
 export function ProfileDropdown() {
   const { user: clerkUser } = useUser();
-  const { data: backendUser, isLoading } = useBackendUser();
   const { signOut } = useClerk();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Use the new role access hooks
+  const isAdmin = useRoleAccess("ADMIN");
+  const isAgency = useRoleAccess("AGENCY");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,69 +49,67 @@ export function ProfileDropdown() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  if (!clerkUser || isLoading) return null;
+  if (!clerkUser) return null;
 
   const handleSignOut = async () => {
     await signOut();
     router.push("/");
   };
 
-  const userRole = backendUser?.role || "USER";
-
   const menuItems: MenuItem[] = [
     {
       title: "Dashboard",
       href: "/dashboard",
       icon: Home,
-      roles: ["USER", "ADMIN", "AGENCY", "AGENCY_USER"],
+      // Show to all users
     },
     {
       title: "Admin Dashboard",
       href: "/admin",
       icon: Layout,
-      roles: ["ADMIN"],
+      hidden: !isAdmin,
     },
     {
       title: "Agency Dashboard",
       href: "/agency",
       icon: Building2,
-      roles: ["AGENCY"],
+      hidden: !isAgency,
     },
     {
       title: "Team Members",
       href: "/agency/team",
       icon: Users,
-      roles: ["AGENCY"],
+      hidden: !isAgency,
     },
     {
       title: "Templates",
       href: "/admin/templates",
       icon: FileText,
-      roles: ["ADMIN"],
+      hidden: !isAdmin,
     },
     {
       title: "Account",
       href: "/settings/account",
       icon: Settings,
-      roles: ["USER", "ADMIN", "AGENCY", "AGENCY_USER"],
+      // Show to all users
     },
     {
       title: "Usage",
       href: "/settings/usage",
       icon: BarChart,
-      roles: ["USER", "ADMIN", "AGENCY", "AGENCY_USER"],
+      // Show to all users
     },
     {
       title: "Billing",
       href: "/settings/billing",
       icon: CreditCard,
-      roles: ["USER", "ADMIN", "AGENCY"],
+      // Show to all users except agency users
+      hidden: useRoleAccess("AGENCY_USER"),
     },
   ];
 
-  const filteredMenuItems = menuItems.filter(
-    (item) => !item.roles || item.roles.includes(userRole)
-  );
+  // Filter out hidden menu items
+  const filteredMenuItems = menuItems.filter((item) => !item.hidden);
 
   return (
     <div className='relative' ref={dropdownRef}>
