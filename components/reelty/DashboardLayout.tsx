@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: userData, isLoading } = useUserData();
-
+  console.log("userData", userData);
   const isFreeTier = userData?.data?.currentTierId === SubscriptionTier.FREE;
   const showBanner = !isLoading && isFreeTier;
 
