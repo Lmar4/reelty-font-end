@@ -8,6 +8,7 @@ interface UserResponse {
   data?: {
     id: string;
     email: string;
+    role?: string; // Add this line to include the role
     firstName?: string;
     lastName?: string;
     currentTier?: {
