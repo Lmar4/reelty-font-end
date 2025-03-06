@@ -170,13 +170,15 @@ export default function NewListingModal({
     initOnMount: isLoaded,
   });
 
+  // Create a consistent function to check if user is on free tier
+  const isFreeUser = () => userData?.currentTierId === SubscriptionTier.FREE;
+  const getMaxSelectablePhotos = () => (isFreeUser() ? 10 : 20);
+  const getMaxUploadablePhotos = () => (isFreeUser() ? 20 : 60);
+
   // Process initial files
   useEffect(() => {
     if (initialFiles?.length > 0) {
-      // Determine max selectable photos based on user tier
-
-      const isFreeUser = userData?.currentTierId === SubscriptionTier.FREE;
-      const maxSelectablePhotos = isFreeUser ? 10 : 20;
+      const maxSelectablePhotos = getMaxSelectablePhotos();
 
       // Just create preview URLs initially without processing
       Promise.all(
@@ -1040,18 +1042,16 @@ export default function NewListingModal({
                       photos allowed
                     </p>
                   )}
-                  {(userData?.currentTier?.name === "FREE" ||
-                    !userData?.currentTier) && (
+                  {userData?.currentTier?.name === "FREE" && (
                     <p className='text-gray-500 text-sm mt-1'>
                       Free users must select exactly 10 photos
                     </p>
                   )}
-                  {userData?.currentTier?.name !== "FREE" &&
-                    userData?.currentTier && (
-                      <p className='text-gray-500 text-sm mt-1'>
-                        Paid users can select between 10-20 photos
-                      </p>
-                    )}
+                  {!userData?.currentTier && (
+                    <p className='text-gray-500 text-sm mt-1'>
+                      Paid users can select between 10-20 photos
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1059,12 +1059,7 @@ export default function NewListingModal({
                 <PhotoManager
                   photos={processedPhotos}
                   onAddPhotos={handleAdditionalFiles}
-                  maxPhotos={
-                    userData?.currentTier?.name === "FREE" ||
-                    !userData?.currentTier
-                      ? 10
-                      : 20
-                  }
+                  maxPhotos={getMaxSelectablePhotos()}
                   onSelect={(ids) => setSelectedPhotos(new Set(ids))}
                   selectedIds={Array.from(selectedPhotos)}
                 />
