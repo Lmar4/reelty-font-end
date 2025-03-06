@@ -172,8 +172,17 @@ function AuthStateProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Add validation for the publishable key
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    console.error(
+      "Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable"
+    );
+  }
+
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    >
       <AuthStateProvider>{children}</AuthStateProvider>
     </ClerkProvider>
   );
