@@ -10,9 +10,13 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: userData, isLoading } = useUserData();
+  console.log("userData", userData);
+
   const isFreeTier =
     userData?.data?.currentTierId === "550e8400-e29b-41d4-a716-446655440000"; // FREE tier
   const showBanner = !isLoading && isFreeTier;
+
+  console.log("isFreeTier", isFreeTier);
 
   return (
     <div className='flex min-h-screen flex-col bg-white'>
