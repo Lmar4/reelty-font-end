@@ -81,13 +81,11 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
       toast.error("Please select at least one photo");
       return;
     }
-    // TODO: you can only select 20 photos but you can upload more photos
-    // Take first 10 files if more are selected
-    const selectedFiles = files.slice(0, 10);
-    if (files.length > 10) {
-      toast.info(
-        `Selected the first 10 photos out of ${files.length} uploaded`
-      );
+
+    // Cap display limit to 60 photos
+    const selectedFiles = files.slice(0, 60);
+    if (files.length > 60) {
+      toast.info(`Showing the first 60 photos out of ${files.length} uploaded`);
     }
 
     // Check file types
@@ -99,13 +97,13 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
       return;
     }
 
-    // Check file sizes (max 15MB each)
+    // Check file sizes (max 20MB each)
     const oversizedFiles = selectedFiles.filter(
-      (file) => file.size > 15 * 1024 * 1024
+      (file) => file.size > 20 * 1024 * 1024
     );
     if (oversizedFiles.length > 0) {
       toast.error(
-        "Some files are larger than 15MB. Please select smaller files."
+        "Some files are larger than 20MB. Please select smaller files."
       );
       return;
     }
@@ -173,8 +171,8 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
         }
         onFilesSelected={handleFilesSelected}
         uploadUrl=''
-        maxFiles={10}
-        maxSize={15}
+        maxFiles={60}
+        maxSize={20}
         accept='image/*'
         disabled={hasReachedLimit}
       />

@@ -35,6 +35,7 @@ import PricingCards from "./PricingCards";
 import { usePhotoStatus } from "@/hooks/queries/use-photo-status";
 import { LoadingState } from "@/components/ui/loading-state";
 import dynamic from "next/dynamic";
+import { useUserData } from "@/hooks/useUserData";
 
 // Initialize Google Maps loader
 const loader = new Loader({
@@ -84,7 +85,7 @@ export default function NewListingModal({
   initialAddress = "",
   initialCoordinates,
   tempListingId,
-  maxPhotos = 10, // Default to 10 if not specified
+  maxPhotos = 60, // Default to 60 if not specified
 }: NewListingModalProps) {
   const { userId, isSignedIn, isLoaded: authLoaded } = useAuth();
   const { session } = useSession();
@@ -92,6 +93,7 @@ export default function NewListingModal({
   const createListing = useCreateListing();
   const uploadPhoto = useUploadPhoto();
   const photoProcessing = usePhotoProcessing();
+  const { data: userData } = useUserData();
 
   // Photo processing hook with status and progress
   const {
@@ -170,6 +172,11 @@ export default function NewListingModal({
   // Process initial files
   useEffect(() => {
     if (initialFiles?.length > 0) {
+      // Determine max selectable photos based on user tier
+      const userTier = userData?.data?.currentTier;
+      const isFreeUser = userTier?.name === "FREE" || !userTier;
+      const maxSelectablePhotos = isFreeUser ? 10 : 20;
+
       // Just create preview URLs initially without processing
       Promise.all(
         initialFiles.map(async (file) => {
@@ -191,13 +198,17 @@ export default function NewListingModal({
           uiId: photo.id, // Map id to uiId
         }));
         setProcessedPhotos(processedPhotos);
-        // Auto-select first 10 photos
+        // Auto-select first 10 or 20 photos based on user tier
         setSelectedPhotos(
-          new Set(processedPhotos.slice(0, 10).map((photo) => photo.uiId))
+          new Set(
+            processedPhotos
+              .slice(0, maxSelectablePhotos)
+              .map((photo) => photo.uiId)
+          )
         );
       });
     }
-  }, [initialFiles]);
+  }, [initialFiles, userData]);
 
   // Handle modal state
   useEffect(() => {
@@ -308,22 +319,27 @@ export default function NewListingModal({
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
 
+      // Determine max selectable photos based on user tier
+      const userTier = userData?.data?.currentTier;
+      const isFreeUser = userTier?.name === "FREE" || !userTier;
+      const maxSelectablePhotos = isFreeUser ? 10 : 20;
+
       // Validate total files first
       const existingFiles = processedPhotos || [];
       const totalFiles = [...existingFiles, ...newFiles];
 
-      if (totalFiles.length > maxPhotos) {
-        toast.error(`Maximum ${maxPhotos} photos allowed`);
+      if (totalFiles.length > 60) {
+        toast.error(`Maximum 60 photos can be displayed`);
         return;
       }
 
       // Validate file sizes
       const oversizedFiles = newFiles.filter(
-        (file) => file.size > 15 * 1024 * 1024
+        (file) => file.size > 20 * 1024 * 1024
       );
       if (oversizedFiles.length > 0) {
         toast.error(
-          "Some files are larger than 15MB. Please select smaller files."
+          "Some files are larger than 20MB. Please select smaller files."
         );
         return;
       }
@@ -994,7 +1010,12 @@ export default function NewListingModal({
                 <PhotoManager
                   photos={processedPhotos}
                   onAddPhotos={handleAdditionalFiles}
-                  maxPhotos={60}
+                  maxPhotos={
+                    userData?.data?.currentTier?.name === "FREE" ||
+                    !userData?.data?.currentTier
+                      ? 10
+                      : 20
+                  }
                   onSelect={(ids) => setSelectedPhotos(new Set(ids))}
                   selectedIds={Array.from(selectedPhotos)}
                 />
