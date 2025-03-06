@@ -341,6 +341,7 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                       isProcessing ||
                       !photos.length ||
                       isGenerating ||
+                      (isPremium && isFreeTier) ||
                       isDownloadDisabled
                     }
                     className={cn(
