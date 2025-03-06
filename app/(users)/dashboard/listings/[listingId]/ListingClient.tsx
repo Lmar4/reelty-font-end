@@ -494,76 +494,78 @@ export function ListingClient({
   return (
     <ErrorBoundary>
       <div className='container mx-auto py-8 space-y-8'>
-        {/* Breadcrumb navigation with better accessibility */}
-        <nav aria-label='Breadcrumb' className='mb-8'>
-          <ol className='flex items-center space-x-2'>
-            <li>
-              <Link
-                href='/dashboard'
-                className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 transition-colors'
-                aria-label='Go to Dashboard'
-              >
-                Dashboard
-              </Link>
-            </li>
-            <li aria-hidden='true' className='text-[#1c1c1c]/60'>
+        <div>
+          {/* Breadcrumb navigation with better accessibility */}
+          <nav aria-label='Breadcrumb' className='mb-2'>
+            <ol className='flex items-center space-x-2'>
+              <li>
+                <Link
+                  href='/dashboard'
+                  className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 transition-colors'
+                  aria-label='Go to Dashboard'
+                >
+                  Dashboard
+                </Link>
+              </li>
+              <li aria-hidden='true' className='text-[#1c1c1c]/60'>
+                <svg
+                  width='16'
+                  height='16'
+                  viewBox='0 0 24 24'
+                  fill='none'
+                  className='inline'
+                >
+                  <path
+                    d='M9 18L15 12L9 6'
+                    stroke='currentColor'
+                    strokeWidth='2'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  />
+                </svg>
+              </li>
+              <li>
+                <Link
+                  href='/dashboard'
+                  className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 transition-colors mt-2'
+                  aria-current='page'
+                >
+                  Your Reels
+                </Link>
+              </li>
+            </ol>
+          </nav>
+
+          <div className='flex items-center justify-between'>
+            <h1 className='text-[24px] md:text-[32px] font-semibold text-[#1c1c1c] truncate max-w-[calc(100%-3rem)]'>
+              {listing?.address || initialListing.address}
+            </h1>
+            <button
+              onClick={() => setIsSettingsModalOpen(true)}
+              className='w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[#f7f7f7] transition-colors flex-shrink-0'
+              aria-label='Open settings'
+            >
               <svg
-                width='16'
-                height='16'
+                width='20'
+                height='20'
                 viewBox='0 0 24 24'
                 fill='none'
-                className='inline'
+                stroke='currentColor'
+                strokeWidth='2'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                aria-hidden='true'
               >
-                <path
-                  d='M9 18L15 12L9 6'
-                  stroke='currentColor'
-                  strokeWidth='2'
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                />
+                <path d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z' />
+                <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z' />
               </svg>
-            </li>
-            <li>
-              <Link
-                href='/dashboard'
-                className='text-[15px] text-[#1c1c1c]/60 hover:text-[#1c1c1c]/80 transition-colors'
-                aria-current='page'
-              >
-                Your Reels
-              </Link>
-            </li>
-          </ol>
-        </nav>
+            </button>
+          </div>
 
-        <div className='flex items-center justify-between'>
-          <h1 className='text-[24px] md:text-[32px] font-semibold text-[#1c1c1c] truncate max-w-[calc(100%-3rem)]'>
-            {listing?.address || initialListing.address}
-          </h1>
-          <button
-            onClick={() => setIsSettingsModalOpen(true)}
-            className='w-10 h-10 flex items-center justify-center rounded-lg hover:bg-[#f7f7f7] transition-colors flex-shrink-0'
-            aria-label='Open settings'
-          >
-            <svg
-              width='20'
-              height='20'
-              viewBox='0 0 24 24'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='2'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              aria-hidden='true'
-            >
-              <path d='M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z' />
-              <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z' />
-            </svg>
-          </button>
+          <p className='text-[14px] text-[#1c1c1c]/60 mt-2'>
+            Video appear glitchy? Don't worry, it won't when you download it.
+          </p>
         </div>
-
-        <p className='text-[14px] text-[#1c1c1c]/60 mt-2'>
-          Video appear glitchy? Don't worry, it won't when you download it.
-        </p>
 
         {/* Templates and Videos Section with loading states */}
         <div className='space-y-8'>

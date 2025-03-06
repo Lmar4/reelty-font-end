@@ -21,11 +21,7 @@ export default function ListingPageClient({
   const { data: listing, isLoading, error } = useListing(listingId);
 
   if (isLoading) {
-    return (
-      <div className='flex-1 space-y-4 md:p-8 pt-6'>
-        <LoadingState />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!isLoading && (error || !listing)) {
@@ -33,22 +29,16 @@ export default function ListingPageClient({
       notFound();
     }
     return (
-      <div className='flex-1 space-y-4 md:p-8 pt-6'>
-        <div className='text-center'>
-          <h2 className='text-lg font-semibold text-gray-900'>
-            Failed to load listing
-          </h2>
-          <p className='mt-1 text-sm text-gray-500'>
-            {error instanceof Error ? error.message : "Please try again later"}
-          </p>
-        </div>
+      <div className='text-center'>
+        <h2 className='text-lg font-semibold text-gray-900'>
+          Failed to load listing
+        </h2>
+        <p className='mt-1 text-sm text-gray-500'>
+          {error instanceof Error ? error.message : "Please try again later"}
+        </p>
       </div>
     );
   }
 
-  return (
-    <div className='flex-1 space-y-4 md:p-8 pt-6'>
-      <ListingClient listingId={listingId} initialListing={listing!.data} />
-    </div>
-  );
+  return <ListingClient listingId={listingId} initialListing={listing!.data} />;
 }

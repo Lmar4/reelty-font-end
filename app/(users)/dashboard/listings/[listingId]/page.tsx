@@ -27,14 +27,12 @@ export default async function ListingPage({ params }: PageProps) {
     const defaultTier = await ensureUserDefaultTier(userId, sessionToken);
 
     return (
-      <div className='flex-1 space-y-4 md:p-8 pt-6'>
-        <Suspense fallback={<LoadingState />}>
-          <ListingPageClient
-            listingId={paramsToListingId.listingId}
-            fallbackTier={defaultTier}
-          />
-        </Suspense>
-      </div>
+      <Suspense fallback={<LoadingState />}>
+        <ListingPageClient
+          listingId={paramsToListingId.listingId}
+          fallbackTier={defaultTier}
+        />
+      </Suspense>
     );
   } catch (error) {
     // Handle any errors gracefully
