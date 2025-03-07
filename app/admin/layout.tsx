@@ -3,6 +3,7 @@
 import { useUserData } from "@/hooks/useUserData";
 import { redirect } from "next/navigation";
 import { LoadingState } from "@/components/ui/loading-state";
+import { AdminNav } from "./_components/admin-nav";
 
 export default function AdminLayout({
   children,
@@ -40,8 +41,14 @@ export default function AdminLayout({
   }
 
   return (
-    <div className='flex min-h-screen flex-col'>
-      <div className='flex-1 container py-6'>{children}</div>
+    <div className='flex min-h-screen flex-col bg-white'>
+      {/* Admin Navigation */}
+      <AdminNav />
+
+      {/* Main Content */}
+      <main className='flex-1 pt-20'>
+        <div className='max-w-screen-xl mx-auto px-4 py-6'>{children}</div>
+      </main>
     </div>
   );
 }
