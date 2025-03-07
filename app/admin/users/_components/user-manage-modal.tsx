@@ -27,16 +27,68 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [creditAdjustment, setCreditAdjustment] = useState("");
-  const [newStatus, setNewStatus] = useState<AdminUser["subscriptionStatus"]>(
+  const [localUser, setLocalUser] = useState<AdminUser | null>(user);
+  const [newStatus, setNewStatus] = useState<string>(
     user?.subscriptionStatus || "INACTIVE"
   );
 
-  const handleStatusChange = (value: AdminUser["subscriptionStatus"]) => {
+  // Update local user when the prop changes
+  if (user && (!localUser || user.id !== localUser.id)) {
+    setLocalUser(user);
+    setNewStatus(user.subscriptionStatus || "INACTIVE");
+  }
+
+  const handleStatusChange = (value: string) => {
     setNewStatus(value);
   };
 
+  const handleCreditChange = async (amount: number, reason: string) => {
+    if (!localUser) return;
+
+    try {
+      setIsLoading(true);
+
+      const response = await fetch(`/api/admin/users/${localUser.id}/credits`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount, reason }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || "Failed to update credits");
+      }
+
+      const data = await response.json();
+
+      // Update the local user state with new credit amount
+      setLocalUser((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          credits: data.data.creditsRemaining,
+        };
+      });
+
+      toast.success(
+        `${amount > 0 ? "Added" : "Removed"} ${Math.abs(amount)} credits.`
+      );
+
+      // Refresh the user list
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "An unknown error occurred"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSave = async () => {
-    if (!user) {
+    if (!localUser) {
       return;
     }
 
@@ -46,44 +98,33 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
       // Update credits if adjustment provided
       if (creditAdjustment) {
         const amount = parseInt(creditAdjustment, 10);
-        
+
         // Validate credit removal
-        if (amount < 0 && Math.abs(amount) > user.credits) {
-          toast.error(`Cannot remove ${Math.abs(amount)} credits. User only has ${user.credits} credits.`);
+        if (amount < 0 && Math.abs(amount) > (localUser.credits || 0)) {
+          toast.error(
+            `Cannot remove ${Math.abs(amount)} credits. User only has ${
+              localUser.credits || 0
+            } credits.`
+          );
           return;
         }
 
-        const response = await fetch(`/api/admin/users/${user.id}/credits`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount,
-            reason: amount >= 0 ? "Credits added by admin" : "Credits removed by admin",
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.text();
-          throw new Error(errorData || "Failed to adjust credits");
-        }
-
-        const data = await response.json();
-        if (data.success && data.data.credits !== undefined) {
-          user.credits = data.data.credits;
-        }
-
-        toast.success(
-          `Successfully ${amount >= 0 ? 'added' : 'removed'} ${Math.abs(amount)} credits`
+        await handleCreditChange(
+          amount,
+          amount >= 0 ? "Credits added by admin" : "Credits removed by admin"
         );
       }
 
       // Update status if changed
-      if (newStatus && newStatus !== user.subscriptionStatus) {
-        const response = await fetch(`/api/admin/users/${user.id}/status`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: newStatus }),
-        });
+      if (newStatus && newStatus !== localUser.subscriptionStatus) {
+        const response = await fetch(
+          `/api/admin/users/${localUser.id}/status`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus }),
+          }
+        );
 
         if (!response.ok) {
           throw new Error("Failed to update status");
@@ -102,17 +143,17 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
     }
   };
 
-  if (!user) {
+  if (!localUser) {
     return null;
   }
 
   return (
-    <Dialog open={!!user} onOpenChange={() => onClose()}>
+    <Dialog open={!!localUser} onOpenChange={() => onClose()}>
       <DialogContent className='sm:max-w-[425px]'>
         <DialogHeader>
           <DialogTitle>Manage User</DialogTitle>
           <DialogDescription>
-            Update {user.firstName}&apos;s account settings and credits
+            Update {localUser.firstName}&apos;s account settings and credits
           </DialogDescription>
         </DialogHeader>
 
@@ -122,18 +163,22 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
             <div className='flex flex-col gap-2'>
               <div className='flex items-center gap-2'>
                 <div className='text-sm text-muted-foreground'>
-                  Current Credits: {user.credits || 0}
+                  Current Credits: {localUser.credits || 0}
                 </div>
                 <Badge
                   variant={
-                    user.credits > 10
-                      ? 'default'
-                      : user.credits > 0
-                      ? 'secondary'
-                      : 'destructive'
+                    (localUser.credits || 0) > 10
+                      ? "default"
+                      : (localUser.credits || 0) > 0
+                      ? "secondary"
+                      : "destructive"
                   }
                 >
-                  {user.credits > 10 ? 'Good' : user.credits > 0 ? 'Low' : 'Empty'}
+                  {(localUser.credits || 0) > 10
+                    ? "Good"
+                    : (localUser.credits || 0) > 0
+                    ? "Low"
+                    : "Empty"}
                 </Badge>
               </div>
               <div className='flex gap-2'>
@@ -146,9 +191,11 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
                 <Button
                   onClick={() => handleSave()}
                   disabled={!creditAdjustment || isLoading}
-                  variant={parseInt(creditAdjustment) >= 0 ? 'default' : 'destructive'}
+                  variant={
+                    parseInt(creditAdjustment) >= 0 ? "default" : "destructive"
+                  }
                 >
-                  {parseInt(creditAdjustment) >= 0 ? 'Add' : 'Remove'}
+                  {parseInt(creditAdjustment) >= 0 ? "Add" : "Remove"}
                 </Button>
               </div>
               <div className='text-sm text-muted-foreground'>
@@ -159,10 +206,7 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
 
           <div className='grid gap-2'>
             <label className='text-sm font-medium'>Status</label>
-            <Select
-              value={user.subscriptionStatus}
-              onValueChange={handleStatusChange}
-            >
+            <Select value={newStatus} onValueChange={handleStatusChange}>
               <SelectTrigger>
                 <SelectValue placeholder='Select status' />
               </SelectTrigger>
