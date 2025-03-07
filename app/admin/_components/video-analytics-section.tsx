@@ -23,7 +23,7 @@ interface VideoAnalyticsSectionProps {
 export default function VideoAnalyticsSection({
   initialData,
 }: VideoAnalyticsSectionProps) {
-  const { data: analytics } = useQuery({
+  const { data: analytics = initialData } = useQuery({
     queryKey: ["videoAnalytics"],
     queryFn: async () => {
       const response = await fetch("/api/admin/stats/videos");
@@ -36,6 +36,15 @@ export default function VideoAnalyticsSection({
     refetchInterval: 60000, // Refresh every minute
   });
 
+  // Early return with loading state if analytics is undefined
+  if (!analytics) {
+    return (
+      <div className='space-y-6'>
+        <p>Loading video analytics data...</p>
+      </div>
+    );
+  }
+
   return (
     <div className='space-y-6'>
       <h2 className='text-2xl font-bold'>Video Analytics</h2>
@@ -47,7 +56,7 @@ export default function VideoAnalyticsSection({
             Total Videos
           </h3>
           <p className='text-2xl font-bold'>
-            {analytics.processingStats.total}
+            {analytics.processingStats?.total || 0}
           </p>
         </Card>
         <Card className='p-4'>
@@ -55,13 +64,13 @@ export default function VideoAnalyticsSection({
             Successful
           </h3>
           <p className='text-2xl font-bold'>
-            {analytics.processingStats.success}
+            {analytics.processingStats?.success || 0}
           </p>
         </Card>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>Failed</h3>
           <p className='text-2xl font-bold'>
-            {analytics.processingStats.failed}
+            {analytics.processingStats?.failed || 0}
           </p>
         </Card>
         <Card className='p-4'>
@@ -69,7 +78,7 @@ export default function VideoAnalyticsSection({
             In Progress
           </h3>
           <p className='text-2xl font-bold'>
-            {analytics.processingStats.inProgress}
+            {analytics.processingStats?.inProgress || 0}
           </p>
         </Card>
       </div>
@@ -79,7 +88,7 @@ export default function VideoAnalyticsSection({
         <h3 className='text-lg font-semibold mb-4'>Daily Video Generation</h3>
         <div className='h-[300px]'>
           <ResponsiveContainer width='100%' height='100%'>
-            <AreaChart data={analytics.dailyJobs}>
+            <AreaChart data={analytics.dailyJobs || []}>
               <CartesianGrid strokeDasharray='3 3' />
               <XAxis dataKey='date' />
               <YAxis />
@@ -118,7 +127,7 @@ export default function VideoAnalyticsSection({
         </h3>
         <div className='h-[300px]'>
           <ResponsiveContainer width='100%' height='100%'>
-            <BarChart data={analytics.timeDistribution}>
+            <BarChart data={analytics.timeDistribution || []}>
               <CartesianGrid strokeDasharray='3 3' />
               <XAxis dataKey='hour' tickFormatter={(hour) => `${hour}:00`} />
               <YAxis />

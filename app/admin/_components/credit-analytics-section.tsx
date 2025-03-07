@@ -94,7 +94,7 @@ export default function CreditAnalyticsSection({
       <Card className='p-6'>
         <h3 className='text-lg font-semibold mb-4'>Top Credit Users</h3>
         <div className='space-y-4'>
-          {analytics.topUsers.map(
+          {analytics?.topUsers?.map(
             (user: {
               userId: string;
               email: string;

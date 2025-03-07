@@ -12,6 +12,7 @@ import {
   FileVideo,
   Settings,
   LayoutDashboard,
+  Coins,
 } from "lucide-react";
 
 interface Route {
@@ -44,6 +45,7 @@ const routes: Route[] = [
     color: "text-pink-700",
     active: (pathname: string) => pathname.startsWith("/admin/subscriptions"),
   },
+
   // {
   //   href: "/admin/videos",
   //   label: "Videos",

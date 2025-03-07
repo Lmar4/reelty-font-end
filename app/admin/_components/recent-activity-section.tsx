@@ -55,11 +55,11 @@ export default function RecentActivitySection({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {activities.map((activity) => (
+        {activities?.map((activity) => (
           <TableRow key={activity.id}>
             <TableCell className='font-medium'>{activity.type}</TableCell>
             <TableCell>{activity.description}</TableCell>
-            <TableCell>{activity.user.email}</TableCell>
+            <TableCell>{activity.user?.email}</TableCell>
             <TableCell>
               {format(new Date(activity.createdAt), "MMM d, yyyy HH:mm")}
             </TableCell>

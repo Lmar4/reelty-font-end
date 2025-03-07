@@ -51,10 +51,10 @@ async function getUserStats(): Promise<UserStats> {
 
   // Transform API response to match UserStats type
   return {
-    totalUsers: apiResponse.data.totalUsers,
-    activeUsers: apiResponse.data.activeUsers,
+    totalUsers: apiResponse.data.totalUsers || 0,
+    activeUsers: apiResponse.data.activeUsers || 0,
     newUsers: 0, // This seems to be missing from the API response
-    usersByTier: apiResponse.data.usersByTier,
+    usersByTier: apiResponse.data.usersByTier || [],
     recentActivity: [], // This seems to be missing from the API response
   };
 }
@@ -62,7 +62,7 @@ async function getUserStats(): Promise<UserStats> {
 export default function UserStatsSection({
   initialData,
 }: UserStatsSectionProps) {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats = initialData, isLoading } = useQuery({
     queryKey: ["userStats"],
     queryFn: getUserStats,
     initialData,
@@ -78,7 +78,11 @@ export default function UserStatsSection({
   }
 
   if (!stats) {
-    return null;
+    return (
+      <div className='space-y-6'>
+        <p>No user statistics available</p>
+      </div>
+    );
   }
 
   return (
@@ -88,23 +92,23 @@ export default function UserStatsSection({
           <h3 className='text-sm font-medium text-muted-foreground'>
             Total Users
           </h3>
-          <p className='text-2xl font-bold'>{stats.totalUsers}</p>
+          <p className='text-2xl font-bold'>{stats.totalUsers || 0}</p>
         </Card>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
             Active Users
           </h3>
-          <p className='text-2xl font-bold'>{stats.activeUsers}</p>
+          <p className='text-2xl font-bold'>{stats.activeUsers || 0}</p>
         </Card>
         <Card className='p-4'>
           <h3 className='text-sm font-medium text-muted-foreground'>
             New Users (Last 30 Days)
           </h3>
-          <p className='text-2xl font-bold'>{stats.newUsers}</p>
+          <p className='text-2xl font-bold'>{stats.newUsers || 0}</p>
         </Card>
       </div>
 
-      {stats.usersByTier.length > 0 && (
+      {stats.usersByTier && stats.usersByTier.length > 0 && (
         <Card className='p-6'>
           <h2 className='text-2xl font-bold mb-6'>
             Users by Subscription Tier
