@@ -42,17 +42,27 @@ async function getSubscriptionTiers(request: AuthenticatedRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    const data = await makeBackendRequest(
+    const response = await makeBackendRequest<any>(
       `/api/admin/subscription-tiers?page=${page}&limit=${limit}`,
       {
         sessionToken: request.auth.sessionToken,
       }
     );
-    return NextResponse.json({ success: true, data });
+
+    // Ensure data is always an array
+    const responseData = response.data || [];
+    const dataArray = Array.isArray(responseData)
+      ? responseData
+      : [responseData];
+
+    return NextResponse.json({
+      success: true,
+      data: dataArray,
+    });
   } catch (error) {
     console.error("[SUBSCRIPTION_TIERS_GET]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch subscription tiers" },
+      { success: false, error: "Failed to fetch subscription tiers", data: [] },
       { status: 500 }
     );
   }

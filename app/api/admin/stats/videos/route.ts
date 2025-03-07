@@ -6,7 +6,7 @@ import { AuthenticatedRequest } from "@/utils/types";
 // Handler function
 async function getVideoStats(req: AuthenticatedRequest) {
   try {
-    const data = await makeBackendRequest("/api/admin/videos", {
+    const data = await makeBackendRequest("/api/admin/analytics/videos", {
       method: "GET",
       sessionToken: req.auth.sessionToken,
     });

@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Handler function
 async function getRevenueStats(req: AuthenticatedRequest) {
   try {
-    const data = await makeBackendRequest("/api/admin/stats/revenue", {
+    const data = await makeBackendRequest("/api/admin/analytics/revenue", {
       method: "GET",
       sessionToken: req.auth.sessionToken,
     });

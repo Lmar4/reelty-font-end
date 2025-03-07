@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Handler function
 async function getCreditStats(req: AuthenticatedRequest) {
   try {
-    const data = await makeBackendRequest("/api/admin/stats/credits", {
+    const data = await makeBackendRequest("/api/admin/analytics/credits", {
       method: "GET",
       sessionToken: req.auth.sessionToken,
     });
