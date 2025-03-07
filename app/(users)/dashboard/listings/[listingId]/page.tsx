@@ -9,12 +9,12 @@ interface PageProps {
   params: {
     listingId: string;
   };
+  searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default async function ListingPage({ params }: PageProps) {
   try {
     const { userId, getToken } = await auth();
-    const paramsToListingId = await params;
 
     if (!userId) {
       redirect("/sign-in");
@@ -31,7 +31,7 @@ export default async function ListingPage({ params }: PageProps) {
     return (
       <Suspense fallback={<LoadingState />}>
         <ListingPageClient
-          listingId={paramsToListingId.listingId}
+          listingId={params.listingId}
           fallbackTier={defaultTier}
         />
       </Suspense>
