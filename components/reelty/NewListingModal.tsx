@@ -173,7 +173,7 @@ export default function NewListingModal({
   // Create a consistent function to check if user is on free tier
   const isFreeUser = () => userData?.currentTierId === SubscriptionTier.FREE;
   const getMaxSelectablePhotos = () => (isFreeUser() ? 10 : 20);
-  const getMaxUploadablePhotos = () => (isFreeUser() ? 20 : 60);
+  const getMaxUploadablePhotos = () => (isFreeUser() ? 10 : 60);
 
   // Process initial files
   useEffect(() => {
@@ -323,10 +323,7 @@ export default function NewListingModal({
       const newFiles = Array.from(e.target.files);
 
       // Determine max uploadable photos based on user tier
-      const userTier = userData?.currentTier;
-      const isFreeUser = userTier?.name === "FREE" || !userTier;
-      const maxUploadablePhotos = isFreeUser ? 20 : 60;
-      const maxSelectablePhotos = isFreeUser ? 10 : 20;
+      const maxUploadablePhotos = getMaxUploadablePhotos();
 
       // Validate total files first
       const existingFiles = processedPhotos || [];
@@ -978,21 +975,12 @@ export default function NewListingModal({
                 <div>
                   <div className='flex items-center justify-between text-[18px] font-semibold mb-2 text-black'>
                     <span>
-                      {selectedPhotos.size} of{" "}
-                      {userData?.currentTier?.name === "FREE" ||
-                      !userData?.currentTier
-                        ? 10
-                        : 20}{" "}
-                      photos selected
+                      {selectedPhotos.size} of {getMaxSelectablePhotos()} photos
+                      selected
                     </span>
                     <span>
                       {Math.round(
-                        (selectedPhotos.size /
-                          (userData?.currentTier?.name === "FREE" ||
-                          !userData?.currentTier
-                            ? 10
-                            : 20)) *
-                          100
+                        (selectedPhotos.size / getMaxSelectablePhotos()) * 100
                       )}
                       %
                     </span>
@@ -1003,22 +991,13 @@ export default function NewListingModal({
                         "h-full transition-all duration-300",
                         selectedPhotos.size < 10
                           ? "bg-red-500"
-                          : selectedPhotos.size >
-                            (userData?.currentTier?.name === "FREE" ||
-                            !userData?.currentTier
-                              ? 10
-                              : 20)
+                          : selectedPhotos.size > getMaxSelectablePhotos()
                           ? "bg-red-500"
                           : "bg-purple-500"
                       )}
                       style={{
                         width: `${
-                          (selectedPhotos.size /
-                            (userData?.currentTier?.name === "FREE" ||
-                            !userData?.currentTier
-                              ? 10
-                              : 20)) *
-                          100
+                          (selectedPhotos.size / getMaxSelectablePhotos()) * 100
                         }%`,
                       }}
                     />
@@ -1028,26 +1007,17 @@ export default function NewListingModal({
                       Please select at least 10 photos
                     </p>
                   )}
-                  {selectedPhotos.size >
-                    (userData?.currentTier?.name === "FREE" ||
-                    !userData?.currentTier
-                      ? 10
-                      : 20) && (
+                  {selectedPhotos.size > getMaxSelectablePhotos() && (
                     <p className='text-red-500 text-sm mt-1'>
-                      Maximum{" "}
-                      {userData?.currentTier?.name === "FREE" ||
-                      !userData?.currentTier
-                        ? 10
-                        : 20}{" "}
-                      photos allowed
+                      Maximum {getMaxSelectablePhotos()} photos allowed
                     </p>
                   )}
-                  {userData?.currentTier?.name === "FREE" && (
+                  {isFreeUser() && (
                     <p className='text-gray-500 text-sm mt-1'>
                       Free users must select exactly 10 photos
                     </p>
                   )}
-                  {!userData?.currentTier && (
+                  {!isFreeUser() && (
                     <p className='text-gray-500 text-sm mt-1'>
                       Paid users can select between 10-20 photos
                     </p>
