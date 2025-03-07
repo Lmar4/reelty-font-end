@@ -61,8 +61,6 @@ async function fetchWithRetry(
 }
 
 export default async function AdminPage() {
-  console.log("[ADMIN_PAGE] Starting to fetch data");
-
   try {
     // Fetch critical data first
     const userStatsResult = await fetchWithRetry(() => getUserStats());
@@ -99,7 +97,7 @@ export default async function AdminPage() {
         : [];
 
     return (
-      <div className='container mx-auto p-6 space-y-8 pt-16'>
+      <div className='container mx-auto p-6 space-y-8  pt-4 md:pt-0'>
         <h1 className='text-3xl font-bold'>Admin Dashboard</h1>
 
         {/* User Stats Section - Critical Data */}
