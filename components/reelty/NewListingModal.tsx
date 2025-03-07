@@ -62,7 +62,6 @@ interface NewListingModalProps {
     lng: number;
   };
   tempListingId?: string;
-  maxPhotos?: number;
 }
 
 interface StoredPhoto {
@@ -86,7 +85,6 @@ export default function NewListingModal({
   initialAddress = "",
   initialCoordinates,
   tempListingId,
-  maxPhotos = 60, // Default to 60 if not specified
 }: NewListingModalProps) {
   const { userId, isSignedIn, isLoaded: authLoaded } = useAuth();
   const { session } = useSession();
@@ -383,6 +381,7 @@ export default function NewListingModal({
 
       // Update photo limit check based on trial status
       const requiredPhotos = 10;
+      const maxPhotos = getMaxSelectablePhotos();
 
       if (selectedPhotos.size < requiredPhotos) {
         toast.error("Please select at least 10 photos");
