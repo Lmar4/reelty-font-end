@@ -118,7 +118,6 @@ export default function DashboardPage() {
                 router.refresh();
               }}
               initialFiles={selectedFiles}
-              maxPhotos={user?.currentTier?.maxPhotosPerListing || 10}
             />
           )}
         </>

@@ -47,7 +47,6 @@ export default function TempListingWrapper({
         initialAddress={sessionData.address}
         initialCoordinates={sessionData.coordinates}
         tempListingId={listingId}
-        maxPhotos={10}
       />
     </div>
   );
