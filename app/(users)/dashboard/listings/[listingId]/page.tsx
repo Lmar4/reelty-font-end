@@ -6,13 +6,13 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ensureUserDefaultTier } from "@/utils/subscription";
 
 interface PageProps {
-  params: {
-    listingId: string;
-  };
+  params: Promise<{ listingId: string }>; // params is now a Promise
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default async function ListingPage({ params }: PageProps) {
+  // Await the params to get the actual values
+  const { listingId } = await params;
   try {
     const { userId, getToken } = await auth();
 
@@ -30,10 +30,7 @@ export default async function ListingPage({ params }: PageProps) {
 
     return (
       <Suspense fallback={<LoadingState />}>
-        <ListingPageClient
-          listingId={params.listingId}
-          fallbackTier={defaultTier}
-        />
+        <ListingPageClient listingId={listingId} fallbackTier={defaultTier} />
       </Suspense>
     );
   } catch (error) {
