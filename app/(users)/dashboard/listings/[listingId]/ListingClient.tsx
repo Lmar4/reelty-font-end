@@ -15,7 +15,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import ListingSkeleton from "./components/ListingSkeleton";
-import { TemplateGrid } from "./components/TemplateGrid";
+import { TemplateGridWithProgress } from "./components/TemplateGridWithProgress";
 import PricingCards from "@/components/reelty/PricingCards";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { SubscriptionTier } from "@/constants/subscription-tiers";
@@ -573,7 +573,7 @@ export function ListingClient({
 
         {/* Templates and Videos Section with loading states */}
         <div className='space-y-8'>
-          <TemplateGrid
+          <TemplateGridWithProgress
             videoJobs={videoJobs}
             photos={photoStatus?.data?.photos || []}
             isLoading={isLoading}

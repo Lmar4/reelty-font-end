@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { SubscriptionTier } from "@/constants/subscription-tiers";
 import { Template, useTemplates } from "@/hooks/queries/use-templates";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,14 @@ interface PhotoStatus {
   order: number;
 }
 
+export interface JobProgress {
+  stage: "runway" | "template" | "upload" | "vision";
+  subStage?: string;
+  progress: number;
+  message?: string;
+  error?: string;
+}
+
 interface TemplateGridProps {
   videoJobs: VideoJob[];
   photos: PhotoStatus[];
@@ -34,6 +43,7 @@ interface TemplateGridProps {
   onDownload?: (jobId: string, templateKey: string) => void;
   isGenerating?: boolean;
   downloadCount?: number;
+  jobProgress?: JobProgress;
 }
 
 export const TemplateGrid: React.FC<TemplateGridProps> = ({
@@ -46,8 +56,10 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   onDownload,
   isGenerating = false,
   downloadCount = 0,
+  jobProgress,
 }) => {
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [notifyWhenReady, setNotifyWhenReady] = useState(false);
   const isFreeTier = userTier === SubscriptionTier.FREE;
   const hasReachedFreeDownloadLimit = isFreeTier && downloadCount >= 1;
 
@@ -57,17 +69,91 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   const isLoading = isLoadingProps || isLoadingTemplates;
 
   if (isLoading) {
+    // Calculate estimated time based on active jobs
+    const estimateRemainingTime = () => {
+      // If we have active jobs, use their count to estimate time
+      if (activeJobs.length > 0) {
+        // Roughly 2 minutes per job as a baseline
+        return Math.max(2, Math.ceil(activeJobs.length * 1.5));
+      }
+      return 5; // Default fallback of 5 minutes
+    };
+
+    // Calculate a more realistic progress percentage
+    const estimateProgress = () => {
+      if (jobProgress) {
+        return Math.round(jobProgress.progress);
+      }
+
+      // If we have active jobs, estimate based on their status
+      if (activeJobs.length > 0) {
+        const pendingJobs = activeJobs.filter(
+          (job) => job.status === "PENDING"
+        ).length;
+        const processingJobs = activeJobs.filter(
+          (job) => job.status === "PROCESSING"
+        ).length;
+        const totalJobs = activeJobs.length;
+
+        // Simple formula: completed jobs contribute more to progress
+        const progress =
+          ((totalJobs - pendingJobs) * 15 + processingJobs * 10) / totalJobs;
+        return Math.min(95, Math.max(5, Math.round(progress)));
+      }
+
+      return 12; // More realistic starting percentage than 8%
+    };
+
+    const progressValue = jobProgress
+      ? jobProgress.progress
+      : estimateProgress();
+    const remainingMinutes = jobProgress
+      ? Math.ceil((100 - progressValue) / 15) // Rough estimate: 15% per minute
+      : estimateRemainingTime();
+
     return (
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-        {[...Array(6)].map((_, i) => (
-          <Card key={i} className='animate-pulse'>
-            <div className='aspect-[9/16] bg-gray-200' />
-            <div className='p-4 space-y-3'>
-              <div className='h-4 bg-gray-200 rounded w-1/2' />
-              <div className='h-8 bg-gray-200 rounded' />
+      <div className='w-full max-w-4xl mx-auto p-6 bg-gray-50 rounded-lg shadow-sm'>
+        <div className='mb-8'>
+          <h2 className='text-3xl font-bold mb-2'>Your video</h2>
+          <div className='flex items-center justify-between mb-2'>
+            <p className='text-2xl font-bold'>{progressValue}%</p>
+            <div className='flex items-center'>
+              <span className='text-gray-600 mr-2'>
+                Notify me when it's ready
+              </span>
+              <div className='relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full'>
+                <input
+                  type='checkbox'
+                  id='notify-toggle'
+                  checked={notifyWhenReady}
+                  onChange={() => setNotifyWhenReady(!notifyWhenReady)}
+                  className='absolute w-6 h-6 transition duration-200 ease-in-out transform bg-white border-4 rounded-full appearance-none cursor-pointer border-gray-300 checked:border-blue-500 checked:translate-x-full focus:outline-none'
+                  aria-label='Notify me when video is ready'
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setNotifyWhenReady(!notifyWhenReady);
+                    }
+                  }}
+                />
+                <label
+                  htmlFor='notify-toggle'
+                  className='block w-full h-full overflow-hidden rounded-full cursor-pointer bg-gray-300'
+                ></label>
+              </div>
             </div>
-          </Card>
-        ))}
+          </div>
+          <div className='mb-2'>
+            <Progress value={progressValue} className='h-2 bg-gray-200' />
+          </div>
+          <p className='text-gray-600'>
+            {jobProgress ? getProgressMessage(jobProgress) : "Analyzing video"}.
+            {remainingMinutes} {remainingMinutes === 1 ? "minute" : "minutes"}{" "}
+            remaining. You can leave this page, we will email you when it's
+            ready!
+          </p>
+        </div>
       </div>
     );
   }
@@ -388,5 +474,19 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
         </DialogContent>
       </Dialog>
     </>
+  );
+};
+
+// Helper function to generate user-friendly progress messages
+const getProgressMessage = (progress: JobProgress): string => {
+  const stageMessages: Record<string, string> = {
+    runway: "Analyzing video",
+    template: "Creating template",
+    upload: "Finalizing video",
+    vision: "Processing images",
+  };
+
+  return (
+    progress.message || stageMessages[progress.stage] || "Processing video"
   );
 };

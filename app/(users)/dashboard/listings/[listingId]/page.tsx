@@ -6,7 +6,9 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ensureUserDefaultTier } from "@/utils/subscription";
 
 interface PageProps {
-  params: Promise<{ listingId: string }>;
+  params: {
+    listingId: string;
+  };
 }
 
 export default async function ListingPage({ params }: PageProps) {
