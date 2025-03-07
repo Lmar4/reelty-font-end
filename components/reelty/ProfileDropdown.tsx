@@ -84,7 +84,7 @@ export function ProfileDropdown() {
     },
     {
       title: "Templates",
-      href: "/admin/templates",
+      href: "/admin/settings",
       icon: FileText,
       hidden: !isAdmin,
     },
