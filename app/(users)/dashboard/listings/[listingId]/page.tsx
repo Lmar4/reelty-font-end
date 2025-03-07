@@ -6,13 +6,19 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ensureUserDefaultTier } from "@/utils/subscription";
 
 interface PageProps {
-  params: Promise<{ listingId: string }>; // params is now a Promise
-  searchParams?: { [key: string]: string | string[] | undefined };
+  params: Promise<{ listingId: string }>; // params is a Promise
+  searchParams:
+    | Promise<{ [key: string]: string | string[] | undefined }>
+    | undefined; // searchParams is a Promise or undefined
 }
 
-export default async function ListingPage({ params }: PageProps) {
+export default async function ListingPage({ params, searchParams }: PageProps) {
   // Await the params to get the actual values
   const { listingId } = await params;
+
+  // Await searchParams if you need to use it (optional in this case since you're not using it yet)
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+
   try {
     const { userId, getToken } = await auth();
 
