@@ -27,7 +27,9 @@ export function SubscriptionTiersSection() {
       if (!response.ok) {
         throw new Error("Failed to fetch subscription tiers");
       }
-      return response.json();
+      const result = await response.json();
+      console.log("API Response:", result);
+      return result;
     },
   });
 
@@ -106,63 +108,71 @@ export function SubscriptionTiersSection() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {tiers?.data?.map((tier: SubscriptionTier) => (
-            <TableRow key={tier.id}>
-              <TableCell className='font-medium'>{tier.name}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={
-                    tier.planType === "MONTHLY" ? "default" : "secondary"
-                  }
-                >
-                  {tier.planType === "MONTHLY" ? "Monthly" : "Pay As You Go"}
-                </Badge>
-              </TableCell>
-              <TableCell>{formatCurrency(tier.monthlyPrice)}</TableCell>
-              <TableCell>
-                <Badge variant='outline'>
-                  {tier.creditsPerInterval} credit
-                  {tier.creditsPerInterval !== 1 && "s"}
-                  {tier.planType === "MONTHLY" && "/month"}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className='space-y-1'>
-                  <div className='flex flex-wrap gap-1'>
-                    {tier.maxPhotosPerListing && (
-                      <Badge variant='secondary'>
-                        {tier.maxPhotosPerListing} photos/listing
-                      </Badge>
-                    )}
-                    {tier.maxActiveListings && (
-                      <Badge variant='secondary'>
-                        {tier.maxActiveListings} active listings
-                      </Badge>
-                    )}
-                    {!tier.hasWatermark && (
-                      <Badge variant='secondary'>No Watermark</Badge>
-                    )}
-                    {tier.premiumTemplatesEnabled && (
-                      <Badge variant='secondary'>Premium Templates</Badge>
+          {Array.isArray(tiers?.data) ? (
+            tiers.data.map((tier: SubscriptionTier) => (
+              <TableRow key={tier.id}>
+                <TableCell className='font-medium'>{tier.name}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      tier.planType === "MONTHLY" ? "default" : "secondary"
+                    }
+                  >
+                    {tier.planType === "MONTHLY" ? "Monthly" : "Pay As You Go"}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatCurrency(tier.monthlyPrice)}</TableCell>
+                <TableCell>
+                  <Badge variant='outline'>
+                    {tier.creditsPerInterval} credit
+                    {tier.creditsPerInterval !== 1 && "s"}
+                    {tier.planType === "MONTHLY" && "/month"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className='space-y-1'>
+                    <div className='flex flex-wrap gap-1'>
+                      {tier.maxPhotosPerListing && (
+                        <Badge variant='secondary'>
+                          {tier.maxPhotosPerListing} photos/listing
+                        </Badge>
+                      )}
+                      {tier.maxActiveListings && (
+                        <Badge variant='secondary'>
+                          {tier.maxActiveListings} active listings
+                        </Badge>
+                      )}
+                      {!tier.hasWatermark && (
+                        <Badge variant='secondary'>No Watermark</Badge>
+                      )}
+                      {tier.premiumTemplatesEnabled && (
+                        <Badge variant='secondary'>Premium Templates</Badge>
+                      )}
+                    </div>
+                    {tier.features.length > 0 && (
+                      <div className='text-sm text-muted-foreground'>
+                        {tier.features.join(", ")}
+                      </div>
                     )}
                   </div>
-                  {tier.features.length > 0 && (
-                    <div className='text-sm text-muted-foreground'>
-                      {tier.features.join(", ")}
-                    </div>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant='outline'>Active</Badge>
-              </TableCell>
-              <TableCell>
-                <Button variant='ghost' onClick={() => handleEditTier(tier)}>
-                  Edit
-                </Button>
+                </TableCell>
+                <TableCell>
+                  <Badge variant='outline'>Active</Badge>
+                </TableCell>
+                <TableCell>
+                  <Button variant='ghost' onClick={() => handleEditTier(tier)}>
+                    Edit
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={7} className='text-center py-4'>
+                No subscription tiers found. Add a new tier to get started.
               </TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
 

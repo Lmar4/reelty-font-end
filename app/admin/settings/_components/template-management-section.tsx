@@ -1,13 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -17,10 +10,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EditTemplateDialog } from "./edit-template-dialog";
 import { Template as PrismaTemplate } from "@/types/prisma-types";
-import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { format } from "date-fns";
+import { useState } from "react";
+import { EditTemplateDialog } from "./edit-template-dialog";
+import { unwrapApiResponse } from "@/utils/unwrapApiResponse";
 
 interface Template extends PrismaTemplate {
   sequence: (string | number)[];
@@ -40,7 +41,7 @@ export function TemplateManagementSection() {
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: templates = [], isLoading } = useQuery<Template[]>({
+  const { data: templates = [], isLoading } = useQuery({
     queryKey: ["templates"],
     queryFn: async () => {
       const response = await fetch("/api/admin/templates");
@@ -48,12 +49,38 @@ export function TemplateManagementSection() {
         throw new Error("Failed to fetch templates");
       }
       const data = await response.json();
-      return data.map((template: PrismaTemplate) => ({
-        ...template,
-        sequence: [],
-        durations: [],
-      }));
+
+      // Unwrap the API response to get the actual templates data
+      const unwrappedData = unwrapApiResponse<PrismaTemplate[]>(data);
+
+      // Transform the data to ensure it matches the Template interface
+      return (unwrappedData || []).map((template: any) => {
+        // Ensure sequence is an array of string or number
+        const sequence = Array.isArray(template.sequence)
+          ? template.sequence
+          : template.sequence
+          ? [template.sequence]
+          : [];
+
+        // Ensure durations is an array or object
+        const durations = Array.isArray(template.durations)
+          ? template.durations
+          : typeof template.durations === "object"
+          ? template.durations
+          : [];
+
+        return {
+          ...template,
+          sequence,
+          durations,
+          // Add other required properties with defaults if needed
+          music: template.music || undefined,
+          transitions: template.transitions || undefined,
+        } as Template;
+      });
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   });
 
   const columns: ColumnDef<Template>[] = [
