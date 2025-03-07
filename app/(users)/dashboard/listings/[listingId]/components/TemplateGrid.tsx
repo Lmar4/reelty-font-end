@@ -11,6 +11,28 @@ import { VideoJob } from "@/types/listing-types";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 
+export interface JobProgress {
+  stage: "runway" | "template" | "upload" | "vision";
+  subStage?: string;
+  progress: number;
+  message?: string;
+  error?: string;
+}
+
+// Helper function to generate user-friendly progress messages
+const getProgressMessage = (progress: JobProgress): string => {
+  const stageMessages: Record<string, string> = {
+    runway: "Analyzing video",
+    template: "Creating template",
+    upload: "Finalizing video",
+    vision: "Processing images",
+  };
+
+  return (
+    progress.message || stageMessages[progress.stage] || "Processing video"
+  );
+};
+
 interface ProcessedTemplate {
   key: string;
   path: string;
@@ -23,14 +45,6 @@ interface PhotoStatus {
   hasError: boolean;
   status: "error" | "processing" | "completed";
   order: number;
-}
-
-export interface JobProgress {
-  stage: "runway" | "template" | "upload" | "vision";
-  subStage?: string;
-  progress: number;
-  message?: string;
-  error?: string;
 }
 
 interface TemplateGridProps {
@@ -68,7 +82,11 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     useTemplates();
   const isLoading = isLoadingProps || isLoadingTemplates;
 
-  if (isLoading) {
+  // Only show the progress bar when we have actual job progress data or active jobs or when we're generating
+  if (
+    isLoading &&
+    (jobProgress || (activeJobs && activeJobs.length > 0) || isGenerating)
+  ) {
     // Calculate estimated time based on active jobs
     const estimateRemainingTime = () => {
       // If we have active jobs, use their count to estimate time
@@ -153,6 +171,20 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
             remaining. You can leave this page, we will email you when it's
             ready!
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show a simple loading state when templates are loading but we don't have job progress data
+  if (isLoading) {
+    return (
+      <div className='w-full max-w-4xl mx-auto p-6 flex justify-center items-center'>
+        <div className='flex items-center justify-center'>
+          <Loader2 className='w-6 h-6 animate-spin text-gray-500 mr-2' />
+          <span className='text-gray-600 font-medium'>
+            Loading templates...
+          </span>
         </div>
       </div>
     );
@@ -474,19 +506,5 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
         </DialogContent>
       </Dialog>
     </>
-  );
-};
-
-// Helper function to generate user-friendly progress messages
-const getProgressMessage = (progress: JobProgress): string => {
-  const stageMessages: Record<string, string> = {
-    runway: "Analyzing video",
-    template: "Creating template",
-    upload: "Finalizing video",
-    vision: "Processing images",
-  };
-
-  return (
-    progress.message || stageMessages[progress.stage] || "Processing video"
   );
 };

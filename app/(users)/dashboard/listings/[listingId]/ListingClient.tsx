@@ -179,6 +179,27 @@ export function ListingClient({
     error: videoGenerationError,
   } = useCreateJob();
 
+  // Fetch the user's download count when the component mounts
+  useEffect(() => {
+    const fetchDownloadCount = async () => {
+      if (!userData?.id) return;
+
+      try {
+        const response = await fetch("/api/videos/download-count");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data.downloadCount !== undefined) {
+            setDownloadCount(data.data.downloadCount);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch download count:", error);
+      }
+    };
+
+    fetchDownloadCount();
+  }, [userData?.id]);
+
   // Group video jobs by template
   const videoJobs = useMemo(() => {
     const jobs = listing?.videoJobs || videoData?.data?.videos || [];
@@ -325,9 +346,25 @@ export function ListingClient({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      // Increment download count for free users
+      // Refresh the download count from the server
+      try {
+        const downloadResponse = await fetch("/api/videos/download-count");
+        if (downloadResponse.ok) {
+          const data = await downloadResponse.json();
+          if (data.success && data.data.downloadCount !== undefined) {
+            setDownloadCount(data.data.downloadCount);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to refresh download count:", error);
+        // Fallback to incrementing locally if server refresh fails
+        if (userData?.currentTierId === SubscriptionTier.FREE) {
+          setDownloadCount((prev) => prev + 1);
+        }
+      }
+
+      // Show success message
       if (userData?.currentTierId === SubscriptionTier.FREE) {
-        setDownloadCount((prev) => prev + 1);
         toast.success(
           "Video downloaded successfully! You've used your free download."
         );
