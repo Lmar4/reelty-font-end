@@ -98,6 +98,8 @@ export default clerkMiddleware(async (auth, req) => {
   // Handle admin routes
   if (isAdmin) {
     const token = await getToken();
+    console.log("Admin route check - Token available:", !!token);
+
     if (!token) {
       const homeUrl = new URL("/", req.url);
       return NextResponse.redirect(homeUrl);
@@ -105,6 +107,7 @@ export default clerkMiddleware(async (auth, req) => {
 
     try {
       const userData = await getUserData(userId, token);
+      console.log("Admin route check - User data:", userData);
 
       // Check if user has admin role
       if (userData?.role !== "ADMIN") {
