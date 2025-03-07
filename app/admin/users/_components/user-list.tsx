@@ -60,13 +60,15 @@ export function UserList() {
       const response = await fetch(
         `/api/admin/users?${searchParams.toString()}`
       );
+
       if (!response.ok) {
         const errorData = await response.text();
+        console.error("Error response:", errorData);
         throw new Error(errorData || "Failed to fetch users");
       }
       const data = await response.json();
 
-      return data as UsersResponse;
+      return data.data as UsersResponse;
     },
   });
 
