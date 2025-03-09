@@ -49,7 +49,8 @@ export function UserList() {
     minCredits: searchParams.get("minCredits") || "",
     maxCredits: searchParams.get("maxCredits") || "",
     search: searchParams.get("search") || "",
-    lifetimeOnly: searchParams.get("lifetimeOnly") === "true",
+    lifetimeOnly:
+      searchParams.get("lifetimeOnly") === "true" ? "true" : "false",
   };
 
   // Use our new hook to fetch and filter users
