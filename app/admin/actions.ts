@@ -21,7 +21,9 @@ import type {
   CreateTemplateInput,
   ReorderTemplatesInput,
   AddAgencyUserInput,
+  BusinessKPIs,
 } from "./types";
+import * as plunk from "@/lib/plunk";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -339,5 +341,88 @@ export async function reorderTemplates(
       method: "PUT",
       body: JSON.stringify(order),
     }
+  );
+}
+
+interface AdminCreditGrantParams {
+  userId: string;
+  creditsAmount: number;
+  reason: string;
+  adminId: string;
+  adminName: string;
+}
+
+export async function grantUserCredits({
+  userId,
+  creditsAmount,
+  reason,
+  adminId,
+  adminName,
+}: AdminCreditGrantParams) {
+  try {
+    // Call backend API to grant credits
+    const response = await fetch(
+      `${process.env.BACKEND_API_URL}/api/admin/credits/grant`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.BACKEND_API_KEY}`,
+        },
+        body: JSON.stringify({
+          userId,
+          amount: creditsAmount,
+          reason,
+          adminId,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || "Failed to grant credits");
+    }
+
+    const result = await response.json();
+
+    // Get user details for email
+    const userResponse = await fetch(
+      `${process.env.BACKEND_API_URL}/api/users/${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.BACKEND_API_KEY}`,
+        },
+      }
+    );
+
+    if (userResponse.ok) {
+      const user = await userResponse.json();
+
+      // Check if user has enabled product update notifications
+      if (user.notificationProductUpdates) {
+        // Send email notification using existing plunk function
+        // Since there's no dedicated admin credit grant email, we'll use the credit purchase email
+        await plunk.sendCreditPurchaseEmail(
+          user.email,
+          user.firstName || "there",
+          creditsAmount,
+          0 // No cost since it's an admin grant
+        );
+
+        console.log(`Credit grant email sent to ${user.email}`);
+      }
+    }
+
+    return { success: true, totalCredits: result.totalCredits };
+  } catch (error) {
+    console.error("Failed to grant credits:", error);
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function getBusinessKpis(): Promise<BusinessKPIs> {
+  return makeAuthenticatedRequest<BusinessKPIs>(
+    "/api/admin/stats/business-kpis",
+    "BUSINESS_KPIS"
   );
 }

@@ -4,6 +4,7 @@ import { UserFilters } from "./_components/user-filters";
 import { PageHeader } from "@/components/ui/page-header";
 import { Separator } from "@/components/ui/separator";
 import Loading from "./loading";
+import { LifetimePlanSummary } from "./_components/lifetime-plan-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,10 @@ export default function UsersPage() {
       <Separator className='my-6' />
 
       <UserFilters />
+
+      <Suspense fallback={<Loading />}>
+        <LifetimePlanSummary />
+      </Suspense>
 
       <Suspense fallback={<Loading />}>
         <UserList />

@@ -35,6 +35,7 @@ import { useState } from "react";
 import Loading from "../loading";
 import { UserManageModal } from "./user-manage-modal";
 import { useAdminUsers } from "@/hooks/queries/use-admin-users";
+import { SubscriptionTier } from "@/constants/subscription-tiers";
 
 export function UserList() {
   const searchParams = useSearchParams();
@@ -48,6 +49,7 @@ export function UserList() {
     minCredits: searchParams.get("minCredits") || "",
     maxCredits: searchParams.get("maxCredits") || "",
     search: searchParams.get("search") || "",
+    lifetimeOnly: searchParams.get("lifetimeOnly") === "true",
   };
 
   // Use our new hook to fetch and filter users
@@ -159,6 +161,69 @@ export function UserList() {
       cell: ({ row }) => {
         const createdAt = row.original.createdAt;
         return createdAt ? format(new Date(createdAt), "PPp") : "N/A";
+      },
+    },
+    {
+      accessorKey: "creditStatus",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant='ghost'
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className={`${
+              filters.lifetimeOnly
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"
+            } transition-opacity duration-200`}
+          >
+            Monthly Credits
+            <ChevronsUpDown className='ml-2 h-4 w-4' />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const user = row.original;
+        const isLifetimePlan =
+          user.subscription?.tier.tierId === SubscriptionTier.LIFETIME;
+
+        if (!isLifetimePlan || !user.creditStatus) {
+          return null;
+        }
+
+        const { receivedCurrentMonth, receivedLastMonth } = user.creditStatus;
+
+        return (
+          <div className='flex flex-col gap-1'>
+            <div>
+              {receivedCurrentMonth ? (
+                <Badge className='bg-green-100 text-green-800 hover:bg-green-100'>
+                  Received This Month
+                </Badge>
+              ) : (
+                <Badge
+                  variant='outline'
+                  className='bg-amber-100 text-amber-800 hover:bg-amber-100'
+                >
+                  Pending This Month
+                </Badge>
+              )}
+            </div>
+            <div>
+              {receivedLastMonth ? (
+                <Badge className='bg-green-100 text-green-800 hover:bg-green-100'>
+                  Received Last Month
+                </Badge>
+              ) : (
+                <Badge
+                  variant='outline'
+                  className='bg-red-100 text-red-800 hover:bg-red-100'
+                >
+                  Missed Last Month
+                </Badge>
+              )}
+            </div>
+          </div>
+        );
       },
     },
     {

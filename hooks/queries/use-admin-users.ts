@@ -13,6 +13,8 @@ interface AdminUsersFilters {
   minCredits?: string;
   maxCredits?: string;
   search?: string;
+  lifetimeOnly?: string;
+  creditStatus?: string;
 }
 
 export function useAdminUsers(filters?: AdminUsersFilters) {

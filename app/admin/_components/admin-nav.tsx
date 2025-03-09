@@ -13,6 +13,7 @@ import {
   Settings,
   LayoutDashboard,
   Coins,
+  Award,
 } from "lucide-react";
 
 interface Route {
@@ -45,7 +46,13 @@ const routes: Route[] = [
     color: "text-pink-700",
     active: (pathname: string) => pathname.startsWith("/admin/subscriptions"),
   },
-
+  {
+    href: "/admin/lifetime-plan",
+    label: "Lifetime Plan",
+    icon: Award,
+    color: "text-emerald-600",
+    active: (pathname: string) => pathname.startsWith("/admin/lifetime-plan"),
+  },
   // {
   //   href: "/admin/videos",
   //   label: "Videos",

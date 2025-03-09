@@ -2,6 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent, UserJSON } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { sendWelcomeEmail } from "@/lib/plunk";
 
 // Webhook secret key from Clerk Dashboard
 const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
@@ -67,6 +68,17 @@ async function handler(request: Request) {
 
       if (!response.ok) {
         throw new Error("Failed to sync user with backend");
+      }
+
+      // Send welcome email only for new users
+      if (eventType === "user.created" && email) {
+        try {
+          await sendWelcomeEmail(email, first_name || "there");
+          console.log(`Welcome email sent to ${email}`);
+        } catch (emailError) {
+          // Log email error but don't fail the request
+          console.error("[WELCOME_EMAIL_ERROR]", emailError);
+        }
       }
 
       return NextResponse.json({ success: true });

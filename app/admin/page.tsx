@@ -5,12 +5,14 @@ import VideoAnalyticsSection from "./_components/video-analytics-section";
 import RevenueAnalyticsSection from "./_components/revenue-analytics-section";
 import CreditAnalyticsSection from "./_components/credit-analytics-section";
 import RecentActivitySection from "./_components/recent-activity-section";
+import BusinessKpiSection from "./_components/business-kpi-section";
 import {
   getVideoAnalytics,
   getRevenueAnalytics,
   getCreditAnalytics,
   getUserStats,
   getRecentActivity,
+  getBusinessKpis,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -71,11 +73,13 @@ export default async function AdminPage() {
       revenueAnalyticsResult,
       creditAnalyticsResult,
       recentActivityResult,
+      businessKpisResult,
     ] = await Promise.allSettled([
       fetchWithRetry(() => getVideoAnalytics()),
       fetchWithRetry(() => getRevenueAnalytics()),
       fetchWithRetry(() => getCreditAnalytics()),
       fetchWithRetry(() => getRecentActivity()),
+      fetchWithRetry(() => getBusinessKpis()),
     ]);
 
     // Extract values safely with type checking
@@ -95,10 +99,23 @@ export default async function AdminPage() {
       recentActivityResult.status === "fulfilled"
         ? recentActivityResult.value
         : [];
+    const businessKpis =
+      businessKpisResult.status === "fulfilled"
+        ? businessKpisResult.value
+        : null;
 
     return (
       <div className='container mx-auto p-6 space-y-8  pt-4 md:pt-0'>
         <h1 className='text-3xl font-bold'>Admin Dashboard</h1>
+
+        {/* Business KPIs Section */}
+        <Suspense fallback={<AnalyticsSkeleton />}>
+          {businessKpis ? (
+            <BusinessKpiSection initialData={businessKpis} />
+          ) : (
+            <ErrorDisplay message='Unable to load business KPIs' />
+          )}
+        </Suspense>
 
         {/* User Stats Section - Critical Data */}
         <Suspense fallback={<AnalyticsSkeleton />}>

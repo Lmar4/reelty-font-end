@@ -226,3 +226,17 @@ export interface CreateTemplateInput {
 export interface ReorderTemplatesInput {
   templateIds: string[];
 }
+
+export interface BusinessKPIs {
+  currentCustomers: number;
+  newCustomersPerMonth: number;
+  monthlyChurnRate: number;
+  monthlyARPA: number;
+  historicalData: Array<{
+    month: string;
+    currentCustomers: number;
+    newCustomers: number;
+    churnRate: number;
+    arpa: number;
+  }>;
+}

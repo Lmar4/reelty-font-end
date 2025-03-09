@@ -11,7 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SUBSCRIPTION_TIERS } from "@/constants/subscription-tiers";
+import {
+  SUBSCRIPTION_TIERS,
+  SubscriptionTier,
+} from "@/constants/subscription-tiers";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export function UserFilters() {
   const router = useRouter();
@@ -23,16 +28,43 @@ export function UserFilters() {
     minCredits: searchParams.get("minCredits") || "",
     maxCredits: searchParams.get("maxCredits") || "",
     search: searchParams.get("search") || "",
+    lifetimeOnly: searchParams.get("lifetimeOnly") === "true",
+    creditStatus: searchParams.get("creditStatus") || "all",
   });
 
-  const handleFilterChange = (key: string, value: string) => {
+  const handleFilterChange = (key: string, value: string | boolean) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
 
     const params = new URLSearchParams(searchParams);
     if (value && value !== "all") {
-      params.set(key, value);
+      params.set(key, String(value));
     } else {
       params.delete(key);
+    }
+
+    router.push(`?${params.toString()}`);
+  };
+
+  // If lifetime only is selected, automatically set tier to LIFETIME
+  const handleLifetimeOnlyChange = (checked: boolean) => {
+    const params = new URLSearchParams(searchParams);
+
+    if (checked) {
+      params.set("lifetimeOnly", "true");
+      params.set("tier", SUBSCRIPTION_TIERS.LIFETIME.id);
+
+      setFilters((prev) => ({
+        ...prev,
+        lifetimeOnly: true,
+        tier: SUBSCRIPTION_TIERS.LIFETIME.id,
+      }));
+    } else {
+      params.delete("lifetimeOnly");
+
+      setFilters((prev) => ({
+        ...prev,
+        lifetimeOnly: false,
+      }));
     }
 
     router.push(`?${params.toString()}`);
@@ -46,6 +78,7 @@ export function UserFilters() {
         <Select
           value={filters.tier}
           onValueChange={(value) => handleFilterChange("tier", value)}
+          disabled={filters.lifetimeOnly}
         >
           <SelectTrigger>
             <SelectValue placeholder='Subscription Tier' />
@@ -107,21 +140,57 @@ export function UserFilters() {
         />
       </div>
 
-      <Button
-        variant='outline'
-        onClick={() => {
-          setFilters({
-            tier: "all",
-            status: "all",
-            minCredits: "",
-            maxCredits: "",
-            search: "",
-          });
-          router.push("?");
-        }}
-      >
-        Clear Filters
-      </Button>
+      <div className='flex flex-col md:flex-row gap-4 items-start md:items-center'>
+        <div className='flex items-center space-x-2'>
+          <Checkbox
+            id='lifetimeOnly'
+            checked={filters.lifetimeOnly}
+            onCheckedChange={handleLifetimeOnlyChange}
+          />
+          <Label htmlFor='lifetimeOnly' className='font-medium cursor-pointer'>
+            Lifetime Plan Subscribers Only
+          </Label>
+        </div>
+
+        {filters.lifetimeOnly && (
+          <div className='flex items-center space-x-2'>
+            <Select
+              value={filters.creditStatus}
+              onValueChange={(value) =>
+                handleFilterChange("creditStatus", value)
+              }
+            >
+              <SelectTrigger className='w-[200px]'>
+                <SelectValue placeholder='Monthly Credit Status' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>All Subscribers</SelectItem>
+                <SelectItem value='received'>Received This Month</SelectItem>
+                <SelectItem value='pending'>Pending This Month</SelectItem>
+                <SelectItem value='missed'>Missed Last Month</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <Button
+          variant='outline'
+          onClick={() => {
+            setFilters({
+              tier: "all",
+              status: "all",
+              minCredits: "",
+              maxCredits: "",
+              search: "",
+              lifetimeOnly: false,
+              creditStatus: "all",
+            });
+            router.push("?");
+          }}
+        >
+          Clear Filters
+        </Button>
+      </div>
     </div>
   );
 }

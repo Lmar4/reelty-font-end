@@ -3,6 +3,7 @@ export enum SubscriptionTier {
   REELTY = "REELTY", // Basic Reelty plan
   REELTY_PRO = "REELTY_PRO", // Pro plan with advanced features
   REELTY_PRO_PLUS = "REELTY_PRO_PLUS", // Pro+ plan with unlimited features
+  LIFETIME = "LIFETIME", // Lifetime plan for beta testers
 }
 
 export const SUBSCRIPTION_TIERS = {
@@ -33,6 +34,14 @@ export const SUBSCRIPTION_TIERS = {
     name: "Reelty Pro+",
     description: "Unlimited access with premium features",
     credits: 10,
+  },
+  LIFETIME: {
+    id: "550e8400-e29b-41d4-a716-446655440004",
+    tier: SubscriptionTier.LIFETIME,
+    name: "Reelty Lifetime",
+    description:
+      "Lifetime access for beta testers. Limited to first 100 users.",
+    credits: 24,
   },
 } as const;
 

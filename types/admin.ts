@@ -41,6 +41,21 @@ export interface AdminUser {
     createdAt: string;
     updatedAt: string;
   };
+  subscription?: {
+    id: string;
+    status: string;
+    tier: {
+      id: string;
+      name: string;
+      tierId: string;
+    };
+    startDate: string;
+    currentPeriodEnd: string;
+  };
+  creditStatus?: {
+    receivedCurrentMonth: boolean;
+    receivedLastMonth: boolean;
+  };
   subscriptionLogs: any[];
 }
 
