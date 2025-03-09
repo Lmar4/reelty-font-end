@@ -11,7 +11,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { AdminUser } from "@/types/admin";
-import { useQuery } from "@tanstack/react-query";
 import {
   ColumnDef,
   flexRender,
@@ -35,40 +34,24 @@ import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Loading from "../loading";
 import { UserManageModal } from "./user-manage-modal";
-
-interface UsersResponse {
-  success: boolean;
-  data: AdminUser[];
-}
+import { useAdminUsers } from "@/hooks/queries/use-admin-users";
 
 export function UserList() {
   const searchParams = useSearchParams();
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const {
-    data: response,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["admin-users", searchParams.toString()],
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/admin/users?${searchParams.toString()}`
-      );
+  // Extract filter values from search params
+  const filters = {
+    tier: searchParams.get("tier") || "all",
+    status: searchParams.get("status") || "all",
+    minCredits: searchParams.get("minCredits") || "",
+    maxCredits: searchParams.get("maxCredits") || "",
+    search: searchParams.get("search") || "",
+  };
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Error response:", errorData);
-        throw new Error(errorData || "Failed to fetch users");
-      }
-      const data = await response.json();
-
-      return data.data as UsersResponse;
-    },
-  });
-
-  const users = response?.data ?? [];
+  // Use our new hook to fetch and filter users
+  const { data: users, isLoading, error } = useAdminUsers(filters);
 
   const columns: ColumnDef<AdminUser>[] = [
     {
@@ -193,7 +176,7 @@ export function UserList() {
   ];
 
   const table = useReactTable({
-    data: users,
+    data: users || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

@@ -1,6 +1,10 @@
 import type {
   SubscriptionTier as PrismaSubscriptionTier,
+  Subscription as PrismaSubscription,
   SubscriptionStatus,
+  BillingStatus,
+  ResourceType,
+  AllocationPeriod,
 } from "./prisma-types";
 
 // Plan Type (matching Prisma schema)
@@ -118,6 +122,8 @@ export interface SubscriptionTierInfo {
   maxReelDownloads: number | null;
   maxActiveListings: number;
   premiumTemplatesEnabled: boolean;
+  isActive: boolean;
+  isPublic: boolean;
   metadata?: Record<string, any>;
 }
 
@@ -130,14 +136,22 @@ export interface SubscriptionState {
     type: "monthly" | "pay_as_you_go";
   } | null;
   status: Lowercase<SubscriptionStatus> | "none";
+  currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
+  canceledAt: string | null;
+  autoRenew: boolean;
 }
 
 // Type for subscription usage stats
 export interface SubscriptionUsageStats {
-  creditsUsed: number;
-  activeListings: number;
+  resourceUsage: {
+    resourceType: ResourceType;
+    totalAllocation: number;
+    usedAllocation: number;
+    period: AllocationPeriod;
+    periodStart: Date;
+    periodEnd: Date | null;
+  }[];
   totalListings: number;
   totalVideosGenerated: number;
   storageUsed: number;
@@ -173,16 +187,29 @@ export const TIER_ORDER: Record<SubscriptionTierId, number> = {
 // Use the imported type instead of redefining it
 export type SubscriptionTier = PrismaSubscriptionTier;
 
-export interface SubscriptionLog {
+export interface UsageRecord {
   id: string;
-  userId: string;
-  action: string;
-  stripeSubscriptionId: string;
-  stripePriceId?: string;
-  stripeProductId?: string;
-  status: string;
-  periodEnd?: Date;
+  subscriptionId: string;
+  resourceType: ResourceType;
+  quantity: number;
+  recordedAt: Date;
+  metadata?: Record<string, any>;
   createdAt: Date;
+}
+
+export interface BillingRecord {
+  id: string;
+  subscriptionId: string;
+  amount: number;
+  currency: string;
+  status: BillingStatus;
+  invoiceId?: string;
+  invoiceUrl?: string;
+  periodStart: Date;
+  periodEnd: Date;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TierChange {
@@ -198,12 +225,20 @@ export interface TierChange {
 // Frontend specific types
 export interface Subscription {
   id: string;
-  plan: string;
+  userId: string;
+  tierId: string;
+  tierName?: string;
   status: Lowercase<SubscriptionStatus> | "free";
-  currentPeriodEnd: string;
-  cancelAtPeriodEnd: boolean;
-  stripePriceId?: string;
-  stripeProductId?: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripePriceId: string | null;
+  billingEmail: string | null;
+  autoRenew: boolean;
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+  canceledAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
   features?: string[];
 }
 
@@ -225,8 +260,14 @@ export interface TierChangeResponse {
   error?: string;
 }
 
-export interface SubscriptionLogResponse {
+export interface BillingRecordResponse {
   success: boolean;
-  data: SubscriptionLog[];
+  data: BillingRecord[];
+  error?: string;
+}
+
+export interface UsageRecordResponse {
+  success: boolean;
+  data: UsageRecord[];
   error?: string;
 }

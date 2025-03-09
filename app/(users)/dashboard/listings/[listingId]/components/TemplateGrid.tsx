@@ -58,6 +58,8 @@ interface TemplateGridProps {
   isGenerating?: boolean;
   downloadCount?: number;
   jobProgress?: JobProgress;
+  downloadingTemplate?: string | null;
+  onUpgradeClick?: () => void;
 }
 
 export const TemplateGrid: React.FC<TemplateGridProps> = ({
@@ -71,6 +73,8 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
   isGenerating = false,
   downloadCount = 0,
   jobProgress,
+  downloadingTemplate = null,
+  onUpgradeClick,
 }) => {
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [notifyWhenReady, setNotifyWhenReady] = useState(false);
@@ -339,6 +343,36 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     );
   };
 
+  // Update the onClick handler for the button
+  const handleButtonClick = (template: Template, latestJob?: VideoJob) => {
+    if (!latestJob) {
+      onGenerateVideo(template.key);
+      return;
+    }
+
+    const isPremiumTemplate = template && !template.tiers.includes("FREE");
+    const isDownloadLimited = isFreeTier && downloadCount >= 1;
+
+    // Get video URL for this template
+    const videoUrl = getVideoUrlForTemplate(template, latestJob);
+
+    if (
+      (isPremiumTemplate && isFreeTier) ||
+      (isDownloadLimited && isFreeTier)
+    ) {
+      // Open pricing modal
+      setShowPricingModal(true);
+      // Also call the parent's onUpgradeClick if available
+      if (onUpgradeClick) {
+        onUpgradeClick();
+      }
+    } else if (videoUrl && latestJob.status === "COMPLETED") {
+      handleDownloadClick(template.key, latestJob);
+    } else {
+      onGenerateVideo(template.key);
+    }
+  };
+
   return (
     <>
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
@@ -450,26 +484,48 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
                   </div>
 
                   <Button
-                    onClick={() =>
-                      videoUrl && latestJob?.status === "COMPLETED"
-                        ? handleDownloadClick(template.key, latestJob)
-                        : onGenerateVideo(template.key)
-                    }
+                    onClick={() => handleButtonClick(template, latestJob)}
                     disabled={
                       isProcessing ||
                       !photos.length ||
                       isGenerating ||
                       (isPremium && isFreeTier) ||
-                      isDownloadDisabled
+                      downloadingTemplate !== null
                     }
                     className={cn(
                       "w-full",
-                      (isPremium && isFreeTier) || isDownloadDisabled
+                      isPremium && isFreeTier
                         ? "bg-gray-200 hover:bg-gray-200 text-gray-500 cursor-not-allowed"
+                        : isDownloadDisabled && isFreeTier
+                        ? "bg-black hover:bg-black/90 text-white"
                         : "bg-black hover:bg-black/90 text-white"
                     )}
                   >
-                    {isProcessing ? (
+                    {downloadingTemplate === template.key ? (
+                      <div className='flex items-center'>
+                        <svg
+                          className='animate-spin -ml-1 mr-2 h-4 w-4 text-white'
+                          xmlns='http://www.w3.org/2000/svg'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                        >
+                          <circle
+                            className='opacity-25'
+                            cx='12'
+                            cy='12'
+                            r='10'
+                            stroke='currentColor'
+                            strokeWidth='4'
+                          ></circle>
+                          <path
+                            className='opacity-75'
+                            fill='currentColor'
+                            d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                          ></path>
+                        </svg>
+                        Downloading...
+                      </div>
+                    ) : isProcessing ? (
                       <div className='flex items-center justify-center space-x-2'>
                         <Loader2 className='w-4 h-4 animate-spin' />
                         <span>Generating...</span>

@@ -152,6 +152,9 @@ export function ListingClient({
   const queryClient = useQueryClient();
   const [hasNotifiedCompletion, setHasNotifiedCompletion] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [downloadingTemplate, setDownloadingTemplate] = useState<string | null>(
+    null
+  );
 
   const {
     currentUser,
@@ -255,20 +258,38 @@ export function ListingClient({
       return;
     }
 
-    // For free tier users, check if they've already downloaded a template
-    if (
-      userData?.currentTierId === SubscriptionTier.FREE &&
-      downloadCount >= 1
-    ) {
-      console.log(
-        `Free tier user has already downloaded ${downloadCount} templates`
-      );
-      toast.error(
-        "Free tier users can only download 1 template. Please upgrade to download more."
-      );
-      setShowPricingModal(true);
-      return;
+    // Fetch the latest download count from the server before proceeding
+    try {
+      const downloadResponse = await fetch("/api/videos/download-count");
+      if (downloadResponse.ok) {
+        const data = await downloadResponse.json();
+        if (data.success && data.data.downloadCount !== undefined) {
+          setDownloadCount(data.data.downloadCount);
+
+          // For free tier users, check if they've already downloaded a template
+          if (
+            userData?.currentTierId === SubscriptionTier.FREE &&
+            data.data.downloadCount >= 1
+          ) {
+            console.log(
+              `Free tier user has already downloaded ${data.data.downloadCount} templates`
+            );
+            toast.error(
+              "Free tier users can only download 1 template. Please upgrade to download more."
+            );
+            setShowPricingModal(true);
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch download count:", error);
+      // Continue with the local count if server fetch fails
     }
+
+    // Set downloading state for this template
+    setDownloadingTemplate(templateKey);
+    toast.info("Starting download...");
 
     try {
       // First try to find the video element with this template's source
@@ -305,6 +326,7 @@ export function ListingClient({
       if (!videoUrl) {
         console.error(`Could not find video URL for template: ${templateKey}`);
         toast.error(`Could not find video for template: ${templateKey}`);
+        setDownloadingTemplate(null);
         return;
       }
 
@@ -374,6 +396,9 @@ export function ListingClient({
     } catch (error) {
       console.error("Download failed:", error);
       toast.error("Download failed. Please try again.");
+    } finally {
+      // Clear downloading state
+      setDownloadingTemplate(null);
     }
   };
 
@@ -620,6 +645,8 @@ export function ListingClient({
             onDownload={handleDownload}
             isGenerating={isGeneratingVideo}
             downloadCount={downloadCount}
+            downloadingTemplate={downloadingTemplate}
+            onUpgradeClick={() => setShowPricingModal(true)}
           />
         </div>
 

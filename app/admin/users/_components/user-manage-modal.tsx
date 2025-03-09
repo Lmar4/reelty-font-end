@@ -38,6 +38,15 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
     setNewStatus(user.subscriptionStatus || "INACTIVE");
   }
 
+  // Add a proper close handler
+  const handleClose = () => {
+    // Reset the local state
+    setCreditAdjustment("");
+    setLocalUser(null);
+    // Notify parent component
+    onClose();
+  };
+
   const handleStatusChange = (value: string) => {
     setNewStatus(value);
   };
@@ -143,17 +152,18 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
     }
   };
 
-  if (!localUser) {
+  // If no user is selected, don't render the dialog
+  if (!user) {
     return null;
   }
 
   return (
-    <Dialog open={!!localUser} onOpenChange={() => onClose()}>
+    <Dialog open={!!user} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className='sm:max-w-[425px]'>
         <DialogHeader>
           <DialogTitle>Manage User</DialogTitle>
           <DialogDescription>
-            Update {localUser.firstName}&apos;s account settings and credits
+            Update {localUser?.firstName}&apos;s account settings and credits
           </DialogDescription>
         </DialogHeader>
 
@@ -163,20 +173,20 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
             <div className='flex flex-col gap-2'>
               <div className='flex items-center gap-2'>
                 <div className='text-sm text-muted-foreground'>
-                  Current Credits: {localUser.credits || 0}
+                  Current Credits: {localUser?.credits || 0}
                 </div>
                 <Badge
                   variant={
-                    (localUser.credits || 0) > 10
+                    (localUser?.credits || 0) > 10
                       ? "default"
-                      : (localUser.credits || 0) > 0
+                      : (localUser?.credits || 0) > 0
                       ? "secondary"
                       : "destructive"
                   }
                 >
-                  {(localUser.credits || 0) > 10
+                  {(localUser?.credits || 0) > 10
                     ? "Good"
-                    : (localUser.credits || 0) > 0
+                    : (localUser?.credits || 0) > 0
                     ? "Low"
                     : "Empty"}
                 </Badge>
@@ -227,7 +237,7 @@ export function UserManageModal({ user, onClose }: UserManageModalProps) {
         </div>
 
         <DialogFooter>
-          <Button variant='outline' onClick={onClose}>
+          <Button variant='outline' onClick={handleClose}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={isLoading}>

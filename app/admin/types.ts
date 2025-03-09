@@ -68,6 +68,26 @@ export interface Activity {
     email: string;
   };
   createdAt: string;
+  metadata?: {
+    error?: string;
+    jobId?: string;
+    listingId?: string;
+    template?: string;
+    errorType?: string;
+    details?: string;
+    context?: string;
+    systemState?: {
+      memory?: {
+        rss?: string;
+        heapTotal?: string;
+        heapUsed?: string;
+      };
+      activeJobs?: number;
+      queuedJobs?: number;
+    };
+    additionalInfo?: Record<string, any>;
+    [key: string]: any;
+  };
 }
 
 export interface UserStats {

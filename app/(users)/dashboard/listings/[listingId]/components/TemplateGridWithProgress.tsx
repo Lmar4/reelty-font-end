@@ -14,6 +14,8 @@ interface TemplateGridWithProgressProps {
   onDownload?: (jobId: string, templateKey: string) => void;
   isGenerating?: boolean;
   downloadCount?: number;
+  downloadingTemplate?: string | null;
+  onUpgradeClick?: () => void;
 }
 
 export const TemplateGridWithProgress = (

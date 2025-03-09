@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 
 // Define route matchers
 const isPublicPath = createRouteMatcher([
-  "/",
   "/login",
   "/sign-up",
   "/reset-password",
@@ -18,6 +17,7 @@ const isPublicPath = createRouteMatcher([
   "/api/storage/migrate", // Allow migration of temporary files
 ]);
 
+// Remove "/" from public paths to handle it separately
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
 // Cache for user data checks (5 minutes)
@@ -26,6 +26,10 @@ const userTierCache = new Map<
   { tierId: string; role: string; timestamp: number }
 >();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Enhanced cache for admin role checks with longer TTL
+const userRoleCache = new Map<string, { role: string; timestamp: number }>();
+const ROLE_CACHE_TTL = 15 * 60 * 1000; // 15 minutes for role cache
 
 async function getUserData(userId: string, token: string) {
   // Check cache first
@@ -66,60 +70,82 @@ async function getUserData(userId: string, token: string) {
   }
 }
 
-export default clerkMiddleware(async (auth, req) => {
-  const isPublic = isPublicPath(req);
-  const isAdmin = isAdminRoute(req);
+// Separate function to check admin role with optimized caching
+async function checkAdminRole(
+  userId: string,
+  getToken: () => Promise<string | null>
+) {
+  // Check role cache first
+  const cachedData = userRoleCache.get(userId);
+  const now = Date.now();
 
-  // Don't run auth for public paths
-  if (isPublic) {
+  if (cachedData && now - cachedData.timestamp < ROLE_CACHE_TTL) {
+    return cachedData.role === "ADMIN";
+  }
+
+  // Get token only when needed
+  const token = await getToken();
+  if (!token) {
+    return false;
+  }
+
+  try {
+    const userData = await getUserData(userId, token);
+
+    // Cache the role result
+    if (userData?.role) {
+      userRoleCache.set(userId, {
+        role: userData.role,
+        timestamp: now,
+      });
+    }
+
+    return userData?.role === "ADMIN";
+  } catch (error) {
+    console.error("Error checking admin role:", error);
+    return false;
+  }
+}
+
+export default clerkMiddleware(async (auth, req) => {
+  // Special handling for homepage
+  if (req.nextUrl.pathname === "/") {
+    // Check if user is authenticated without redirecting yet
+    const { userId } = await auth();
+
+    // If authenticated, redirect to dashboard
+    if (userId) {
+      const dashboardUrl = new URL("/dashboard", req.url);
+      return NextResponse.redirect(dashboardUrl);
+    }
+
+    // Otherwise allow access to homepage
     return NextResponse.next();
   }
 
-  // Now we can safely run auth
-  const { userId, getToken } = await auth();
-
-  // Handle homepage redirect for authenticated users
-  if (req.nextUrl.pathname === "/" && userId) {
-    const dashboardUrl = new URL("/dashboard", req.url);
-    return NextResponse.redirect(dashboardUrl);
-  }
+  const isPublic = isPublicPath(req);
+  const isAdmin = isAdminRoute(req);
 
   // Allow public paths without authentication
   if (isPublic) {
     return NextResponse.next();
   }
 
-  // Require authentication for all other routes
+  // Now we can safely run auth for protected routes
+  const { userId, getToken } = await auth();
+
+  // Require authentication for all protected routes
   if (!userId) {
     const loginUrl = new URL("/login", req.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Handle admin routes
+  // Handle admin routes with optimized token usage
   if (isAdmin) {
-    const token = await getToken();
-    console.log("Admin route check - Token available:", !!token);
+    const isAdmin = await checkAdminRole(userId, getToken);
 
-    if (!token) {
-      const homeUrl = new URL("/", req.url);
-      return NextResponse.redirect(homeUrl);
-    }
-
-    try {
-      const userData = await getUserData(userId, token);
-      console.log("Admin route check - User data:", userData);
-
-      // Check if user has admin role
-      if (userData?.role !== "ADMIN") {
-        console.log("Unauthorized admin access attempt:", {
-          userId,
-          role: userData?.role,
-        });
-        const homeUrl = new URL("/", req.url);
-        return NextResponse.redirect(homeUrl);
-      }
-    } catch (error) {
-      console.error("Error checking admin access:", error);
+    if (!isAdmin) {
+      console.log("Unauthorized admin access attempt:", { userId });
       const homeUrl = new URL("/", req.url);
       return NextResponse.redirect(homeUrl);
     }

@@ -17,6 +17,7 @@ interface VideoJobCardProps {
   onDownload: (jobId: string) => void;
   onRegenerate: () => void;
   downloadCount?: number;
+  onUpgradeClick?: () => void;
 }
 
 export function VideoJobCard({
@@ -27,6 +28,7 @@ export function VideoJobCard({
   onDownload,
   onRegenerate,
   downloadCount = 0,
+  onUpgradeClick,
 }: VideoJobCardProps) {
   const isProcessing = job.status === "PROCESSING";
   const isCompleted = job.status === "COMPLETED";
@@ -128,13 +130,17 @@ export function VideoJobCard({
         <div className='flex space-x-2'>
           {isCompleted && videoUrl && (
             <Button
-              onClick={() => onDownload(job.id)}
-              disabled={!isPaidUser && isDownloadLimited}
+              onClick={() =>
+                isDownloadLimited && onUpgradeClick
+                  ? onUpgradeClick()
+                  : onDownload(job.id)
+              }
+              disabled={false}
               className='flex-1'
               variant={isPaidUser ? "default" : "outline"}
             >
               {!isPaidUser && isDownloadLimited
-                ? "Download Limit Reached"
+                ? "Upgrade to Download"
                 : isPaidUser
                 ? "Download"
                 : "Download (Free Trial)"}

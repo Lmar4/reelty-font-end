@@ -29,8 +29,10 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
   const totalCreditsRemaining =
     data?.listingCredits?.[0]?.creditsRemaining ?? 0;
 
-  // User has reached limit if they have no credits remaining
-  const hasReachedLimit = totalCreditsRemaining <= 0;
+  // User has reached limit if they have no credits remaining AND they already have listings
+  // This allows users with 0 credits to still create their first listing
+  const hasReachedLimit =
+    totalCreditsRemaining <= 0 && (data?.listings?.length ?? 0) > 0;
 
   // Check for stored listing data and pending files on mount
   useEffect(() => {

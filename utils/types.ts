@@ -13,8 +13,9 @@ export interface ApiResponse<T> {
 export interface RequestOptions {
   method?: string;
   body?: any;
-  sessionToken?: string;
   headers?: Record<string, string>;
+  sessionToken?: string;
+  critical?: boolean; // Add this property
 }
 
 // Error types

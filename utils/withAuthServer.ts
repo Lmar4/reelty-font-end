@@ -12,7 +12,7 @@ import {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
-// Validate request helper
+// Enhanced validate request helper with token refresh capability
 async function validateRequest(request: Request) {
   try {
     const session = await auth();
@@ -35,6 +35,8 @@ async function validateRequest(request: Request) {
       throw new AuthError(401, "Invalid or missing session");
     }
 
+    // Get a fresh token with each request to ensure it's valid
+    // This is more reliable than caching tokens on the server
     const token = await session.getToken();
     if (!token) {
       console.error("[Server Auth] No token available");
@@ -140,7 +142,7 @@ export async function withAdminAuth(handler: ApiHandler) {
   });
 }
 
-// Server-side function to make authenticated requests to the backend
+// Enhanced server-side function to make authenticated requests to the backend
 export async function makeServerBackendRequest<T>(
   endpoint: string,
   options: {
@@ -152,7 +154,7 @@ export async function makeServerBackendRequest<T>(
   const { method = "GET", body, headers = {} } = options;
 
   try {
-    // Get session token from Clerk
+    // Get session token from Clerk - always get a fresh token
     const session = await auth();
     if (!session?.userId) {
       throw new AuthError(401, "No valid session");

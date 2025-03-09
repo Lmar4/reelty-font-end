@@ -1,38 +1,74 @@
 import { JobStatus } from "./job-types";
-import type { User as PrismaUser } from "./prisma-types";
+import type { 
+  User as PrismaUser, 
+  SubscriptionStatus as PrismaSubscriptionStatus,
+  UserType,
+  UserStatus,
+  UserRole,
+  CreditTransactionType 
+} from "./prisma-types";
 
+// Map Prisma enum to string literals for frontend use
 export type SubscriptionStatus =
   | "active"
-  | "inactive"
-  | "past_due"
   | "canceled"
-  | "trialing";
+  | "past_due"
+  | "trialing"
+  | "incomplete"
+  | "incomplete_expired"
+  | "unpaid"
+  | "paused";
 
-export interface User extends Omit<PrismaUser, "subscriptionStatus"> {
+// Convert Prisma enum values to frontend string literals
+export const mapSubscriptionStatus = (status: PrismaSubscriptionStatus): SubscriptionStatus => {
+  return status.toLowerCase() as SubscriptionStatus;
+};
+
+export interface User extends Omit<PrismaUser, "subscription"> {
   subscriptionStatus: SubscriptionStatus | null;
+  subscriptionPeriodEnd: Date | null;
 }
 
 export interface UpdateUserInput {
   firstName?: string;
   lastName?: string;
   email?: string;
+  timeZone?: string;
+  role?: UserRole;
+  type?: UserType;
+  status?: UserStatus;
+  notificationSettings?: Record<string, boolean>;
 }
 
 export interface UserSubscriptionInfo {
+  id: string;
   status: SubscriptionStatus;
-  priceId: string | null;
-  productId: string | null;
-  periodEnd: Date | null;
+  tierId: string;
+  tierName?: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripePriceId: string | null;
+  billingEmail: string | null;
+  autoRenew: boolean;
+  currentPeriodStart: Date | null;
+  currentPeriodEnd: Date | null;
+  canceledAt: Date | null;
 }
 
 export interface UserCreditInfo {
   total: number;
+  available: number;
+  pending: number;
   used: number;
-  remaining: number;
-  history: {
+  lastUpdatedAt: Date;
+  transactions: {
+    id: string;
     amount: number;
+    type: CreditTransactionType;
+    source: string;
     reason: string;
-    date: Date;
+    createdAt: Date;
+    expiresAt: Date | null;
   }[];
 }
 
@@ -41,8 +77,9 @@ export interface UserActivityLog {
     | "listing_created"
     | "video_generated"
     | "subscription_changed"
-    | "credit_added"
-    | "credit_used";
+    | "credit_transaction"
+    | "agency_membership_changed"
+    | "agency_invitation";
   description: string;
   metadata: Record<string, any>;
   timestamp: Date;
@@ -54,6 +91,33 @@ export interface UserStats {
   activeVideos: number;
   creditsUsed: number;
   daysActive: number;
+  resourceUsage: {
+    type: string;
+    allocated: number;
+    used: number;
+    remaining: number;
+  }[];
+}
+
+export interface AgencyMembershipInfo {
+  id: string;
+  agencyId: string;
+  agencyName?: string;
+  role: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AgencyInvitationInfo {
+  id: string;
+  email: string;
+  agencyId: string;
+  agencyName?: string;
+  role: string;
+  status: string;
+  expiresAt: Date;
+  createdAt: Date;
 }
 
 export interface VideoJob {

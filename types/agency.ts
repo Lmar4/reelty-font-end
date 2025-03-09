@@ -1,39 +1,77 @@
-export interface AgencyUser {
+import { AgencyRole, MembershipStatus, InvitationStatus } from './prisma-types';
+
+export interface AgencyMembershipInfo {
+  id: string;
+  userId: string;
+  agencyId: string;
+  role: AgencyRole;
+  status: MembershipStatus;
+  invitationId: string | null;
+  metadata: Record<string, any> | null;
+  createdAt: Date;
+  updatedAt: Date;
+  
+  // Additional fields for UI
+  userEmail?: string;
+  userFirstName?: string;
+  userLastName?: string;
+  agencyName?: string;
+}
+
+export interface AgencyInvitationInfo {
   id: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  role: "AGENCY" | "AGENCY_USER";
-  agencyId?: string;
-  agencyOwnerId?: string;
+  agencyId: string;
+  role: AgencyRole;
+  status: InvitationStatus;
+  expiresAt: Date;
+  token: string;
+  metadata: Record<string, any> | null;
+  createdAt: Date;
+  updatedAt: Date;
+  acceptedAt: Date | null;
+  
+  // Additional fields for UI
   agencyName?: string;
-  agencyMaxUsers?: number;
-  agencyCurrentUsers?: number;
-  totalCredits?: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface AgencyStats {
-  totalUsers: number;
-  activeUsers: number;
-  totalCredits: number;
-  usedCredits: number;
+  totalMembers: number;
+  activeMembers: number;
+  pendingInvitations: number;
+  resourceAllocations: {
+    type: string;
+    allocated: number;
+    used: number;
+    remaining: number;
+  }[];
   videoGenerations: number;
 }
 
 export interface CreateAgencyInput {
   name: string;
   ownerEmail: string;
-  maxUsers: number;
-  initialCredits: number;
+  initialCredits?: number;
+  notificationSettings?: Record<string, boolean>;
 }
 
-export interface AddAgencyUserInput {
+export interface CreateAgencyMembershipInput {
   email: string;
-  firstName?: string;
-  lastName?: string;
-  credits?: number;
+  role: AgencyRole;
+  metadata?: Record<string, any>;
+}
+
+export interface UpdateAgencyMembershipInput {
+  role?: AgencyRole;
+  status?: MembershipStatus;
+  metadata?: Record<string, any>;
+}
+
+export interface CreateAgencyInvitationInput {
+  email: string;
+  role: AgencyRole;
+  expiresInDays?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface BulkDiscount {
@@ -57,31 +95,49 @@ export interface BulkDiscountInput {
   expiresAt?: string;
 }
 
-export interface AgencyUserStats {
+export interface AgencyMemberStats {
   userId: string;
   email: string;
   firstName?: string;
   lastName?: string;
-  totalCredits: number;
-  usedCredits: number;
-  lastActive: string;
+  role: AgencyRole;
+  status: MembershipStatus;
+  resourceUsage: {
+    type: string;
+    allocated: number;
+    used: number;
+    remaining: number;
+  }[];
+  lastActive: Date | null;
   videoGenerations: number;
+  createdAt: Date;
 }
 
 export interface AgencyAnalytics {
-  dailyActiveUsers: number;
-  monthlyActiveUsers: number;
+  dailyActiveMembers: number;
+  monthlyActiveMembers: number;
   totalVideoGenerations: number;
-  creditsUsedToday: number;
-  creditsUsedThisMonth: number;
-  totalCreditsUsed: number;
-  totalCreditsAvailable: number;
-  userGrowth: {
+  resourceUsageToday: {
+    type: string;
+    used: number;
+  }[];
+  resourceUsageThisMonth: {
+    type: string;
+    used: number;
+  }[];
+  totalResourceUsage: {
+    type: string;
+    allocated: number;
+    used: number;
+    remaining: number;
+  }[];
+  memberGrowth: {
     date: string;
     count: number;
   }[];
-  creditUsage: {
+  resourceUsageOverTime: {
     date: string;
+    type: string;
     used: number;
     total: number;
   }[];
