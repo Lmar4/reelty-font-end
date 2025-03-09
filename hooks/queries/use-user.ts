@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { User } from "@/types/prisma-types";
-import { UserResource, toPartialUser, ApiResponse } from "@/types/api-types";
+import { UserResource, mapUserResource, ApiResponse } from "@/types/api-types";
 import { makeBackendRequest } from "@/utils/withAuth";
 import { useBaseQuery } from "./useBaseQuery";
 
@@ -21,7 +21,7 @@ async function fetchUserData(
   );
   return {
     ...response,
-    data: toPartialUser(response.data),
+    data: mapUserResource(response.data),
   };
 }
 
@@ -77,6 +77,7 @@ export function useUserData() {
 
 export function useUpdateUser() {
   const { getToken } = useAuth();
+  const queryClient = useQueryClient();
 
   return useMutation<User, Error, UpdateUserPayload>({
     mutationFn: async (data) => {
@@ -87,6 +88,9 @@ export function useUpdateUser() {
         throw new Error(response.error || "Failed to update user");
       }
       return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [USER_QUERY_KEY, data.id] });
     },
   });
 }

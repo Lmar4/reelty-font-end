@@ -21,9 +21,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { AgencyUser, AgencyUserStats } from "@/types/agency";
+import { AgencyUser } from "@/app/admin/types";
 import { formatDate } from "@/lib/utils";
 import { InviteUserDialog } from "./invite-user-dialog";
+
+interface AgencyMemberUser {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  status: string;
+  usedCredits: number;
+  totalCredits: number;
+  lastActive: string | null;
+  videoGenerations: number;
+}
 
 interface AgencyUsersDialogProps {
   agency: AgencyUser | null;
@@ -51,9 +64,9 @@ export function AgencyUsersDialog({
         throw new Error("Failed to fetch agency users");
       }
       const data = await response.json();
-      return data.data;
+      return data.users as AgencyMemberUser[];
     },
-    enabled: !!agency?.id,
+    enabled: !!agency?.id && open,
   });
 
   const removeUserMutation = useMutation({
@@ -137,30 +150,34 @@ export function AgencyUsersDialog({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {users?.map((user: AgencyUserStats) => (
+                  {users?.map((user: AgencyMemberUser) => (
                     <TableRow key={user.userId}>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         {user.firstName} {user.lastName}
                       </TableCell>
                       <TableCell>
-                        <Badge variant='outline'>
-                          {user.usedCredits} / {user.totalCredits}
-                        </Badge>
+                        {user.usedCredits} / {user.totalCredits}
                       </TableCell>
-                      <TableCell>{formatDate(user.lastActive)}</TableCell>
+                      <TableCell>
+                        {user.lastActive
+                          ? formatDate(new Date(user.lastActive))
+                          : "Never"}
+                      </TableCell>
                       <TableCell>{user.videoGenerations}</TableCell>
                       <TableCell>
                         <Badge
                           variant={
+                            user.lastActive &&
                             new Date(user.lastActive) >
-                            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                              new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
                               ? "default"
                               : "secondary"
                           }
                         >
-                          {new Date(user.lastActive) >
-                          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                          {user.lastActive &&
+                          new Date(user.lastActive) >
+                            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
                             ? "Active"
                             : "Inactive"}
                         </Badge>
@@ -180,11 +197,13 @@ export function AgencyUsersDialog({
             )}
           </div>
 
-          <InviteUserDialog
-            agency={agency}
-            open={isInviting}
-            onClose={() => setIsInviting(false)}
-          />
+          {isInviting && (
+            <InviteUserDialog
+              agency={agency as any}
+              open={isInviting}
+              onClose={() => setIsInviting(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

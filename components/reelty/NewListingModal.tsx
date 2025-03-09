@@ -169,7 +169,7 @@ export default function NewListingModal({
   });
 
   // Create a consistent function to check if user is on free tier
-  const isFreeUser = () => userData?.currentTierId === SubscriptionTier.FREE;
+  const isFreeUser = () => userData?.currentTier?.id === SubscriptionTier.FREE;
   const getMaxSelectablePhotos = () => (isFreeUser() ? 10 : 20);
   const getMaxUploadablePhotos = () => (isFreeUser() ? 10 : 60);
 

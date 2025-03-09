@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { UserRole } from "@/types/prisma-types";
 
 type MenuItem = {
   title: string;
@@ -32,9 +33,9 @@ export function ProfileDropdown() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Use the new role access hooks
-  const isAdmin = useRoleAccess("ADMIN");
-  const isAgency = useRoleAccess("AGENCY");
-  const isAgencyUser = useRoleAccess("AGENCY_USER");
+  const isAdmin = useRoleAccess(UserRole.ADMIN);
+  const isAgency = useRoleAccess(UserRole.AGENCY);
+  const isAgencyUser = useRoleAccess(UserRole.AGENCY_USER);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

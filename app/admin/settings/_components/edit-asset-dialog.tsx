@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Asset, SubscriptionTier } from "@/types/prisma-types";
+import { Asset, AssetType, SubscriptionTier } from "@/types/prisma-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   FileVideo,
@@ -63,7 +63,7 @@ export function EditAssetDialog({
     asset || {
       name: "",
       description: "",
-      type: "MUSIC",
+      type: AssetType.MUSIC,
       isActive: true,
     }
   );
@@ -151,7 +151,7 @@ export function EditAssetDialog({
       asset || {
         name: "",
         description: "",
-        type: "MUSIC",
+        type: AssetType.MUSIC,
         isActive: true,
       }
     );

@@ -40,6 +40,7 @@ export interface UserResource
     | "currentTier"
     | "listingCredits"
     | "listings"
+    | "subscription"
   > {
   createdAt: string;
   updatedAt: string;
@@ -48,6 +49,11 @@ export interface UserResource
   currentTier: SubscriptionTierInfo | null;
   listingCredits: ListingCredit[];
   listings: ListingBasicInfo[];
+  subscription?: {
+    id?: string;
+    status?: string;
+    periodEnd?: string;
+  };
 }
 
 // Type guard to check if a UserResource has all required User fields
@@ -69,13 +75,10 @@ export function isFullUser(user: UserResource): user is UserResource {
 }
 
 // Helper to transform UserResource to partial User
-export function toPartialUser(resource: UserResource): Partial<User> {
-  return {
-    id: resource.id,
-    email: resource.email,
-    firstName: resource.firstName,
-    lastName: resource.lastName,
-    role: resource.role,
-    subscriptionStatus: resource.subscriptionStatus,
-  };
-}
+export const mapUserResource = (resource: UserResource): Partial<User> => ({
+  id: resource.id,
+  email: resource.email,
+  firstName: resource.firstName,
+  lastName: resource.lastName,
+  role: resource.role,
+});

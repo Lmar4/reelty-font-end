@@ -4,7 +4,7 @@ import { makeBackendRequest } from "@/utils/withAuth";
 import { toast } from "sonner";
 import { useBaseQuery } from "./queries/useBaseQuery";
 
-interface CreditLog {
+export interface CreditLog {
   id: string;
   amount: number;
   reason: string;

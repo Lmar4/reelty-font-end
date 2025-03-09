@@ -5,7 +5,17 @@ import PricingModal from "@/components/reelty/PricingModal";
 import { useAuth } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { SubscriptionStatus } from "@/types/prisma-types";
+
+// Define the same type as in PricingModal
+type SubscriptionStatus =
+  | "ACTIVE"
+  | "CANCELED"
+  | "INCOMPLETE"
+  | "INCOMPLETE_EXPIRED"
+  | "PAST_DUE"
+  | "TRIALING"
+  | "UNPAID"
+  | "INACTIVE";
 
 interface SubscriptionData {
   id: string;
@@ -143,7 +153,7 @@ export default function BillingSettings() {
           window.location.reload(); // Refresh to show updated subscription
         }}
         currentTier={subscription?.plan}
-        currentStatus={subscription?.status as SubscriptionStatus}
+        currentStatus={subscription?.status as SubscriptionStatus | undefined}
       />
     </div>
   );

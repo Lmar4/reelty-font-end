@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { CreditLog } from "@/types/prisma-types";
+import { CreditLog } from "@/hooks/use-credits";
 
 export default function CreditHistory() {
   const { userId } = useAuth();
@@ -29,19 +29,19 @@ export default function CreditHistory() {
   });
 
   if (isLoading) {
-    return <Skeleton className="h-48 w-full" />;
+    return <Skeleton className='h-48 w-full' />;
   }
 
   if (!creditHistory?.length) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
+      <div className='text-center py-8 text-muted-foreground'>
         No credit transactions found
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className='overflow-x-auto'>
       <Table>
         <TableHeader>
           <TableRow>
@@ -60,9 +60,7 @@ export default function CreditHistory() {
               </TableCell>
               <TableCell>
                 <span
-                  className={
-                    log.amount > 0 ? "text-green-600" : "text-red-600"
-                  }
+                  className={log.amount > 0 ? "text-green-600" : "text-red-600"}
                 >
                   {log.amount > 0 ? "+" : ""}
                   {log.amount}

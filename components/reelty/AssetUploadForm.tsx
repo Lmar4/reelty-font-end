@@ -68,7 +68,7 @@ export function AssetUploadForm({ onSuccess }: AssetUploadFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [assetName, setAssetName] = useState("");
   const [assetDescription, setAssetDescription] = useState("");
-  const [assetType, setAssetType] = useState<AssetType>("MUSIC");
+  const [assetType, setAssetType] = useState<AssetType>(AssetType.MUSIC);
   const [subscriptionTier, setSubscriptionTier] = useState("basic");
   const [isUploading, setIsUploading] = useState(false);
   const [lottieValidationError, setLottieValidationError] = useState<

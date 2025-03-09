@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { AgencyUser } from "@/types/agency";
+import { AgencyUser } from "@/app/admin/types";
 
 const creditSchema = z.object({
   amount: z.coerce

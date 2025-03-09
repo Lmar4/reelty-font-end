@@ -3,7 +3,10 @@
 import { useUserData } from "@/hooks/useUserData";
 import FreeTrial from "@/components/reelty/FreeTrial";
 import HomeHeader from "@/components/reelty/HomeHeader";
-import { SubscriptionTier } from "@/constants/subscription-tiers";
+import {
+  SubscriptionTier,
+  SUBSCRIPTION_TIERS,
+} from "@/constants/subscription-tiers";
 
 export default function MarketingLayout({
   children,
@@ -14,7 +17,7 @@ export default function MarketingLayout({
 
   // Only show banner if user is logged in AND not a paid member
   // Don't try to access userData properties if it's still loading
-  const isFreeTier = userData?.currentTierId === SubscriptionTier.FREE;
+  const isFreeTier = userData?.currentTier?.id === SUBSCRIPTION_TIERS.FREE.id;
   const showBanner = !isLoading && userData && isFreeTier;
 
   return (

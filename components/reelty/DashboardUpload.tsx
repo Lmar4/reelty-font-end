@@ -8,6 +8,17 @@ import { useAuth } from "@clerk/nextjs";
 import { useUserData } from "@/hooks/useUserData";
 import PricingCards from "./PricingCards";
 
+// Define the same SubscriptionStatus type as in PricingCards
+type SubscriptionStatus =
+  | "ACTIVE"
+  | "CANCELED"
+  | "INCOMPLETE"
+  | "INCOMPLETE_EXPIRED"
+  | "PAST_DUE"
+  | "TRIALING"
+  | "UNPAID"
+  | "INACTIVE";
+
 interface FileData {
   data: string;
   name: string;
@@ -147,7 +158,9 @@ export function DashboardUpload({ onFilesSelected }: DashboardUploadProps) {
           <PricingCards
             isModal={true}
             currentTier={data?.currentTier?.id}
-            currentStatus={data?.subscriptionStatus}
+            currentStatus={
+              data?.subscription?.status as SubscriptionStatus | undefined
+            }
             onUpgradeComplete={() => {
               setShowPricingModal(false);
             }}

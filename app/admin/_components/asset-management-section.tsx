@@ -44,7 +44,11 @@ import {
 } from "@/hooks/queries/use-assets";
 
 // Define the asset types array for the select options
-const ASSET_TYPES: AssetType[] = ["MUSIC", "WATERMARK", "LOTTIE"];
+const ASSET_TYPES: AssetType[] = [
+  "MUSIC",
+  "WATERMARK",
+  "LOTTIE",
+] as AssetType[];
 
 interface AssetManagementSectionProps {
   initialAssets: Asset[];

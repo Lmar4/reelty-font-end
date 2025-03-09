@@ -3,7 +3,7 @@
 import { useUserData } from "@/hooks/useUserData";
 import { DashboardHeader } from "./DashboardHeader";
 import FreeTrial from "./FreeTrial";
-import { SubscriptionTier } from "@/constants/subscription-tiers";
+import { SUBSCRIPTION_TIERS } from "@/constants/subscription-tiers";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -12,7 +12,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: userData, isLoading } = useUserData();
 
-  const isFreeTier = userData?.currentTierId === SubscriptionTier.FREE;
+  const isFreeTier = userData?.currentTier?.id === SUBSCRIPTION_TIERS.FREE.id;
   const showBanner = !isLoading && isFreeTier;
 
   return (

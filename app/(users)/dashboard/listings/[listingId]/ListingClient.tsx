@@ -8,7 +8,12 @@ import { useVideoStatus } from "@/hooks/queries/use-video-status";
 import { useCreateJob } from "@/hooks/use-jobs";
 import { sendVideoGeneratedEmail } from "@/lib/plunk";
 import { VideoJob } from "@/types/listing-types";
-import type { JsonValue, Listing, User } from "@/types/prisma-types";
+import type {
+  JsonValue,
+  Listing,
+  User,
+  SubscriptionStatus,
+} from "@/types/prisma-types";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -25,34 +30,15 @@ interface ExtendedListing extends Listing {
   videoJobs?: VideoJob[];
 }
 
-interface UserData
-  extends Pick<User, "id" | "currentTierId" | "subscriptionStatus"> {}
+interface UserData {
+  id: string;
+  currentTierId: string;
+  subscriptionStatus: SubscriptionStatus | null;
+}
 
 interface Coordinates {
   lat: number;
   lng: number;
-}
-
-function parseCoordinates(value: JsonValue | null): Coordinates | null {
-  if (!value || typeof value !== "object") return null;
-  const coords = value as Record<string, unknown>;
-  if (typeof coords.lat === "number" && typeof coords.lng === "number") {
-    return { lat: coords.lat, lng: coords.lng };
-  }
-  return null;
-}
-
-interface VideoStatus {
-  isProcessing: boolean;
-  processingCount: number;
-  failedCount: number;
-  completedCount: number;
-  totalCount: number;
-  shouldEndPolling?: boolean;
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === "string";
 }
 
 function useListingData(
@@ -122,21 +108,6 @@ function useListingData(
     error: userDataError || listingError || undefined,
   };
 }
-
-interface PhotoWithPath {
-  id: string;
-  filePath: string | null;
-}
-
-const getValidVideoJobs = (videoJobs: VideoJob[]): VideoJob[] => {
-  const sortedJobs = [...videoJobs].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
-
-  // For simplicity, just return the sorted jobs
-  // You can add more validation logic here if needed
-  return sortedJobs;
-};
 
 interface ListingClientProps {
   listingId: string;

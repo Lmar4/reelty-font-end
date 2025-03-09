@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AgencyUser } from "@/types/agency";
+import { AgencyUser } from "@/app/admin/types";
 
 const inviteSchema = z.object({
   email: z.string().email("Invalid email address"),

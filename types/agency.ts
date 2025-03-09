@@ -1,4 +1,9 @@
-import { AgencyRole, MembershipStatus, InvitationStatus } from './prisma-types';
+import {
+  AgencyRole,
+  MembershipStatus,
+  InvitationStatus,
+  UserRole,
+} from "./prisma-types";
 
 export interface AgencyMembershipInfo {
   id: string;
@@ -6,11 +11,28 @@ export interface AgencyMembershipInfo {
   agencyId: string;
   role: AgencyRole;
   status: MembershipStatus;
-  invitationId: string | null;
-  metadata: Record<string, any> | null;
-  createdAt: Date;
+
+  // Enhanced role management
+  isLastOwner: boolean;
+  canManageCredits: boolean;
+  canInviteMembers: boolean;
+
+  // Resource access fields
+  accessibleResourceTypes: string[];
+
+  // Member departure handling
+  departureHandled: boolean;
+  departureNotes: string | null;
+
+  // Resource allocation
+  creditAllocation: number;
+  resourceAllocations: Record<string, any>;
+
+  // Timestamps
+  joinedAt: Date;
+  leftAt: Date | null;
   updatedAt: Date;
-  
+
   // Additional fields for UI
   userEmail?: string;
   userFirstName?: string;
@@ -26,11 +48,9 @@ export interface AgencyInvitationInfo {
   status: InvitationStatus;
   expiresAt: Date;
   token: string;
-  metadata: Record<string, any> | null;
   createdAt: Date;
   updatedAt: Date;
-  acceptedAt: Date | null;
-  
+
   // Additional fields for UI
   agencyName?: string;
 }
@@ -52,26 +72,33 @@ export interface CreateAgencyInput {
   name: string;
   ownerEmail: string;
   initialCredits?: number;
-  notificationSettings?: Record<string, boolean>;
+  notificationProductUpdates?: boolean;
+  notificationReelsReady?: boolean;
 }
 
 export interface CreateAgencyMembershipInput {
   email: string;
   role: AgencyRole;
-  metadata?: Record<string, any>;
+  canManageCredits?: boolean;
+  canInviteMembers?: boolean;
+  accessibleResourceTypes?: string[];
+  creditAllocation?: number;
 }
 
 export interface UpdateAgencyMembershipInput {
   role?: AgencyRole;
   status?: MembershipStatus;
-  metadata?: Record<string, any>;
+  canManageCredits?: boolean;
+  canInviteMembers?: boolean;
+  accessibleResourceTypes?: string[];
+  creditAllocation?: number;
+  departureNotes?: string;
 }
 
 export interface CreateAgencyInvitationInput {
   email: string;
   role: AgencyRole;
   expiresInDays?: number;
-  metadata?: Record<string, any>;
 }
 
 export interface BulkDiscount {
@@ -146,5 +173,88 @@ export interface AgencyAnalytics {
     count: number;
     success: number;
     failed: number;
+  }[];
+}
+
+export interface AgencyCreditTransferInput {
+  sourceMembershipId: string;
+  targetMembershipId: string;
+  amount: number;
+  reason: string;
+}
+
+export interface AgencyCreditTransfer {
+  id: string;
+  sourceMembershipId: string;
+  targetMembershipId: string;
+  amount: number;
+  reason: string;
+  initiatedById: string;
+  createdAt: Date;
+
+  // Additional fields for UI
+  sourceUserName?: string;
+  targetUserName?: string;
+  initiatedByName?: string;
+}
+
+export interface AgencyRoleHistoryEntry {
+  id: string;
+  membershipId: string;
+  previousRole: AgencyRole;
+  newRole: AgencyRole;
+  changedById: string;
+  reason: string | null;
+  createdAt: Date;
+
+  // Additional fields for UI
+  userName?: string;
+  changedByName?: string;
+}
+
+export interface AgencyActivityLogEntry {
+  id: string;
+  agencyId: string;
+  activityType: string;
+  performedById: string;
+  targetId: string | null;
+  details: Record<string, any>;
+  createdAt: Date;
+
+  // Additional fields for UI
+  performedByName?: string;
+  targetName?: string;
+}
+
+export interface AgencyUser {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  agencyName: string;
+  role: UserRole;
+  creditsBalance: number;
+  maxUsers: number;
+  currentUsers: number;
+  agencyMaxUsers: number;
+  totalCredits: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AgencyUserStats {
+  userId: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: AgencyRole;
+  status: MembershipStatus;
+  lastActive: Date | null;
+  joinedAt: Date;
+  resourceUsage: {
+    type: string;
+    allocated: number;
+    used: number;
+    remaining: number;
   }[];
 }

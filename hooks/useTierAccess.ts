@@ -17,7 +17,7 @@ type TierId =
 export function useTierAccess(requiredTier: TierId): boolean {
   const { data: userData, isLoading } = useUserData();
 
-  if (isLoading || !userData?.currentTierId) {
+  if (isLoading || !userData?.currentTier?.id) {
     return false;
   }
 
@@ -30,6 +30,6 @@ export function useTierAccess(requiredTier: TierId): boolean {
   };
 
   // Check if the user's tier is equal to or higher than the required tier
-  const userTierId = userData.currentTierId as TierId;
+  const userTierId = userData.currentTier.id as TierId;
   return tierOrder[userTierId] >= tierOrder[requiredTier];
 }

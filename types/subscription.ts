@@ -4,32 +4,38 @@ import type {
   SubscriptionStatus,
   BillingStatus,
   ResourceType,
-  AllocationPeriod,
+  AllocationType,
+  CreditSource,
+  AdjustmentType,
 } from "./prisma-types";
 
 // Plan Type (matching Prisma schema)
 export type PlanType = "PAY_AS_YOU_GO" | "MONTHLY";
 
-// Subscription Tier IDs
+// Subscription Tier IDs - Matching backend schema
+export const SUBSCRIPTION_TIER_IDS = {
+  FREE: "550e8400-e29b-41d4-a716-446655440000",
+  REELTY: "550e8400-e29b-41d4-a716-446655440001",
+  REELTY_PRO: "550e8400-e29b-41d4-a716-446655440002",
+  REELTY_PRO_PLUS: "550e8400-e29b-41d4-a716-446655440003",
+} as const;
+
+// For backward compatibility
 export const FREE_TRIAL_TIER = {
-  FREE_TRIAL: "550e8400-e29b-41d4-a716-446655440000",
+  FREE_TRIAL: SUBSCRIPTION_TIER_IDS.FREE,
 } as const;
 
 export const PAY_AS_YOU_GO_TIERS = {
-  ONE_CREDIT: "550e8400-e29b-41d4-a716-446655440001",
-  FOUR_CREDITS: "550e8400-e29b-41d4-a716-446655440002",
-  TEN_CREDITS: "550e8400-e29b-41d4-a716-446655440003",
+  ONE_CREDIT: SUBSCRIPTION_TIER_IDS.REELTY,
 } as const;
 
 export const MONTHLY_TIERS = {
-  REELTY: "550e8400-e29b-41d4-a716-446655440004",
-  REELTY_PRO: "550e8400-e29b-41d4-a716-446655440005",
-  REELTY_PRO_PLUS: "550e8400-e29b-41d4-a716-446655440006",
+  REELTY: SUBSCRIPTION_TIER_IDS.REELTY,
+  REELTY_PRO: SUBSCRIPTION_TIER_IDS.REELTY_PRO,
+  REELTY_PRO_PLUS: SUBSCRIPTION_TIER_IDS.REELTY_PRO_PLUS,
 } as const;
 
-export const SPECIAL_TIERS = {
-  ADMIN: "550e8400-e29b-41d4-a716-446655440007",
-} as const;
+export const SPECIAL_TIERS = {} as const;
 
 // Helper functions for tier validation and type checking
 export const isValidTierId = (id: string): id is SubscriptionTierId => {
@@ -44,17 +50,18 @@ export const getTierNameFromId = (id: SubscriptionTierId): string => {
 };
 
 export const getTierDisplayName = (id: SubscriptionTierId): string => {
-  const mapping: Record<SubscriptionTierId, string> = {
-    [FREE_TRIAL_TIER.FREE_TRIAL]: "Free Trial",
-    [PAY_AS_YOU_GO_TIERS.ONE_CREDIT]: "1 Credit",
-    [PAY_AS_YOU_GO_TIERS.FOUR_CREDITS]: "4 Credits",
-    [PAY_AS_YOU_GO_TIERS.TEN_CREDITS]: "10 Credits",
-    [MONTHLY_TIERS.REELTY]: "Reelty",
-    [MONTHLY_TIERS.REELTY_PRO]: "Reelty Pro",
-    [MONTHLY_TIERS.REELTY_PRO_PLUS]: "Reelty Pro+",
-    [SPECIAL_TIERS.ADMIN]: "Admin",
-  };
-  return mapping[id] || "Unknown Tier";
+  switch (id) {
+    case SUBSCRIPTION_TIER_IDS.FREE:
+      return "Free";
+    case SUBSCRIPTION_TIER_IDS.REELTY:
+      return "Reelty";
+    case SUBSCRIPTION_TIER_IDS.REELTY_PRO:
+      return "Reelty Pro";
+    case SUBSCRIPTION_TIER_IDS.REELTY_PRO_PLUS:
+      return "Reelty Pro+";
+    default:
+      return "Unknown Tier";
+  }
 };
 
 export const isMonthlyTier = (id: SubscriptionTierId): boolean => {
@@ -70,31 +77,31 @@ export const isPayAsYouGoTier = (id: SubscriptionTierId): boolean => {
 };
 
 export const getTierCredits = (id: SubscriptionTierId): number => {
-  const mapping: Record<SubscriptionTierId, number> = {
-    [FREE_TRIAL_TIER.FREE_TRIAL]: 1,
-    [PAY_AS_YOU_GO_TIERS.ONE_CREDIT]: 1,
-    [PAY_AS_YOU_GO_TIERS.FOUR_CREDITS]: 4,
-    [PAY_AS_YOU_GO_TIERS.TEN_CREDITS]: 10,
-    [MONTHLY_TIERS.REELTY]: 1,
-    [MONTHLY_TIERS.REELTY_PRO]: 4,
-    [MONTHLY_TIERS.REELTY_PRO_PLUS]: 10,
-    [SPECIAL_TIERS.ADMIN]: -1, // Unlimited
-  };
-  return mapping[id] || 0;
+  switch (id) {
+    case SUBSCRIPTION_TIER_IDS.FREE:
+      return 0;
+    case SUBSCRIPTION_TIER_IDS.REELTY:
+      return 1;
+    case SUBSCRIPTION_TIER_IDS.REELTY_PRO:
+      return 5;
+    case SUBSCRIPTION_TIER_IDS.REELTY_PRO_PLUS:
+      return 10;
+    default:
+      return 0;
+  }
 };
 
+// Combine all tiers for type safety
 export const SUBSCRIPTION_TIERS = {
   ...FREE_TRIAL_TIER,
   ...PAY_AS_YOU_GO_TIERS,
   ...MONTHLY_TIERS,
   ...SPECIAL_TIERS,
-} as const;
+};
 
-// Type for subscription tier IDs
 export type SubscriptionTierId =
   (typeof SUBSCRIPTION_TIERS)[keyof typeof SUBSCRIPTION_TIERS];
 
-// Type for plan features
 export interface PlanFeatures {
   maxPhotosPerListing: number;
   unlimitedDownloads: boolean;
@@ -106,7 +113,6 @@ export interface PlanFeatures {
   savePercentage?: number;
 }
 
-// Type for subscription tier
 export interface SubscriptionTierInfo {
   id: SubscriptionTierId;
   name: string;
@@ -114,7 +120,7 @@ export interface SubscriptionTierInfo {
   stripePriceId: string;
   stripeProductId: string;
   features: string[];
-  monthlyPrice: number;
+  monthlyPriceCents: number;
   planType: PlanType;
   creditsPerInterval: number;
   hasWatermark: boolean;
@@ -122,12 +128,11 @@ export interface SubscriptionTierInfo {
   maxReelDownloads: number | null;
   maxActiveListings: number;
   premiumTemplatesEnabled: boolean;
-  isActive: boolean;
-  isPublic: boolean;
+  isActive?: boolean;
+  isPublic?: boolean;
   metadata?: Record<string, any>;
 }
 
-// Type for subscription state
 export interface SubscriptionState {
   id: string;
   tier: {
@@ -139,25 +144,28 @@ export interface SubscriptionState {
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   canceledAt: string | null;
+  pausedAt: string | null;
+  scheduledResumeAt: string | null;
   autoRenew: boolean;
+  isTrialPeriod: boolean;
+  trialStartDate: string | null;
+  trialEndDate: string | null;
 }
 
-// Type for subscription usage stats
 export interface SubscriptionUsageStats {
   resourceUsage: {
     resourceType: ResourceType;
-    totalAllocation: number;
-    usedAllocation: number;
-    period: AllocationPeriod;
+    totalAllocated: number;
+    remaining: number;
+    allocationType: AllocationType;
     periodStart: Date;
-    periodEnd: Date | null;
+    periodEnd: Date;
   }[];
   totalListings: number;
   totalVideosGenerated: number;
   storageUsed: number;
 }
 
-// Type for subscription invoice
 export interface SubscriptionInvoice {
   id: string;
   created: number;
@@ -166,48 +174,61 @@ export interface SubscriptionInvoice {
   invoice_pdf: string | null;
 }
 
-// Type for checkout session response
 export interface CheckoutSessionResponse {
   sessionId: string;
   url: string | null;
 }
 
-// Tier order mapping for comparison
-export const TIER_ORDER: Record<SubscriptionTierId, number> = {
-  [SUBSCRIPTION_TIERS.FREE_TRIAL]: 0,
-  [SUBSCRIPTION_TIERS.ONE_CREDIT]: 1,
-  [SUBSCRIPTION_TIERS.FOUR_CREDITS]: 2,
-  [SUBSCRIPTION_TIERS.TEN_CREDITS]: 3,
-  [SUBSCRIPTION_TIERS.REELTY]: 4,
-  [SUBSCRIPTION_TIERS.REELTY_PRO]: 5,
-  [SUBSCRIPTION_TIERS.REELTY_PRO_PLUS]: 6,
-  [SUBSCRIPTION_TIERS.ADMIN]: 7,
-} as const;
+export interface SubscriptionPricing {
+  id: SubscriptionTierId;
+  name: string;
+  description: string;
+  monthlyPriceCents: number;
+  features: PlanFeatures;
+  popular?: boolean;
+  stripePriceId: string;
+  stripeProductId: string;
+}
 
-// Use the imported type instead of redefining it
 export type SubscriptionTier = PrismaSubscriptionTier;
 
 export interface UsageRecord {
   id: string;
   subscriptionId: string;
+  billingCycleId: string;
   resourceType: ResourceType;
   quantity: number;
+  isBilled: boolean;
+  thresholdCategory?: string;
+  thresholdValue?: number;
+  partiallyBilled: boolean;
+  billedAmount: number;
+  resourceId?: string;
   recordedAt: Date;
-  metadata?: Record<string, any>;
-  createdAt: Date;
 }
 
 export interface BillingRecord {
   id: string;
   subscriptionId: string;
-  amount: number;
+  amountCents: number;
   currency: string;
   status: BillingStatus;
   invoiceId?: string;
-  invoiceUrl?: string;
-  periodStart: Date;
-  periodEnd: Date;
-  metadata?: Record<string, any>;
+  paymentIntentId?: string;
+  billingDate: Date;
+  paidAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  adjustments?: BillingAdjustment[];
+}
+
+export interface BillingAdjustment {
+  id: string;
+  billingRecordId: string;
+  amountCents: number;
+  reason: string;
+  status: string;
+  adminId: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -222,24 +243,34 @@ export interface TierChange {
   createdAt: Date;
 }
 
-// Frontend specific types
 export interface Subscription {
   id: string;
   userId: string;
   tierId: string;
   tierName?: string;
-  status: Lowercase<SubscriptionStatus> | "free";
+  status: Lowercase<SubscriptionStatus>;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   stripePriceId: string | null;
-  billingEmail: string | null;
-  autoRenew: boolean;
-  currentPeriodStart: Date | null;
+  customPriceCents?: number | null;
+  isGrandfathered: boolean;
+  startDate: Date;
   currentPeriodEnd: Date | null;
   canceledAt: Date | null;
+  pausedAt: Date | null;
+  scheduledResumeAt: Date | null;
+  isTrialPeriod: boolean;
+  trialStartDate: Date | null;
+  trialEndDate: Date | null;
+  creditsBalance: number;
+  creditsPerPeriod: number;
+  isAgencySubscription: boolean;
+  seatsAllocated: number;
+  seatsUsed: number;
+  hasWatermark?: boolean;
+  premiumTemplatesEnabled?: boolean;
   createdAt: Date;
   updatedAt: Date;
-  features?: string[];
 }
 
 export interface SubscriptionResponse {
@@ -270,4 +301,28 @@ export interface UsageRecordResponse {
   success: boolean;
   data: UsageRecord[];
   error?: string;
+}
+
+export interface CreditTransactionResponse {
+  success: boolean;
+  data: CreditTransaction[];
+  error?: string;
+}
+
+export interface CreditTransaction {
+  id: string;
+  subscriptionId: string;
+  amount: number;
+  balanceAfter: number;
+  source: CreditSource;
+  reason: string;
+  expiresAt: Date | null;
+  expiredAmount: number | null;
+  adminId: string | null;
+  resourceType: ResourceType | null;
+  resourceId: string | null;
+  isAdjustment: boolean;
+  adjustmentType: AdjustmentType | null;
+  createdAt: Date;
+  metadata?: Record<string, any>;
 }

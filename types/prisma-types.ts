@@ -19,104 +19,116 @@ export type JsonValue =
 export enum AssetType {
   MUSIC = "MUSIC",
   WATERMARK = "WATERMARK",
-  LOTTIE = "LOTTIE"
+  LOTTIE = "LOTTIE",
 }
 
 export enum PlanType {
   PAY_AS_YOU_GO = "PAY_AS_YOU_GO",
-  MONTHLY = "MONTHLY"
+  MONTHLY = "MONTHLY",
+}
+
+export enum SubscriptionTierId {
+  FREE = "550e8400-e29b-41d4-a716-446655440000",
+  REELTY = "550e8400-e29b-41d4-a716-446655440001",
+  REELTY_PRO = "550e8400-e29b-41d4-a716-446655440002",
+  REELTY_PRO_PLUS = "550e8400-e29b-41d4-a716-446655440003",
 }
 
 export enum UserRole {
   USER = "USER",
   ADMIN = "ADMIN",
-  SUPPORT = "SUPPORT",
-  SUPER_ADMIN = "SUPER_ADMIN"
+  AGENCY = "AGENCY",
+  AGENCY_USER = "AGENCY_USER",
 }
 
 export enum UserType {
   INDIVIDUAL = "INDIVIDUAL",
   AGENCY = "AGENCY",
-  TEAM_MEMBER = "TEAM_MEMBER"
+  TEAM_MEMBER = "TEAM_MEMBER",
 }
 
 export enum UserStatus {
   ACTIVE = "ACTIVE",
   INACTIVE = "INACTIVE",
   SUSPENDED = "SUSPENDED",
-  DELETED = "DELETED"
+  DELETED = "DELETED",
 }
 
 export enum SubscriptionStatus {
   ACTIVE = "ACTIVE",
+  PAUSED = "PAUSED",
   CANCELED = "CANCELED",
+  PAST_DUE = "PAST_DUE",
   INCOMPLETE = "INCOMPLETE",
   INCOMPLETE_EXPIRED = "INCOMPLETE_EXPIRED",
-  PAST_DUE = "PAST_DUE",
   TRIALING = "TRIALING",
   UNPAID = "UNPAID",
-  PAUSED = "PAUSED"
+  INACTIVE = "INACTIVE",
 }
 
 export enum VideoGenerationStatus {
   PENDING = "PENDING",
   PROCESSING = "PROCESSING",
   COMPLETED = "COMPLETED",
-  FAILED = "FAILED"
+  FAILED = "FAILED",
 }
 
 export enum AgencyRole {
   OWNER = "OWNER",
   ADMIN = "ADMIN",
-  MEMBER = "MEMBER"
+  MEMBER = "MEMBER",
 }
 
 export enum MembershipStatus {
   ACTIVE = "ACTIVE",
   SUSPENDED = "SUSPENDED",
-  INACTIVE = "INACTIVE"
+  INACTIVE = "INACTIVE",
 }
 
 export enum InvitationStatus {
   PENDING = "PENDING",
   ACCEPTED = "ACCEPTED",
   DECLINED = "DECLINED",
-  EXPIRED = "EXPIRED"
+  EXPIRED = "EXPIRED",
 }
 
 export enum ResourceType {
   LISTING = "LISTING",
+  DOWNLOAD = "DOWNLOAD",
   PHOTO = "PHOTO",
   VIDEO = "VIDEO",
-  DOWNLOAD = "DOWNLOAD"
+  STORAGE = "STORAGE",
+  API_CALL = "API_CALL",
 }
 
-export enum AllocationPeriod {
-  DAILY = "DAILY",
-  WEEKLY = "WEEKLY",
+export enum AllocationType {
   MONTHLY = "MONTHLY",
   QUARTERLY = "QUARTERLY",
   ANNUAL = "ANNUAL",
-  LIFETIME = "LIFETIME"
+  ONE_TIME = "ONE_TIME",
 }
 
-export enum CreditTransactionType {
-  PURCHASE = "PURCHASE",
-  SUBSCRIPTION = "SUBSCRIPTION",
+export enum CreditSource {
+  REGULAR = "REGULAR",
+  PROMOTIONAL = "PROMOTIONAL",
+  BETA_TESTING = "BETA_TESTING",
+  COMPENSATION = "COMPENSATION",
+  ADMIN_GRANT = "ADMIN_GRANT",
+  REFERRAL = "REFERRAL",
+  SUBSCRIPTION_CHANGE = "SUBSCRIPTION_CHANGE",
+}
+
+export enum AdjustmentType {
   REFUND = "REFUND",
-  ADJUSTMENT = "ADJUSTMENT",
-  TRANSFER = "TRANSFER",
-  EXPIRATION = "EXPIRATION",
-  USAGE = "USAGE",
-  PROMOTIONAL = "PROMOTIONAL"
+  CORRECTION = "CORRECTION",
+  REVERSAL = "REVERSAL",
+  COMPENSATION = "COMPENSATION",
 }
 
-export enum TransactionStatus {
-  PENDING = "PENDING",
-  IN_PROGRESS = "IN_PROGRESS",
-  COMPLETED = "COMPLETED",
-  FAILED = "FAILED",
-  ROLLED_BACK = "ROLLED_BACK"
+export enum CycleStatus {
+  ACTIVE = "ACTIVE",
+  CLOSED = "CLOSED",
+  PROCESSING = "PROCESSING",
 }
 
 export enum BillingStatus {
@@ -124,13 +136,13 @@ export enum BillingStatus {
   PAID = "PAID",
   FAILED = "FAILED",
   REFUNDED = "REFUNDED",
-  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED"
+  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
 }
 
 export enum AdjustmentStatus {
   PENDING = "PENDING",
   PROCESSED = "PROCESSED",
-  FAILED = "FAILED"
+  FAILED = "FAILED",
 }
 
 export enum WebhookStatus {
@@ -138,13 +150,7 @@ export enum WebhookStatus {
   PROCESSING = "PROCESSING",
   PROCESSED = "PROCESSED",
   FAILED = "FAILED",
-  IGNORED = "IGNORED"
-}
-
-export enum CycleStatus {
-  ACTIVE = "ACTIVE",
-  CLOSED = "CLOSED",
-  PROCESSING = "PROCESSING"
+  IGNORED = "IGNORED",
 }
 
 export enum AccessType {
@@ -152,7 +158,7 @@ export enum AccessType {
   CREATE = "CREATE",
   UPDATE = "UPDATE",
   DELETE = "DELETE",
-  EXPORT = "EXPORT"
+  EXPORT = "EXPORT",
 }
 
 export enum ReconciliationStatus {
@@ -160,7 +166,7 @@ export enum ReconciliationStatus {
   RECONCILED = "RECONCILED",
   CONFLICT = "CONFLICT",
   MANUAL_REVIEW = "MANUAL_REVIEW",
-  IGNORED = "IGNORED"
+  IGNORED = "IGNORED",
 }
 
 export enum AdminActionType {
@@ -169,7 +175,7 @@ export enum AdminActionType {
   USER_ROLE_CHANGE = "USER_ROLE_CHANGE",
   FEATURE_TOGGLE = "FEATURE_TOGGLE",
   ACCOUNT_SUSPENSION = "ACCOUNT_SUSPENSION",
-  MANUAL_OVERRIDE = "MANUAL_OVERRIDE"
+  MANUAL_OVERRIDE = "MANUAL_OVERRIDE",
 }
 
 export interface User {
@@ -177,7 +183,7 @@ export interface User {
   email: string;
   firstName: string | null;
   lastName: string | null;
-  password: string | null;
+  password: string;
   role: UserRole;
   type: UserType;
   status: UserStatus;
@@ -189,7 +195,7 @@ export interface User {
 
   // Notification settings
   notificationSettings: JsonValue;
-  
+
   // Relations
   subscription?: Subscription | null;
   creditBalance?: CreditBalance | null;
@@ -226,7 +232,7 @@ export interface Subscription {
   canceledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Relations
   user?: User;
   tier?: SubscriptionTier;
@@ -289,7 +295,7 @@ export interface CreditBalance {
   lastUpdatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Relations
   user?: User;
   transactions?: CreditTransaction[];
@@ -299,13 +305,13 @@ export interface CreditTransaction {
   id: string;
   userId: string;
   amount: number;
-  type: CreditTransactionType;
+  type: CreditSource;
   source: string;
   reason: string;
   metadata: JsonValue;
   expiresAt: Date | null;
   createdAt: Date;
-  
+
   // Relations
   user?: User;
   relatedTransaction?: CreditTransaction | null;
@@ -318,14 +324,14 @@ export interface ResourceAllocation {
   resourceType: ResourceType;
   totalAllocation: number;
   usedAllocation: number;
-  period: AllocationPeriod;
+  period: AllocationType;
   periodStart: Date;
   periodEnd: Date | null;
   rollsOver: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Relations
   user?: User;
   tier?: SubscriptionTier;
@@ -341,7 +347,7 @@ export interface AgencyMembership {
   metadata: JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Relations
   user?: User;
   agency?: User;
@@ -360,7 +366,7 @@ export interface AgencyInvitation {
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;
-  
+
   // Relations
   agency?: User;
   membership?: AgencyMembership | null;
@@ -405,7 +411,7 @@ export interface AdminAction {
   reason: string;
   metadata: JsonValue;
   createdAt: Date;
-  
+
   // Relations
   admin?: User;
   targetUser?: User;
@@ -420,7 +426,7 @@ export interface UserConsent {
   metadata: JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Relations
   user?: User;
 }
@@ -539,7 +545,7 @@ export interface UsageRecord {
   recordedAt: Date;
   metadata: JsonValue | null;
   createdAt: Date;
-  
+
   // Relations
   subscription?: Subscription;
 }
@@ -557,7 +563,7 @@ export interface BillingRecord {
   metadata: JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
-  
+
   // Relations
   subscription?: Subscription;
 }

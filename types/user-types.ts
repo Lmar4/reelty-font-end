@@ -1,26 +1,29 @@
 import { JobStatus } from "./job-types";
-import type { 
-  User as PrismaUser, 
+import type {
+  User as PrismaUser,
   SubscriptionStatus as PrismaSubscriptionStatus,
-  UserType,
-  UserStatus,
   UserRole,
-  CreditTransactionType 
+  CreditSource,
+  AdjustmentType,
+  ResourceType,
 } from "./prisma-types";
 
 // Map Prisma enum to string literals for frontend use
 export type SubscriptionStatus =
   | "active"
+  | "paused"
   | "canceled"
   | "past_due"
   | "trialing"
   | "incomplete"
   | "incomplete_expired"
   | "unpaid"
-  | "paused";
+  | "inactive";
 
 // Convert Prisma enum values to frontend string literals
-export const mapSubscriptionStatus = (status: PrismaSubscriptionStatus): SubscriptionStatus => {
+export const mapSubscriptionStatus = (
+  status: PrismaSubscriptionStatus
+): SubscriptionStatus => {
   return status.toLowerCase() as SubscriptionStatus;
 };
 
@@ -35,9 +38,8 @@ export interface UpdateUserInput {
   email?: string;
   timeZone?: string;
   role?: UserRole;
-  type?: UserType;
-  status?: UserStatus;
-  notificationSettings?: Record<string, boolean>;
+  notificationProductUpdates?: boolean;
+  notificationReelsReady?: boolean;
 }
 
 export interface UserSubscriptionInfo {
@@ -48,27 +50,39 @@ export interface UserSubscriptionInfo {
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   stripePriceId: string | null;
-  billingEmail: string | null;
-  autoRenew: boolean;
-  currentPeriodStart: Date | null;
+  customPriceCents: number | null;
+  isGrandfathered: boolean;
+  startDate: Date;
   currentPeriodEnd: Date | null;
   canceledAt: Date | null;
+  pausedAt: Date | null;
+  scheduledResumeAt: Date | null;
+  isTrialPeriod: boolean;
+  trialStartDate: Date | null;
+  trialEndDate: Date | null;
+  creditsBalance: number;
+  creditsPerPeriod: number;
+  isAgencySubscription: boolean;
+  seatsAllocated: number;
+  seatsUsed: number;
 }
 
 export interface UserCreditInfo {
   total: number;
   available: number;
-  pending: number;
-  used: number;
-  lastUpdatedAt: Date;
   transactions: {
     id: string;
     amount: number;
-    type: CreditTransactionType;
-    source: string;
+    balanceAfter: number;
+    source: CreditSource;
     reason: string;
     createdAt: Date;
     expiresAt: Date | null;
+    expiredAmount: number | null;
+    resourceType: ResourceType | null;
+    resourceId: string | null;
+    isAdjustment: boolean;
+    adjustmentType: AdjustmentType | null;
   }[];
 }
 
@@ -92,7 +106,7 @@ export interface UserStats {
   creditsUsed: number;
   daysActive: number;
   resourceUsage: {
-    type: string;
+    type: ResourceType;
     allocated: number;
     used: number;
     remaining: number;
@@ -105,7 +119,16 @@ export interface AgencyMembershipInfo {
   agencyName?: string;
   role: string;
   status: string;
-  createdAt: Date;
+  isLastOwner: boolean;
+  canManageCredits: boolean;
+  canInviteMembers: boolean;
+  accessibleResourceTypes: string[];
+  departureHandled: boolean;
+  departureNotes: string | null;
+  creditAllocation: number;
+  resourceAllocations: Record<string, any>;
+  joinedAt: Date;
+  leftAt: Date | null;
   updatedAt: Date;
 }
 
@@ -118,6 +141,7 @@ export interface AgencyInvitationInfo {
   status: string;
   expiresAt: Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface VideoJob {
@@ -131,6 +155,12 @@ export interface VideoJob {
   error?: string;
   createdAt: Date;
   updatedAt: Date;
+  progress: number;
+  completedAt: Date | null;
+  position: number;
+  priority: number;
+  startedAt: Date | null;
+  thumbnailUrl: string | null;
 }
 
 export interface CreateVideoJobInput {
@@ -143,6 +173,10 @@ export interface UpdateVideoJobInput {
   status?: "pending" | "processing" | "completed" | "failed";
   outputFile?: string;
   error?: string;
+  progress?: number;
+  completedAt?: Date | null;
+  startedAt?: Date | null;
+  thumbnailUrl?: string | null;
 }
 
 export interface GetVideoJobsParams {
