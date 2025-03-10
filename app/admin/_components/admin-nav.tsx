@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   Coins,
   Award,
+  RefreshCw,
 } from "lucide-react";
 
 interface Route {
@@ -37,7 +38,16 @@ const routes: Route[] = [
     label: "Users",
     icon: Users,
     color: "text-violet-500",
-    active: (pathname: string) => pathname.startsWith("/admin/users"),
+    active: (pathname: string) =>
+      pathname === "/admin/users" ||
+      (pathname.startsWith("/admin/users") && !pathname.includes("/sync")),
+  },
+  {
+    href: "/admin/users/sync",
+    label: "Sync Users",
+    icon: RefreshCw,
+    color: "text-blue-500",
+    active: (pathname: string) => pathname.startsWith("/admin/users/sync"),
   },
   {
     href: "/admin/subscriptions",

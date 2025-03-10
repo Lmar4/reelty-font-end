@@ -62,7 +62,7 @@ async function updateUser(
 
 // Next.js App Router handlers
 export async function GET(
-  req: NextRequest,
+  req: Request,
   context: { params: Promise<{ userId: string }> }
 ) {
   const authHandler = await withAuthServer(getUser);
@@ -70,50 +70,9 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: NextRequest,
+  req: Request,
   context: { params: Promise<{ userId: string }> }
 ) {
   const authHandler = await withAuthServer(updateUser);
   return authHandler(req, context);
-}
-
-export async function GET_ADMIN(
-  request: Request,
-  { params }: { params: { userId: string } }
-) {
-  try {
-    const userId = params.userId;
-
-    // In a real app, you would fetch user data from your backend API
-    // For now, we'll return mock data
-    const response = await fetch(
-      `${process.env.BACKEND_API_URL}/api/users/${userId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.BACKEND_API_KEY}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      // If the backend API fails, return mock data for development
-      return NextResponse.json({
-        id: userId,
-        email: "user@example.com",
-        firstName: "Test",
-        lastName: "User",
-        notificationReelsReady: true,
-        notificationProductUpdates: true,
-      });
-    }
-
-    const userData = await response.json();
-    return NextResponse.json(userData);
-  } catch (error) {
-    console.error("Error fetching user:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch user" },
-      { status: 500 }
-    );
-  }
 }

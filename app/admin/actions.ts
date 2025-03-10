@@ -426,3 +426,19 @@ export async function getBusinessKpis(): Promise<BusinessKPIs> {
     "BUSINESS_KPIS"
   );
 }
+
+export async function syncUsersFromClerk(): Promise<{
+  totalUsers: number;
+  syncedUsers: number;
+  failedUsers: number;
+  failedUserIds: string[];
+}> {
+  return makeAuthenticatedRequest(
+    "/api/admin/users/sync",
+    "SYNC_USERS_FROM_CLERK",
+    (data) => data,
+    {
+      method: "POST",
+    }
+  );
+}
