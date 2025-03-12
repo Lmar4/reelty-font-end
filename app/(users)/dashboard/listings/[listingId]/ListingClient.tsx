@@ -112,17 +112,11 @@ function useListingData(
 interface ListingClientProps {
   listingId: string;
   initialListing: ExtendedListing;
-  userTier: {
-    maxActiveListings: number;
-    name: string;
-    currentCount: number;
-  };
 }
 
 export function ListingClient({
   listingId,
   initialListing,
-  userTier,
 }: ListingClientProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [downloadCount, setDownloadCount] = useState(0);
