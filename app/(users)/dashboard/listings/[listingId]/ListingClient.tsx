@@ -34,6 +34,11 @@ interface UserData {
   id: string;
   currentTierId: string;
   subscriptionStatus: SubscriptionStatus | null;
+  activeSubscription?: {
+    tier?: {
+      tierId?: string;
+    };
+  };
 }
 
 interface Coordinates {
@@ -528,7 +533,6 @@ export function ListingClient({
     );
   }
 
-  console.log("userData", JSON.stringify(userData, null, 2));
   return (
     <ErrorBoundary>
       <div className='container mx-auto py-8 space-y-8'>
@@ -611,7 +615,10 @@ export function ListingClient({
             videoJobs={videoJobs}
             photos={photoStatus?.data?.photos || []}
             isLoading={isLoading}
-            userTier={userData?.currentTierId || SubscriptionTier.FREE}
+            userTier={
+              userData?.activeSubscription?.tier?.tierId ||
+              SubscriptionTier.FREE
+            }
             activeJobs={activeJobs}
             onGenerateVideo={handleVideoGeneration}
             onDownload={handleDownload}
