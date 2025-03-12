@@ -33,6 +33,7 @@ export default async function ListingPage({ params, searchParams }: PageProps) {
 
     // Get default tier info from our frontend utility
     const defaultTier = await ensureUserDefaultTier(userId, sessionToken);
+    console.log("defaultTier", defaultTier);
 
     return (
       <Suspense fallback={<LoadingState />}>
