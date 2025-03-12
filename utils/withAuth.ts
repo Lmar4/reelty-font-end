@@ -238,17 +238,20 @@ export async function makeBackendRequest<T>(
     rateLimitState.consecutiveErrors = 0;
     rateLimitState.isRateLimited = false;
 
-    const text = await response.text();
-    if (!text) {
+    // Check if response has content
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      // If not JSON or no content type, return empty object
       return {} as T;
     }
 
     try {
-      const parsedResponse = JSON.parse(text);
-      return parsedResponse as T;
+      // Only consume the body once
+      const data = await response.json();
+      return data as T;
     } catch (e) {
-      console.error("Failed to parse JSON response:", text);
-      throw new ApiError(500, "Invalid JSON response from server");
+      console.error("Failed to parse JSON response:", e);
+      throw new ApiError(500, "Failed to parse response from server");
     }
   } catch (error) {
     if (error instanceof AuthError || error instanceof ApiError) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthServer } from "@/utils/withAuthServer";
 import { makeBackendRequest } from "@/utils/withAuth";
-import { AuthenticatedRequest } from "@/utils/types";
+import { AuthenticatedRequest, ApiError } from "@/utils/types";
 import { z } from "zod";
 
 interface SubscriptionStatus {
@@ -65,10 +65,22 @@ async function getSubscriptionStatus(req: AuthenticatedRequest) {
     );
   } catch (error) {
     console.error("[SUBSCRIPTION_STATUS_ERROR]", error);
-    return new NextResponse(
-      error instanceof Error
-        ? error.message
-        : "Failed to fetch subscription status",
+
+    // Improved error handling
+    if (error instanceof ApiError) {
+      return NextResponse.json(
+        { error: error.message || "Failed to fetch subscription status" },
+        { status: error.statusCode || 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch subscription status",
+      },
       { status: 500 }
     );
   }
