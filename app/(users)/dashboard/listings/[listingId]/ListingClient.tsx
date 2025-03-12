@@ -112,11 +112,17 @@ function useListingData(
 interface ListingClientProps {
   listingId: string;
   initialListing: ExtendedListing;
+  userTier: {
+    maxActiveListings: number;
+    name: string;
+    currentCount: number;
+  };
 }
 
 export function ListingClient({
   listingId,
   initialListing,
+  userTier,
 }: ListingClientProps) {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [downloadCount, setDownloadCount] = useState(0);
@@ -528,6 +534,7 @@ export function ListingClient({
     );
   }
 
+  console.log("userData", JSON.stringify(userData, null, 2));
   return (
     <ErrorBoundary>
       <div className='container mx-auto py-8 space-y-8'>
