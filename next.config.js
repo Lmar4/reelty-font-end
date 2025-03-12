@@ -12,9 +12,9 @@ const nextConfig = {
     ],
   },
   compiler: {
-    removeConsole: {
-      exclude: ["error"],
-    },
+    // removeConsole: {
+    //   exclude: ["error"],
+    // },
   },
   env: {
     PLUNK_PUBLIC_API_KEY: process.env.PLUNK_PUBLIC_API_KEY,
