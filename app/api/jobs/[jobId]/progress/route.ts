@@ -10,7 +10,7 @@ async function getJobProgress(
 ) {
   try {
     const { jobId } = await params;
-    const data = await makeBackendRequest(`/api/jobs/${jobId}/progress`, {
+    const data = await makeBackendRequest(`/jobs/${jobId}/progress`, {
       method: "GET",
       sessionToken: req.auth.sessionToken,
     });
