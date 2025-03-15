@@ -13,6 +13,7 @@ import type {
   Listing,
   User,
   SubscriptionStatus,
+  UserRole,
 } from "@/types/prisma-types";
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +35,7 @@ interface UserData {
   id: string;
   currentTierId: string;
   subscriptionStatus: SubscriptionStatus | null;
+  role?: UserRole;
   activeSubscription?: {
     tier?: {
       tierId?: string;
@@ -616,14 +618,30 @@ export function ListingClient({
             photos={photoStatus?.data?.photos || []}
             isLoading={isLoading}
             userTier={
-              userData?.activeSubscription?.tier?.tierId ||
-              SubscriptionTier.FREE
+              // Priority order for determining user tier:
+              // 1. ADMIN users always get the highest tier
+              // 2. Use currentTierId from user data (most reliable)
+              // 3. Try the nested activeSubscription.tier.tierId path
+              // 4. Default to FREE tier if nothing else is available
+              userData?.role === 'ADMIN' 
+                ? SubscriptionTier.REELTY_PRO_PLUS
+                : userData?.currentTierId ||
+                  userData?.activeSubscription?.tier?.tierId ||
+                  SubscriptionTier.FREE
             }
             activeJobs={activeJobs}
             onGenerateVideo={handleVideoGeneration}
             onDownload={handleDownload}
             isGenerating={isGeneratingVideo}
-            downloadCount={downloadCount}
+            downloadCount={
+              // Disable download limits for:
+              // 1. ADMIN users
+              // 2. Any non-FREE tier subscription
+              userData?.role === 'ADMIN' || 
+              (userData?.currentTierId && userData?.currentTierId !== SubscriptionTier.FREE)
+                ? 0 
+                : downloadCount
+            }
             downloadingTemplate={downloadingTemplate}
             onUpgradeClick={() => setShowPricingModal(true)}
           />
