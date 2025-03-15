@@ -9,7 +9,7 @@ import { Template, useTemplates } from "@/hooks/queries/use-templates";
 import { cn } from "@/lib/utils";
 import { VideoJob } from "@/types/listing-types";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SubscriptionTierId } from "@/types/prisma-types";
 
 export interface JobProgress {
@@ -88,11 +88,18 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
     useTemplates();
   const isLoading = isLoadingProps || isLoadingTemplates;
 
-  // Only show the progress bar when we have actual job progress data or active jobs or when we're generating
-  if (
-    isLoading &&
-    (jobProgress || (activeJobs && activeJobs.length > 0) || isGenerating)
-  ) {
+  // State to track if we've detected active jobs and should show progress UI
+  const [showProgressUI, setShowProgressUI] = useState(false);
+  
+  // Effect to detect active jobs and commit to showing progress UI
+  useEffect(() => {
+    if (jobProgress || (activeJobs && activeJobs.length > 0) || isGenerating) {
+      setShowProgressUI(true);
+    }
+  }, [jobProgress, activeJobs, isGenerating]);
+
+  // If we're still loading, show an appropriate loading UI
+  if (isLoading) {
     // Calculate estimated time based on active jobs
     const estimateRemainingTime = () => {
       // If we have active jobs, use their count to estimate time
@@ -128,69 +135,78 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({
       return 12; // More realistic starting percentage than 8%
     };
 
-    const progressValue = jobProgress
-      ? jobProgress.progress
-      : estimateProgress();
-    const remainingMinutes = jobProgress
-      ? Math.ceil((100 - progressValue) / 15) // Rough estimate: 15% per minute
-      : estimateRemainingTime();
+    // If we've detected active jobs or have committed to showing progress UI
+    if (showProgressUI || jobProgress || (activeJobs && activeJobs.length > 0) || isGenerating) {
+      const progressValue = jobProgress
+        ? jobProgress.progress
+        : estimateProgress();
+      const remainingMinutes = jobProgress
+        ? Math.ceil((100 - progressValue) / 15) // Rough estimate: 15% per minute
+        : estimateRemainingTime();
 
+      return (
+        <div className='w-full max-w-4xl mx-auto p-6 bg-gray-50 rounded-lg shadow-sm transition-opacity duration-300 ease-in-out'>
+          <div className='mb-8'>
+            <h2 className='text-3xl font-bold mb-2'>Your video</h2>
+            <div className='flex items-center justify-between mb-2'>
+              <p className='text-2xl font-bold'>{progressValue}%</p>
+              <div className='flex items-center'>
+                <span className='text-gray-600 mr-2'>
+                  Notify me when it's ready
+                </span>
+                <div className='relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full'>
+                  <input
+                    type='checkbox'
+                    id='notify-toggle'
+                    checked={notifyWhenReady}
+                    onChange={() => setNotifyWhenReady(!notifyWhenReady)}
+                    className='absolute w-6 h-6 transition duration-200 ease-in-out transform bg-white border-4 rounded-full appearance-none cursor-pointer border-gray-300 checked:border-blue-500 checked:translate-x-full focus:outline-none'
+                    aria-label='Notify me when video is ready'
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setNotifyWhenReady(!notifyWhenReady);
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor='notify-toggle'
+                    className='block w-full h-full overflow-hidden rounded-full cursor-pointer bg-gray-300'
+                  ></label>
+                </div>
+              </div>
+            </div>
+            <div className='mb-2'>
+              <Progress value={progressValue} className='h-2 bg-gray-200' />
+            </div>
+            <p className='text-gray-600'>
+              {jobProgress ? getProgressMessage(jobProgress) : "Analyzing video"}.
+              {remainingMinutes} {remainingMinutes === 1 ? "minute" : "minutes"}{" "}
+              remaining. You can leave this page, we will email you when it's
+              ready!
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // If no active jobs detected yet, show a skeleton loading UI that resembles the progress UI
     return (
-      <div className='w-full max-w-4xl mx-auto p-6 bg-gray-50 rounded-lg shadow-sm'>
+      <div className='w-full max-w-4xl mx-auto p-6 bg-gray-50 rounded-lg shadow-sm transition-opacity duration-300 ease-in-out'>
         <div className='mb-8'>
           <h2 className='text-3xl font-bold mb-2'>Your video</h2>
           <div className='flex items-center justify-between mb-2'>
-            <p className='text-2xl font-bold'>{progressValue}%</p>
+            <div className='w-16 h-8 bg-gray-200 rounded animate-pulse'></div>
             <div className='flex items-center'>
-              <span className='text-gray-600 mr-2'>
-                Notify me when it's ready
-              </span>
-              <div className='relative inline-block w-10 h-6 transition duration-200 ease-in-out rounded-full'>
-                <input
-                  type='checkbox'
-                  id='notify-toggle'
-                  checked={notifyWhenReady}
-                  onChange={() => setNotifyWhenReady(!notifyWhenReady)}
-                  className='absolute w-6 h-6 transition duration-200 ease-in-out transform bg-white border-4 rounded-full appearance-none cursor-pointer border-gray-300 checked:border-blue-500 checked:translate-x-full focus:outline-none'
-                  aria-label='Notify me when video is ready'
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setNotifyWhenReady(!notifyWhenReady);
-                    }
-                  }}
-                />
-                <label
-                  htmlFor='notify-toggle'
-                  className='block w-full h-full overflow-hidden rounded-full cursor-pointer bg-gray-300'
-                ></label>
-              </div>
+              <div className='w-40 h-6 bg-gray-200 rounded animate-pulse mr-2'></div>
+              <div className='w-10 h-6 bg-gray-300 rounded-full'></div>
             </div>
           </div>
           <div className='mb-2'>
-            <Progress value={progressValue} className='h-2 bg-gray-200' />
+            <div className='h-2 bg-gray-200 rounded-full w-full'></div>
           </div>
-          <p className='text-gray-600'>
-            {jobProgress ? getProgressMessage(jobProgress) : "Analyzing video"}.
-            {remainingMinutes} {remainingMinutes === 1 ? "minute" : "minutes"}{" "}
-            remaining. You can leave this page, we will email you when it's
-            ready!
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show a simple loading state when templates are loading but we don't have job progress data
-  if (isLoading) {
-    return (
-      <div className='w-full max-w-4xl mx-auto p-6 flex justify-center items-center'>
-        <div className='flex items-center justify-center'>
-          <Loader2 className='w-6 h-6 animate-spin text-gray-500 mr-2' />
-          <span className='text-gray-600 font-medium'>
-            Loading templates...
-          </span>
+          <div className='w-full h-6 bg-gray-200 rounded animate-pulse'></div>
         </div>
       </div>
     );
