@@ -57,11 +57,15 @@ export async function makeBackendRequest<T>(
       )}...`
     );
 
+    // Add origin header if we're in a browser environment
+    const originHeader = typeof window !== 'undefined' ? window.location.origin : undefined;
+    
     const response = await fetch(url, {
       method,
       headers: {
         Authorization: `Bearer ${sessionToken}`,
         "Content-Type": "application/json",
+        ...(originHeader ? { 'Origin': originHeader } : {}),
         ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,

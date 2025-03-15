@@ -24,7 +24,11 @@ export const useJobProgress = (jobId?: string, pollingInterval = 3000) => {
 
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/jobs/${jobId}/progress`);
+        const response = await fetch(`/api/jobs/${jobId}/progress`, {
+          headers: {
+            'Origin': window.location.origin,
+          }
+        });
         if (!response.ok) {
           throw new Error(`Error: ${response.status}`);
         }

@@ -17,10 +17,19 @@ async function getJobProgress(
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[JOB_PROGRESS_ERROR]", error);
+    // Type guard for AuthError or ApiError which have statusCode
+    const isApiError = error && typeof error === 'object' && 'statusCode' in error;
+    const statusCode = isApiError ? (error as { statusCode: number }).statusCode : 500;
+    
+    console.error("[JOB_PROGRESS_ERROR]", error, {
+      backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
+      jobId: params ? (await params).jobId : undefined,
+      statusCode: statusCode,
+    });
+    
     return new NextResponse(
       error instanceof Error ? error.message : "Failed to fetch job progress",
-      { status: 500 }
+      { status: statusCode }
     );
   }
 }
