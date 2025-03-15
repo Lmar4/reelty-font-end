@@ -29,37 +29,47 @@ async function getJobProgress(
     console.log(`[JOB_PROGRESS] Successfully fetched progress for job ${jobId}`);
     return NextResponse.json(data);
   } catch (error) {
-    // Type guard for AuthError or ApiError which have statusCode
-    const isApiError = error && typeof error === 'object' && 'statusCode' in error;
-    const statusCode = isApiError ? (error as { statusCode: number }).statusCode : 500;
-    
     // Enhanced error logging with more context
     const jobId = params ? (await params).jobId : undefined;
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     
-    console.error("[JOB_PROGRESS_ERROR]", error, {
+    // Type guard for AuthError or ApiError which have statusCode
+    const isApiError = error && typeof error === 'object' && 'statusCode' in error;
+    const statusCode = isApiError ? (error as { statusCode: number }).statusCode : 500;
+    
+    // Check if error message contains HTML (indicating raw error response)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const containsHtml = errorMessage.includes('<!DOCTYPE html>') || errorMessage.includes('<html');
+    
+    // Log error with enhanced context
+    console.error("[JOB_PROGRESS_ERROR]", {
+      error: containsHtml ? 'HTML Error Response' : error,
       backendUrl,
       jobId,
       statusCode,
       endpoint: jobId ? `/jobs/${jobId}/progress` : undefined,
       fullUrl: jobId ? `${backendUrl}/jobs/${jobId}/progress` : undefined,
+      isHtmlError: containsHtml
     });
     
-    // For 404 errors, return a more graceful fallback response
-    if (statusCode === 404) {
-      console.log(`[JOB_PROGRESS] Job ${jobId} not found, returning fallback response`);
+    // For 404 errors or HTML responses (which likely indicate 404), return a graceful fallback
+    if (statusCode === 404 || containsHtml) {
+      console.log(`[JOB_PROGRESS] Job ${jobId} not found or invalid response, returning fallback`);
       return NextResponse.json({
         stage: "runway",
         progress: 0,
         message: "Initializing job...",
         error: "Job not found or still initializing"
-      }, { status: 200 }); // Return 200 with fallback data instead of 404
+      }, { status: 200 }); // Return 200 with fallback data
     }
     
-    return new NextResponse(
-      error instanceof Error ? error.message : "Failed to fetch job progress",
-      { status: statusCode }
-    );
+    // For other errors, return a clean error response
+    return NextResponse.json({
+      error: containsHtml ? "Failed to fetch job progress" : errorMessage,
+      stage: "error",
+      progress: 0,
+      message: "Error fetching job progress"
+    }, { status: statusCode });
   }
 }
 
