@@ -56,6 +56,8 @@ function useListingData(
   userData: UserData | undefined;
   listing: ExtendedListing | undefined;
   isLoading: boolean;
+  isUserLoaded: boolean;
+  isUserDataLoading: boolean;
   error: Error | undefined;
 } {
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -112,6 +114,8 @@ function useListingData(
     userData,
     listing,
     isLoading,
+    isUserLoaded,
+    isUserDataLoading,
     error: userDataError || listingError || undefined,
   };
 }
@@ -139,6 +143,8 @@ export function ListingClient({
     userData,
     listing,
     isLoading: isLoadingInitial,
+    isUserLoaded,
+    isUserDataLoading,
     error: loadingError,
   } = useListingData(listingId, initialListing);
 
@@ -613,38 +619,56 @@ export function ListingClient({
 
         {/* Templates and Videos Section with loading states */}
         <div className='space-y-8'>
-          <TemplateGridWithProgress
-            videoJobs={videoJobs}
-            photos={photoStatus?.data?.photos || []}
-            isLoading={isLoading}
-            userTier={
-              // Priority order for determining user tier:
-              // 1. ADMIN users always get the highest tier
-              // 2. Use currentTierId from user data (most reliable)
-              // 3. Try the nested activeSubscription.tier.tierId path
-              // 4. Default to FREE tier if nothing else is available
-              userData?.role === 'ADMIN' 
-                ? SubscriptionTier.REELTY_PRO_PLUS
-                : userData?.currentTierId ||
-                  userData?.activeSubscription?.tier?.tierId ||
-                  SubscriptionTier.FREE
-            }
-            activeJobs={activeJobs}
-            onGenerateVideo={handleVideoGeneration}
-            onDownload={handleDownload}
-            isGenerating={isGeneratingVideo}
-            downloadCount={
-              // Disable download limits for:
-              // 1. ADMIN users
-              // 2. Any non-FREE tier subscription
-              userData?.role === 'ADMIN' || 
-              (userData?.currentTierId && userData?.currentTierId !== SubscriptionTier.FREE)
-                ? 0 
-                : downloadCount
-            }
-            downloadingTemplate={downloadingTemplate}
-            onUpgradeClick={() => setShowPricingModal(true)}
-          />
+          {/* Only render TemplateGrid when we have user data to prevent permission flashing */}
+          {(!isUserLoaded || isUserDataLoading) ? (
+            <div className='w-full max-w-4xl mx-auto p-6 bg-gray-50 rounded-lg shadow-sm'>
+              <div className='animate-pulse space-y-4'>
+                <div className='h-8 bg-gray-200 rounded w-1/4'></div>
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className='space-y-3'>
+                      <div className='h-48 bg-gray-200 rounded'></div>
+                      <div className='h-4 bg-gray-200 rounded w-3/4'></div>
+                      <div className='h-8 bg-gray-200 rounded'></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <TemplateGridWithProgress
+              videoJobs={videoJobs}
+              photos={photoStatus?.data?.photos || []}
+              isLoading={isLoadingPhotoStatus || isGeneratingVideo}
+              userTier={
+                // Priority order for determining user tier:
+                // 1. ADMIN users always get the highest tier
+                // 2. Use currentTierId from user data (most reliable)
+                // 3. Try the nested activeSubscription.tier.tierId path
+                // 4. Default to FREE tier if nothing else is available
+                userData?.role === 'ADMIN' 
+                  ? SubscriptionTier.REELTY_PRO_PLUS
+                  : userData?.currentTierId ||
+                    userData?.activeSubscription?.tier?.tierId ||
+                    SubscriptionTier.FREE
+              }
+              activeJobs={activeJobs}
+              onGenerateVideo={handleVideoGeneration}
+              onDownload={handleDownload}
+              isGenerating={isGeneratingVideo}
+              downloadCount={
+                // Disable download limits for:
+                // 1. ADMIN users
+                // 2. Any non-FREE tier subscription
+                userData?.role === 'ADMIN' || 
+                (userData?.currentTierId && userData?.currentTierId !== SubscriptionTier.FREE)
+                  ? 0 
+                  : downloadCount
+              }
+              downloadingTemplate={downloadingTemplate}
+              onUpgradeClick={() => setShowPricingModal(true)}
+            />
+          )}
         </div>
 
         <PropertySettingsModal
